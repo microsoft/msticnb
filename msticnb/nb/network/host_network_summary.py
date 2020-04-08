@@ -15,7 +15,11 @@ from msticpy.sectools import GeoLiteLookup
 from msticpy.common.utility import md
 
 from ...common import (
-    Notebooklet, NotebookletResult, TimeSpan, NotebookletException, NBMetaData
+    Notebooklet,
+    NotebookletResult,
+    TimeSpan,
+    NotebookletException,
+    NBMetaData,
 )
 
 # __all__ = [HostSummary]
@@ -55,7 +59,7 @@ class HostNetworkSummary(Notebooklet):
         description="Host network summary",
         options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_data"],
         keywords=["host", "computer", "heartbeat", "windows", "linux"],
-        entity_types=["host"]
+        entity_types=["host"],
     )
 
     def run(
@@ -127,7 +131,7 @@ class HostNetworkSummary(Notebooklet):
             description="Host Summary",
             host_entity=host_entity,
             related_alerts=related_alerts,
-            related_bookmarks=related_bookmarks
+            related_bookmarks=related_bookmarks,
         )
 
 
@@ -245,7 +249,8 @@ def _get_related_alerts(qry_prov, timespan, host_name):
             nbdisplay.display_timeline(
                 data=related_alerts,
                 title="Related Alerts",
-                source_columns=["AlertName", ""], height=200
+                source_columns=["AlertName", ""],
+                height=200,
             )
     else:
         md("No related alerts found.")
@@ -258,7 +263,5 @@ def _get_related_bookmarks(qry_prov, timespan, host_name):
     )
 
     if not host_bkmks.empty:
-        md(
-            f"{len(host_bkmks)} investigation bookmarks found for this host.", "bold"
-        )
+        md(f"{len(host_bkmks)} investigation bookmarks found for this host.", "bold")
     return host_bkmks

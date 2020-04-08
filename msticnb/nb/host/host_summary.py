@@ -12,9 +12,14 @@ from msticpy.nbtools import nbwidgets, nbdisplay
 from msticpy.nbtools import entities
 from msticpy.sectools import GeoLiteLookup
 from msticpy.common.utility import md
+from azure.common.exceptions import CloudError
 
 from ...common import (
-    Notebooklet, NotebookletResult, TimeSpan, NotebookletException, NBMetaData
+    Notebooklet,
+    NotebookletResult,
+    TimeSpan,
+    NotebookletException,
+    NBMetaData,
 )
 
 # __all__ = [HostSummary]
@@ -44,9 +49,9 @@ class HostSummary(Notebooklet):
     metadata = NBMetaData(
         name=__name__,
         description="Host summary",
-        options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_data"],
-        keywords=["host", "computer", "heartbeat", "windows", "linux"],
-        entity_types=["host"]
+        options=["heartbeat", "azure_net", "alerts", "bookmarks"],
+        keywords=["host", "computer", "heartbeat", "windows", "linux", "azure"],
+        entity_types=["host"],
     )
 
     def run(
@@ -85,15 +90,16 @@ class HostSummary(Notebooklet):
         """
         del data
 
+        related_alerts = None
+        related_bookmarks = None
+
         if not value:
             raise NotebookletException("parameter 'value' is required.")
         if not timespan:
             raise NotebookletException("parameter 'timespan' is required.")
-
         if options:
             self.options = list(options)
-        host_name, verified = _verify_host_name(
-            self.query_provider, timespan, value)
+        host_name, verified = _verify_host_name(self.query_provider, timespan, value)
         if not verified:
             md(f"Could not verify host name {value}. Results may not be reliable.")
 
@@ -109,6 +115,22 @@ class HostSummary(Notebooklet):
             related_alerts = _get_related_alerts(
                 self.query_provider, timespan, host_name
             )
+        # If azure_details flag is set, ann encrichment provider is given, and the resource is an Azure host get resource details from Azure API
+        if (
+            "azure_api" in self.options
+            and "azure_data" in self.enrichment_providers
+            and host_entity.Environment == "Azure"
+        ):
+            azure_data = _azure_api_details(
+                self.enrichment_providers["azure_data"], host_entity
+            )
+            if azure_data:
+                host_entity.AzureDetails["ResourceDetails"] = azure_data[
+                    "resoure_details"
+                ]
+                host_entity.AzureDetails["SubscriptionDetails"] = azure_data[
+                    "sub_details"
+                ]
 
         if "bookmarks" in self.options:
             related_bookmarks = _get_related_bookmarks(
@@ -119,8 +141,60 @@ class HostSummary(Notebooklet):
             description="Host Summary",
             host_entity=host_entity,
             related_alerts=related_alerts,
-            related_bookmarks=related_bookmarks
+            related_bookmarks=related_bookmarks,
         )
+
+
+# Get Azure Resource details from API
+def _azure_api_details(az, host_record):
+    try:
+        # Get subscription details
+        sub_details = az.get_subscription_info(
+            host_record.AzureDetails["SubscriptionId"]
+        )
+        # Get resource details
+        resource_details = az.get_resource_details(
+            resource_id=host_record.AzureDetails["ResourceId"],
+            sub_id=host_record.AzureDetails["SubscriptionId"],
+        )
+        # Get details of attached disks and network interfaces
+        disks = [
+            disk["name"]
+            for disk in resource_details["properties"]["storageProfile"]["dataDisks"]
+        ]
+        network_ints = [
+            net["id"]
+            for net in resource_details["properties"]["networkProfile"][
+                "networkInterfaces"
+            ]
+        ]
+        image = (
+            str(
+                resource_details["properties"]["storageProfile"]["imageReference"][
+                    "offer"
+                ]
+            )
+            + " "
+            + str(
+                resource_details["properties"]["storageProfile"]["imageReference"][
+                    "sku"
+                ]
+            )
+        )
+        # Extract key details and add host_entity
+        resource_details = {
+            "Azure Location": resource_details["location"],
+            "VM Size": resource_details["properties"]["hardwareProfile"]["vmSize"],
+            "Image": image,
+            "Disks": disks,
+            "Admin User": resource_details["properties"]["osProfile"]["adminUsername"],
+            "Network Interfaces": network_ints,
+            "Tags": str(resource_details["tags"]),
+        }
+        azure_data = {"resoure_details": resource_details, "sub_details": sub_details}
+        return azure_data
+    except CloudError:
+        return None
 
 
 # %%
@@ -130,35 +204,30 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
     host_names: List[str] = []
     # Get single event - try process creation
     if "SecurityEvent" in qry_prov.schema_tables:
-        sec_event_host = """
+        sec_event_host = f"""
             SecurityEvent
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
+            | where Computer has "{host_name}"
             | distinct Computer
              """
-        win_hosts_df = qry_prov.exec_query(sec_event_host.format(
-            start=timespan.start, end=timespan.end, host=host_name
-        ))
+        win_hosts_df = qry_prov.exec_query(sec_event_host)
         if win_hosts_df is not None and not win_hosts_df.empty:
             host_names.extend(win_hosts_df["Computer"].to_list())
-
     if "Syslog" in qry_prov.schema_tables:
-        syslog_host = """
+        syslog_host = f"""
             Syslog
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
+            | where Computer has "{host_name}"
             | distinct Computer
             """
-        lx_hosts_df = qry_prov.exec_query(syslog_host.format(
-            start=timespan.start, end=timespan.end, host=host_name
-        ))
+        lx_hosts_df = qry_prov.exec_query(syslog_host)
         if lx_hosts_df is not None and not lx_hosts_df.empty:
             host_names.extend(lx_hosts_df["Computer"].to_list())
 
     if len(host_names) > 1:
         print(
             f"Multiple matches for '{host_name}'.",
-            "Please select a host from the list."
+            "Please select a host from the list.",
         )
         host_select = nbwidgets.SelectString(
             item_list=list(host_names),
@@ -167,18 +236,18 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
         )
         return host_select, True
     if not host_names:
-        print(f"Unique host found: {host_names[0]}")
-        return host_names[0], True
+        print(f"Host not found: {host_name}")
+        return host_name, False
 
-    print(f"Host not found: {host_name}")
-    return host_name, False
+    print(f"Unique host found: {host_names[0]}")
+    return host_names[0], True
 
 
 # %%
 # Get IP Information
 def _get_heartbeat(qry_prov, host_name):
     host_entity = entities.Host(HostName=host_name)
-    if "HeartBeat" in qry_prov.schema_tables:
+    if "Heartbeat" in qry_prov.schema_tables:
         print(f"Looking for {host_name} in OMS Heartbeat data...")
         host_hb_df = qry_prov.Network.get_heartbeat_for_host(host_name=host_name)
         if not host_hb_df.empty:
@@ -194,7 +263,16 @@ def _get_heartbeat(qry_prov, host_name):
                 sol.strip() for sol in host_hb["Solutions"].split(",")
             ]
             host_entity.VMUUID = host_hb["VMUUID"]
-
+            host_entity.Environment = host_hb["ComputerEnvironment"]
+            if host_entity.Environment == "Azure":
+                host_entity.AzureDetails = {
+                    "SubscriptionId": host_hb["SubscriptionId"],
+                    "ResourceProvider": host_hb["ResourceProvider"],
+                    "ResourceType": host_hb["ResourceType"],
+                    "ResourceGroup": host_hb["ResourceGroup"],
+                    "ResourceId": host_hb["ResourceId"],
+                    "Solutions": host_hb["Solutions"],
+                }
             ip_entity = entities.IpAddress()
             ip_entity.Address = host_hb["ComputerIP"]
             geoloc_entity = entities.GeoLocation()
@@ -267,7 +345,8 @@ def _get_related_alerts(qry_prov, timespan, host_name):
             nbdisplay.display_timeline(
                 data=related_alerts,
                 title="Related Alerts",
-                source_columns=["AlertName", ""], height=200
+                source_columns=["AlertName", ""],
+                height=200,
             )
     else:
         md("No related alerts found.")
@@ -280,7 +359,5 @@ def _get_related_bookmarks(qry_prov, timespan, host_name):
     )
 
     if not host_bkmks.empty:
-        md(
-            f"{len(host_bkmks)} investigation bookmarks found for this host.", "bold"
-        )
+        md(f"{len(host_bkmks)} investigation bookmarks found for this host.", "bold")
     return host_bkmks

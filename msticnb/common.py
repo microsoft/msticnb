@@ -82,7 +82,7 @@ class TimeSpan:
             else:
                 raise NotebookletException(
                     "'period' must be a pandas-compatible time period string",
-                    " or Python timedelta."
+                    " or Python timedelta.",
                 )
 
         if end is None:
@@ -92,9 +92,7 @@ class TimeSpan:
         elif isinstance(end, datetime):
             self.end = end
         else:
-            raise NotebookletException(
-                "'end' must be a datetime or a datetime string."
-            )
+            raise NotebookletException("'end' must be a datetime or a datetime string.")
         if start is None and self.period:
             self.start = self.end - self.period
         elif isinstance(start, str):
@@ -111,12 +109,12 @@ class Notebooklet(ABC):
     """Base class for Notebooklets."""
 
     metadata: NBMetaData = NBMetaData(
-        name="Notebooklet",
-        description="Base class",
-
+        name="Notebooklet", description="Base class",
     )
 
-    def __init__(self, query_provider: QueryProvider, **kwargs):
+    def __init__(
+        self, query_provider: QueryProvider, enrichment_providers: dict = None, **kwargs
+    ):
         """
         Intialize a new instance of the notebooklet class.
 
@@ -125,9 +123,11 @@ class Notebooklet(ABC):
         query_provider : QueryProvider
             Optional query_provider instance to query data.
             Most classes require this.
+        
 
         """
         self.query_provider = query_provider
+        self.enrichment_providers = enrichment_providers
         self._kwargs = kwargs
         self.result = None
         self.options = self.all_options

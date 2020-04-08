@@ -24,15 +24,17 @@ def discover_modules():
     # iterate through folder
     nb_folder = Path(__file__).parent / "nb"
     folders = [
-        f for f in nb_folder.glob("./**") if f.is_dir()
-        and not str(f).startswith(".")
-        and not f == nb_folder
+        f
+        for f in nb_folder.glob("./**")
+        if f.is_dir() and not str(f).startswith(".") and not f == nb_folder
     ]
     for folder in folders:
         rel_folder_parts = folder.relative_to(nb_folder).parts
         cur_container = _get_container(rel_folder_parts)
         for nb_class in _search_folder(folder):
-            setattr(cur_container, nb_class.__name__, )
+            setattr(
+                cur_container, nb_class.__name__,
+            )
 
 
 def _search_folder(folder):
@@ -50,7 +52,7 @@ def _search_folder(folder):
                     print("notebooklet subclass", mod_class.__name__)
                     found_classes[cls_name] = mod_class
                 if (
-                    issubclass(mod_class, NotebookletResult) 
+                    issubclass(mod_class, NotebookletResult)
                     and not mod_class == NotebookletResult
                 ):
                     print("notebooklet result subclass", mod_class.__name__)
