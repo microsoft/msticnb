@@ -13,6 +13,7 @@ from msticpy.nbtools import nbwidgets, nbdisplay
 from msticpy.nbtools import entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities, create_ip_record
 from msticpy.common.utility import md
+from azure.common.exceptions import CloudError
 
 from ...common import TimeSpan, NotebookletException
 from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
@@ -124,6 +125,22 @@ class HostSummary(Notebooklet):
             related_alerts = _get_related_alerts(
                 self.query_provider, timespan, host_name
             )
+        # If azure_details flag is set, ann encrichment provider is given, and the resource is an Azure host get resource details from Azure API
+        if (
+            "azure_api" in self.options
+            and "azure_data" in self.enrichment_providers
+            and host_entity.Environment == "Azure"
+        ):
+            azure_data = _azure_api_details(
+                self.enrichment_providers["azure_data"], host_entity
+            )
+            if azure_data:
+                host_entity.AzureDetails["ResourceDetails"] = azure_data[
+                    "resoure_details"
+                ]
+                host_entity.AzureDetails["SubscriptionDetails"] = azure_data[
+                    "sub_details"
+                ]
 
         if "bookmarks" in self.options:
             related_bookmarks = _get_related_bookmarks(
@@ -137,6 +154,58 @@ class HostSummary(Notebooklet):
             related_bookmarks=related_bookmarks,
         )
         return self._last_result
+
+
+# Get Azure Resource details from API
+def _azure_api_details(az, host_record):
+    try:
+        # Get subscription details
+        sub_details = az.get_subscription_info(
+            host_record.AzureDetails["SubscriptionId"]
+        )
+        # Get resource details
+        resource_details = az.get_resource_details(
+            resource_id=host_record.AzureDetails["ResourceId"],
+            sub_id=host_record.AzureDetails["SubscriptionId"],
+        )
+        # Get details of attached disks and network interfaces
+        disks = [
+            disk["name"]
+            for disk in resource_details["properties"]["storageProfile"]["dataDisks"]
+        ]
+        network_ints = [
+            net["id"]
+            for net in resource_details["properties"]["networkProfile"][
+                "networkInterfaces"
+            ]
+        ]
+        image = (
+            str(
+                resource_details["properties"]["storageProfile"]["imageReference"][
+                    "offer"
+                ]
+            )
+            + " "
+            + str(
+                resource_details["properties"]["storageProfile"]["imageReference"][
+                    "sku"
+                ]
+            )
+        )
+        # Extract key details and add host_entity
+        resource_details = {
+            "Azure Location": resource_details["location"],
+            "VM Size": resource_details["properties"]["hardwareProfile"]["vmSize"],
+            "Image": image,
+            "Disks": disks,
+            "Admin User": resource_details["properties"]["osProfile"]["adminUsername"],
+            "Network Interfaces": network_ints,
+            "Tags": str(resource_details["tags"]),
+        }
+        azure_data = {"resoure_details": resource_details, "sub_details": sub_details}
+        return azure_data
+    except CloudError:
+        return None
 
 
 # %%
