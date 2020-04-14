@@ -4,40 +4,85 @@
 # license information.
 # --------------------------------------------------------------------------
 """read_modules - handles reading noebooklets modules."""
-from collections import defaultdict
 import importlib
 import inspect
+from operator import itemgetter
 from pathlib import Path
-from typing import Iterable, List, Set, Tuple
-
-from msticpy.data.data_providers import AttribHolder
+from typing import Iterable, Tuple, Dict, List, Union
 
 from . import nb
-from .common import Notebooklet, NotebookletResult, NotebookletException
+from .common import NBContainer, NotebookletException
+from .notebooklet import Notebooklet
+
+from ._version import VERSION
+
+__version__ = VERSION
+__author__ = "Ian Hellen"
+
+notebooklets: NBContainer = NBContainer()
+nb_index: Dict[str, Notebooklet] = {}
 
 
-_nb_list: List[AttribHolder] = []
-_nb_index: defaultdict = defaultdict(set)
+def discover_modules(path: Union[str, Iterable[str]] = None) -> NBContainer:
+    """
+    Discover notebooks modules.
+
+    Parameters
+    ----------
+    path : Union[str, Iterable[str]], optional
+        Additional p, by default None
+
+    Returns
+    -------
+    NBContainer
+        Container of notebooklets. This is structured
+        as a tree mirroring the source folder names.
+    """
+    # pylint: disable=global-statement, invalid-name
+    global notebooklets
+    # pylint: enable=global-statement, invalid-name
+
+    notebooklets = NBContainer()
+
+    pkg_folder = Path(__file__).parent / "nb"
+    _import_from_folder(pkg_folder)
+
+    if not path:
+        return notebooklets
+    if isinstance(path, str):
+        _import_from_folder(Path(path))
+    elif isinstance(path, list):
+        for path_item in path:
+            _import_from_folder(Path(path_item))
+    return notebooklets
 
 
-def discover_modules():
-    # iterate through folder
-    nb_folder = Path(__file__).parent / "nb"
-    folders = [
-        f for f in nb_folder.glob("./**") if f.is_dir()
-        and not str(f).startswith(".")
-        and not f == nb_folder
-    ]
+def _import_from_folder(nb_folder: Path):
+    if not nb_folder.is_dir():
+        raise NotebookletException(f"Notebooklet folder {nb_folder} not found.")
+
+    folders = [f for f in nb_folder.glob("./**") if f.is_dir() and not f == nb_folder]
     for folder in folders:
         rel_folder_parts = folder.relative_to(nb_folder).parts
+        # skip hidden folder paths with . or _ prefix
+        if any([f for f in rel_folder_parts if f.startswith(".") or f.startswith("_")]):
+            continue
+
+        nb_classes = _find_cls_modules(folder)
+        if not nb_classes:
+            continue
         cur_container = _get_container(rel_folder_parts)
-        for nb_class in _search_folder(folder):
-            setattr(cur_container, nb_class.__name__, )
+        for cls_name, nb_class in nb_classes.items():
+            setattr(cur_container, cls_name, nb_class)
+            cls_index = ".".join(list(rel_folder_parts) + [cls_name])
+            nb_index[cls_index] = nb_class
 
 
-def _search_folder(folder):
+def _find_cls_modules(folder):
     found_classes = {}
     for item in folder.glob("*.py"):
+        if item.name.startswith("_"):
+            continue
         if item.is_file():
             mod_name = "." + ".".join(list(folder.parts[-1:]) + [item.stem])
             try:
@@ -47,45 +92,56 @@ def _search_folder(folder):
             mod_classes = inspect.getmembers(imp_module, inspect.isclass)
             for cls_name, mod_class in mod_classes:
                 if issubclass(mod_class, Notebooklet) and not mod_class == Notebooklet:
-                    print("notebooklet subclass", mod_class.__name__)
                     found_classes[cls_name] = mod_class
-                if (
-                    issubclass(mod_class, NotebookletResult) 
-                    and not mod_class == NotebookletResult
-                ):
-                    print("notebooklet result subclass", mod_class.__name__)
-                    found_classes[cls_name] = mod_class
+                # if (
+                #     issubclass(mod_class, NotebookletResult)
+                #     and not mod_class == NotebookletResult
+                # ):
+                #     print("notebooklet result subclass", mod_class.__name__)
+                #     found_classes[cls_name] = mod_class
         else:
             print("ignored", item)
     return found_classes
 
 
-def _get_class_metadata(nb_class):
-    cls_metadata = getattr(nb_class, "metadata", None)
-    if not cls_metadata:
-        raise NotebookletException(f"No metadata found for class {nb_class.__name__}")
-
-    for term in cls_metadata.search_terms:
-        _nb_index[term].add(nb_class)
-
-
-def _get_container(path_parts: Tuple) -> AttribHolder:
-    cur_container = _nb_list
+def _get_container(path_parts: Tuple[str, ...]) -> NBContainer:
+    cur_container = notebooklets
     for path_item in path_parts:
-        child_item = getattr(cur_container, path_item)
+        child_item = getattr(cur_container, path_item, None)
         if not child_item:
-            child_item = AttribHolder()
+            child_item = NBContainer()
             setattr(cur_container, path_item, child_item)
         cur_container = child_item
     return cur_container
 
 
-def find_nbs(keywords: Iterable[str]):
-    # search metadata
-    # keep track of how many hits for each keyword
-    # order results by hits
-    matching_nbs: Set[Notebooklet] = set()
-    for keyword in keywords:
-        matching_nbs.update(_nb_index.get(keyword, []))
+def find_nbs(keywords: str) -> List[Tuple[bool, int, str, Notebooklet]]:
+    """
+    Search for Notebooklets matching key words.
 
-    return matching_nbs
+    Parameters
+    ----------
+    keywords : str
+        Space or comma-separated words to search for.
+        Terms can be regular expressions.
+
+    Returns
+    -------
+    List[Tuple[bool, int, str, Notebooklet]]
+        List of matches sorted by closest match
+
+    Notes
+    -----
+    Search terms are treated as regular expressions, so any regular
+    expression reserved characters will be treated as part of the
+    regex pattern.
+
+    """
+    matches = []
+    for name, nb_class in notebooklets.iter_classes():
+        full_match, match_count = nb_class.match_terms(keywords)
+        if match_count:
+            matches.append((full_match, match_count, name, nb_class))
+
+    # return list sorted by full_match, then match count, highest to lowest
+    return sorted(matches, key=itemgetter(0, 1), reverse=True)

@@ -8,20 +8,23 @@ from typing import Any, Optional, Iterable, List, Tuple
 
 import attr
 import pandas as pd
+from msticpy.data import QueryProvider
 from msticpy.nbtools import nbwidgets, nbdisplay
 from msticpy.nbtools import entities
-from msticpy.sectools import GeoLiteLookup
+from msticpy.sectools.ip_utils import convert_to_ip_entities, create_ip_record
 from msticpy.common.utility import md
 
-from ...common import (
-    Notebooklet, NotebookletResult, TimeSpan, NotebookletException, NBMetaData
-)
+from ...common import TimeSpan, NotebookletException
+from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
 
-# __all__ = [HostSummary]
+from ..._version import VERSION
+
+__version__ = VERSION
+__author__ = "Ian Hellen"
 
 
 @attr.s(auto_attribs=True)
-class HostResult(NotebookletResult):
+class HostSummaryResult(NotebookletResult):
     """
     Host Details Results.
 
@@ -39,14 +42,27 @@ class HostResult(NotebookletResult):
 
 
 class HostSummary(Notebooklet):
-    """HostSummary Notebooklet class."""
+    """
+
+    HostSummary Notebooklet class.
+
+    Notes
+    -----
+    Queries and displays information about a host including:
+    - IP address assignment
+    - Related alerts
+    - Related hunting/investigation bookmarks
+    - Azure subscription/resource data.
+
+    """
 
     metadata = NBMetaData(
         name=__name__,
         description="Host summary",
         options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_data"],
+        default_options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_data"],
         keywords=["host", "computer", "heartbeat", "windows", "linux"],
-        entity_types=["host"]
+        entity_types=["host"],
     )
 
     def run(
@@ -56,7 +72,7 @@ class HostSummary(Notebooklet):
         timespan: Optional[TimeSpan] = None,
         options: Optional[Iterable[str]] = None,
         **kwargs,
-    ) -> HostResult:
+    ) -> HostSummaryResult:
         """
         Return host summary data.
 
@@ -74,7 +90,7 @@ class HostSummary(Notebooklet):
 
         Returns
         -------
-        HostResult
+        HostSummaryResult
             Result object with attributes for each result type.
 
         Raises
@@ -83,26 +99,25 @@ class HostSummary(Notebooklet):
             If required parameters are missing
 
         """
-        del data
+        super().run(
+            value=value, data=data, timespan=timespan, options=options, **kwargs
+        )
 
         if not value:
             raise NotebookletException("parameter 'value' is required.")
         if not timespan:
             raise NotebookletException("parameter 'timespan' is required.")
 
-        if options:
-            self.options = list(options)
-        host_name, verified = _verify_host_name(
-            self.query_provider, timespan, value)
+        host_name, verified = _verify_host_name(self.query_provider, timespan, value)
         if not verified:
             md(f"Could not verify host name {value}. Results may not be reliable.")
 
         host_entity = None
         if "heartbeat" in self.options:
-            host_entity = _get_heartbeat(self.query_provider, host_name)
+            host_entity = get_heartbeat(self.query_provider, host_name)
         if "azure_net" in self.options:
             host_entity = host_entity or entities.Host(HostName=host_name)
-            _get_aznet_topology(
+            get_aznet_topology(
                 self.query_provider, host_entity=host_entity, host_name=host_name
             )
         if "alerts" in self.options:
@@ -115,12 +130,13 @@ class HostSummary(Notebooklet):
                 self.query_provider, timespan, host_name
             )
 
-        return HostResult(
+        self._last_result = HostSummaryResult(
             description="Host Summary",
             host_entity=host_entity,
             related_alerts=related_alerts,
-            related_bookmarks=related_bookmarks
+            related_bookmarks=related_bookmarks,
         )
+        return self._last_result
 
 
 # %%
@@ -136,9 +152,11 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
             | where Computer has {host}
             | distinct Computer
              """
-        win_hosts_df = qry_prov.exec_query(sec_event_host.format(
-            start=timespan.start, end=timespan.end, host=host_name
-        ))
+        win_hosts_df = qry_prov.exec_query(
+            sec_event_host.format(
+                start=timespan.start, end=timespan.end, host=host_name
+            )
+        )
         if win_hosts_df is not None and not win_hosts_df.empty:
             host_names.extend(win_hosts_df["Computer"].to_list())
 
@@ -149,16 +167,16 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
             | where Computer has {host}
             | distinct Computer
             """
-        lx_hosts_df = qry_prov.exec_query(syslog_host.format(
-            start=timespan.start, end=timespan.end, host=host_name
-        ))
+        lx_hosts_df = qry_prov.exec_query(
+            syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
+        )
         if lx_hosts_df is not None and not lx_hosts_df.empty:
             host_names.extend(lx_hosts_df["Computer"].to_list())
 
     if len(host_names) > 1:
         print(
             f"Multiple matches for '{host_name}'.",
-            "Please select a host from the list."
+            "Please select a host from the list.",
         )
         host_select = nbwidgets.SelectString(
             item_list=list(host_names),
@@ -176,12 +194,36 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
 
 # %%
 # Get IP Information
-def _get_heartbeat(qry_prov, host_name):
+def get_heartbeat(
+    qry_prov: QueryProvider, host_name: str = None, host_ip: str = None
+) -> entities.Host:
+    """
+    Get Heartbeat information for host or IP.
+
+    Parameters
+    ----------
+    qry_prov : QueryProvider
+        Query provider to use for queries
+    host_name : str, optional
+        Host name, by default None
+    host_ip : str, optional
+        Host IP Address, by default None
+
+    Returns
+    -------
+    Host
+        Host entity
+
+    """
     host_entity = entities.Host(HostName=host_name)
     if "HeartBeat" in qry_prov.schema_tables:
-        print(f"Looking for {host_name} in OMS Heartbeat data...")
-        host_hb_df = qry_prov.Network.get_heartbeat_for_host(host_name=host_name)
-        if not host_hb_df.empty:
+        print(f"Looking for {host_name or host_ip} in OMS Heartbeat data...")
+        host_hb_df = None
+        if host_name:
+            host_hb_df = qry_prov.Network.get_heartbeat_for_host(host_name=host_name)
+        elif host_ip:
+            host_hb_df = qry_prov.Network.get_heartbeat_for_ip(ip_address=host_ip)
+        if host_hb_df is not None and not host_hb_df.empty:
             host_hb = host_hb_df.iloc[0]
             host_entity = entities.Host(host_hb)
             host_entity.SourceComputerId = host_hb["SourceComputerId"]
@@ -195,46 +237,44 @@ def _get_heartbeat(qry_prov, host_name):
             ]
             host_entity.VMUUID = host_hb["VMUUID"]
 
-            ip_entity = entities.IpAddress()
-            ip_entity.Address = host_hb["ComputerIP"]
-            geoloc_entity = entities.GeoLocation()
-            geoloc_entity.CountryName = host_hb["RemoteIPCountry"]
-            geoloc_entity.Longitude = host_hb["RemoteIPLongitude"]
-            geoloc_entity.Latitude = host_hb["RemoteIPLatitude"]
-            ip_entity.Location = geoloc_entity
-            host_entity.IPAddress = ip_entity
+            host_entity.IPAddress = create_ip_record(heartbeat_df=host_hb_df)
 
     return host_entity
 
 
-def _to_ip_entities(ip_str):
-    iplocation = GeoLiteLookup()
-    ip_entities = []
-    if ip_str:
-        if "," in ip_str:
-            addrs = ip_str.split(",")
-        elif " " in ip_str:
-            addrs = ip_str.split(" ")
-        else:
-            addrs = [ip_str]
-        for addr in addrs:
-            ip_entity = entities.IpAddress()
-            ip_entity.Address = addr.strip()
-            iplocation.lookup_ip(ip_entity=ip_entity)
-            ip_entities.append(ip_entity)
-    return ip_entities
+def get_aznet_topology(
+    qry_prov: QueryProvider,
+    host_entity: entities.Host,
+    host_name: str = None,
+    host_ip: str = None,
+):
+    """
+    Get Azure Network topology information for host or IP address.
 
+    Parameters
+    ----------
+    qry_prov : QueryProvider
+        Query provider to use for queries
+    host_entity : Host
+        Host entity to populate data with
+    host_name : str, optional
+        Host name, by default None
+    host_ip : str, optional
+        Host IP Address, by default None
 
-def _get_aznet_topology(qry_prov, host_name, host_entity):
+    """
     if "AzureNetworkAnalytics_CL" in qry_prov.schema_tables:
-        print(f"Looking for {host_name} IP addresses in network flows...")
-        az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
+        print(f"Looking for {host_name or host_ip} IP addresses in network flows...")
+        if host_name:
+            az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
+        elif host_ip:
+            az_net_df = qry_prov.Network.host_for_ip(ip_address=host_ip)
 
         if not az_net_df.empty:
-            host_entity.private_ips = _to_ip_entities(
+            host_entity.private_ips = convert_to_ip_entities(
                 az_net_df["PrivateIPAddresses"].iloc[0]
             )
-            host_entity.public_ips = _to_ip_entities(
+            host_entity.public_ips = convert_to_ip_entities(
                 az_net_df["PublicIPAddresses"].iloc[0]
             )
         else:
@@ -242,7 +282,6 @@ def _get_aznet_topology(qry_prov, host_name, host_entity):
                 host_entity.private_ips = []
             if "public_ips" not in host_entity:
                 host_entity.public_ips = []
-    return host_entity
 
 
 # %%
@@ -267,7 +306,8 @@ def _get_related_alerts(qry_prov, timespan, host_name):
             nbdisplay.display_timeline(
                 data=related_alerts,
                 title="Related Alerts",
-                source_columns=["AlertName", ""], height=200
+                source_columns=["AlertName", ""],
+                height=200,
             )
     else:
         md("No related alerts found.")
@@ -280,7 +320,5 @@ def _get_related_bookmarks(qry_prov, timespan, host_name):
     )
 
     if not host_bkmks.empty:
-        md(
-            f"{len(host_bkmks)} investigation bookmarks found for this host.", "bold"
-        )
+        md(f"{len(host_bkmks)} investigation bookmarks found for this host.", "bold")
     return host_bkmks

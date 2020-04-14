@@ -4,42 +4,15 @@
 # license information.
 # --------------------------------------------------------------------------
 """Common definitions and classes."""
-from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Optional, Union, Any, Iterable, List, Set
+from typing import Union, Optional, Iterable, Tuple, Any
 
-import attr
-from attr import Factory
 import pandas as pd
 
-from msticpy.data import QueryProvider
+from ._version import VERSION
 
-
-@attr.s(auto_attribs=True)
-class NotebookletResult:
-    """Base result class."""
-
-    description: str
-
-
-@attr.s(auto_attribs=True)
-class NBMetaData:
-    """Notebooklet metadata class."""
-
-    name: str
-    description: str
-    options: List[str] = Factory(list)
-    entity_types: List[str] = Factory(list)
-    keywords: List[str] = Factory(list)
-
-    @property
-    def search_terms(self) -> Set[str]:
-        """Return set of search terms for the object."""
-        return set(
-            [self.name]
-            + [obj.casefold() for obj in self.entity_types]  # type: ignore
-            + [key.casefold() for key in self.keywords]  # type: ignore
-        )
+__version__ = VERSION
+__author__ = "Ian Hellen"
 
 
 class TimeSpan:
@@ -82,7 +55,7 @@ class TimeSpan:
             else:
                 raise NotebookletException(
                     "'period' must be a pandas-compatible time period string",
-                    " or Python timedelta."
+                    " or Python timedelta.",
                 )
 
         if end is None:
@@ -92,9 +65,7 @@ class TimeSpan:
         elif isinstance(end, datetime):
             self.end = end
         else:
-            raise NotebookletException(
-                "'end' must be a datetime or a datetime string."
-            )
+            raise NotebookletException("'end' must be a datetime or a datetime string.")
         if start is None and self.period:
             self.start = self.end - self.period
         elif isinstance(start, str):
@@ -107,124 +78,34 @@ class TimeSpan:
             )
 
 
-class Notebooklet(ABC):
-    """Base class for Notebooklets."""
+class NBContainer:
+    """Container for Notebooklet classes."""
 
-    metadata: NBMetaData = NBMetaData(
-        name="Notebooklet",
-        description="Base class",
+    def __len__(self):
+        """Return number of items in the attribute collection."""
+        return len(self.__dict__)
 
-    )
+    def __iter__(self):
+        """Return iterator over the attributes."""
+        return iter(self.__dict__.items())
 
-    def __init__(self, query_provider: QueryProvider, **kwargs):
-        """
-        Intialize a new instance of the notebooklet class.
+    def __repr__(self):
+        """Return list of attributes."""
+        return "\n".join(self.__dict__.keys())
 
-        Parameters
-        ----------
-        query_provider : QueryProvider
-            Optional query_provider instance to query data.
-            Most classes require this.
+    def iter_classes(self) -> Iterable[Tuple[str, Any]]:
+        """Iterate through all notebooklet classes."""
+        for key, val in self.__dict__.items():
+            if isinstance(val, NBContainer):
+                yield from val.iter_classes()
+            else:
+                yield key, val
 
-        """
-        self.query_provider = query_provider
-        self._kwargs = kwargs
-        self.result = None
-        self.options = self.all_options
 
-    @abstractmethod
-    def run(
-        self,
-        value: Any = None,
-        data: Optional[pd.DataFrame] = None,
-        timespan: Optional[TimeSpan] = None,
-        options: Optional[Iterable[str]] = None,
-        **kwargs,
-    ) -> NotebookletResult:
-        """
-        Notebooklet abstract base class.
-
-        Parameters
-        ----------
-        value : Any, optional
-            value to process, by default None
-        data : Optional[pd.DataFrame], optional
-            Input data to process, by default None
-        timespan : Optional[TimeSpan], optional
-            Timespan over , by default None
-        options :Optional[Iterable[str]], optional
-            [description], by default None
-
-        Returns
-        -------
-        NotebookletResult
-            [description]
-        """
-
-    @property
-    def name(self) -> str:
-        """
-        Return name of the Notebooklet.
-
-        Returns
-        -------
-        str
-            Name
-
-        """
-        return self.metadata.name
-
-    @property
-    def description(self) -> str:
-        """
-        Return description of the Notebooklet.
-
-        Returns
-        -------
-        str
-            Description
-
-        """
-        return self.metadata.description
-
-    @property
-    def all_options(self) -> List[str]:
-        """
-        Return supported options for Notebooklet run function.
-
-        Returns
-        -------
-        List[str]
-            Supported options.
-
-        """
-        return self.metadata.options
-
-    @property
-    def keywords(self) -> List[str]:
-        """
-        Return search keywords for Notebooklet.
-
-        Returns
-        -------
-        List[str]
-            Keywords
-
-        """
-        return self.metadata.keywords
-
-    @property
-    def entity_types(self) -> List[str]:
-        """
-        Entity types supported by the notebooklet.
-
-        Returns
-        -------
-        List[str]
-            Entity names
-
-        """
-        return self.metadata.entity_types
+def find_type_in_globals(req_type: type, last=False):
+    """Return first (or last) instance of a type if it exists in globals."""
+    found = [inst for inst in globals() if isinstance(inst, req_type)]
+    return found[0 if last else -1] if found else None
 
 
 class NotebookletException(Exception):
