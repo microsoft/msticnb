@@ -10,7 +10,7 @@ import unittest
 # import pytest
 # import warnings
 
-from ..read_modules import discover_modules, Notebooklet
+from ..read_modules import discover_modules, Notebooklet, find, nb_index
 
 
 class TestReadModules(unittest.TestCase):
@@ -27,3 +27,8 @@ class TestReadModules(unittest.TestCase):
         for key, value in nbklts.iter_classes():
             self.assertIsInstance(key, str)
             self.assertTrue(issubclass(value, Notebooklet))
+
+        find_res = find("host windows azure")
+        self.assertGreater(len(find_res), 0)
+        not_found = find("monkey stew")
+        self.assertEqual(len(not_found), 0)

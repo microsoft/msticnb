@@ -70,6 +70,7 @@ class WinHostEvents(Notebooklet):
         default_options=["event_pivot", "acct_events"],
         keywords=["host", "computer", "events", "windows", "account"],
         entity_types=["host"],
+        req_providers=["azure_sentinel"],
     )
 
     def run(

@@ -5,7 +5,7 @@
 # --------------------------------------------------------------------------
 """Common definitions and classes."""
 import inspect
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from msticpy.data import QueryProvider
 from msticpy.data.azure_data import AzureData
@@ -77,21 +77,24 @@ class DataProviders:
             A list of provider names, by default "azure_sentinel"
 
         """
-        self.providers = providers or self._default_providers
+        self.provider_names = providers or self._default_providers
+        self.providers: Dict[str, Any] = {}
 
-        if "azure_sentinel" in self.providers:
+        if "azure_sentinel" in self.provider_names:
             azsent_args = self._get_provider_kwargs("azure_sentinel.", **kwargs)
             self.query_provider = QueryProvider("LogAnalytics")
+            self.providers["azure_sentinel"] = self.query_provider
             azsent_connect_args = self._get_azsent_connect_args(**azsent_args)
             self.query_provider.connect(azsent_connect_args)
 
-        if "azure_data" in self.providers:
-            az_data_args = self._get_provider_kwargs("azure_data.", **kwargs)
-            self.azure_data = AzureData()
+        if "azure_api" in self.provider_names:
+            az_data_args = self._get_provider_kwargs("azure_api.", **kwargs)
+            az_provider = AzureData()
             az_connect_args = self._get_connect_args(
-                self.azure_data.connect, **az_data_args
+                az_provider.connect, **az_data_args
             )
-            self.azure_data.connect(**az_connect_args)
+            az_provider.connect(**az_connect_args)
+            self.providers["azure_api"] = az_provider
 
     @staticmethod
     def _get_provider_kwargs(prefix, **kwargs):

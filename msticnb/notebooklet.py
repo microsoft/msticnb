@@ -14,8 +14,6 @@ from attr import Factory
 import pandas as pd
 import tqdm
 
-from msticpy.data import QueryProvider
-
 from .data_providers import DataProviders
 from .common import TimeSpan, NotebookletException
 
@@ -42,6 +40,7 @@ class NBMetaData:
     default_options: List[str] = Factory(list)
     entity_types: List[str] = Factory(list)
     keywords: List[str] = Factory(list)
+    req_providers: List[str] = Factory(list)
 
     # pylint: disable=not-an-iterable
     @property
@@ -72,7 +71,6 @@ class Notebooklet(ABC):
     def __init__(
         self,
         data_providers: Optional[DataProviders] = None,
-        query_provider: Optional[QueryProvider] = None,
         **kwargs
     ):
         """
@@ -83,17 +81,13 @@ class Notebooklet(ABC):
         data_providers : DataProviders, Optional
             Optional DataProviders instance to query data.
             Most classes require this.
-        query_provider : QueryProvider
-            Optional query_provider instance to query data.
-            Most classes require this.
 
         """
         self._kwargs = kwargs
-        self.result: Optional[NotebookletResult] = None
         self.options: List[str] = []
         self.verbose: bool = kwargs.pop("verbose", False)
         self._set_tqdm_notebook(self.verbose)
-        self._last_result: Optional[NotebookletResult] = None
+        self._last_result: Any = None
 
         # pylint: disable=no-member
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
@@ -103,7 +97,14 @@ class Notebooklet(ABC):
                 "No current DataProviders instance was found.",
                 "Please create an instance of msticnb."
             )
-        self.query_provider = query_provider or self.data_providers.query_provider
+        self.query_provider = self.data_providers.query_provider
+        missing_provs = (
+            set(self.metadata.req_providers) - set(self.data_providers.providers)
+        )
+        if missing_provs:
+            raise NotebookletException(
+                f"Required data provider(s) {missing_provs} not found."
+            )
 
     @abstractmethod
     def run(
@@ -138,6 +139,46 @@ class Notebooklet(ABC):
         self.verbose = kwargs.pop("verbose", self.verbose)
         self._set_tqdm_notebook(self.verbose)
         return NotebookletResult()
+
+    def get_provider(self, provider_name: str):
+        """
+        Return data provider for the specified name.
+
+        Parameters
+        ----------
+        provider_name : str
+            Name of the provider
+
+        Returns
+        -------
+        Any
+            Provider instance.
+
+        Raises
+        ------
+        NotebookletException
+            If provider is not found.
+
+        """
+        if provider_name not in self.data_providers.providers:
+            raise NotebookletException(
+                f"Data provider {provider_name} not found.",
+                "Please check that you have specified the required providers")
+        return self.data_providers.providers.get(provider_name)
+
+    @property
+    def result(self) -> Optional[NotebookletResult]:
+        """
+        Return result of the most recent notebooklet run.
+
+        Returns
+        -------
+        Optional[NotebookletResult]
+            Notebooklet result class or None if nothing has
+            been run.
+
+        """
+        return self._last_result
 
     @classmethod
     def name(cls) -> str:
@@ -216,6 +257,33 @@ class Notebooklet(ABC):
 
         """
         return cls.metadata.entity_types
+
+    @classmethod
+    def get_settings(cls, print_settings=True) -> Optional[str]:
+        """
+        Print or return metadata for class.
+
+        Parameters
+        ----------
+        print_settings : bool, optional
+            Print to standard, by default True
+            or return the str formatted content.
+
+        Returns
+        -------
+        Optional[str]
+            If `print_settings` is True, returns None.
+            If False, returns LF-delimited string of metadata settings.
+
+        Notes
+        -----
+            Use `metadata` attribute to retrieve the metadata directly.
+
+        """
+        if print_settings:
+            print(cls.metadata)
+            return None
+        return str(cls.metadata)
 
     @classmethod
     def match_terms(cls, search_terms: str) -> Tuple[bool, int]:

@@ -13,7 +13,6 @@ import bokeh
 from IPython.display import display
 import pandas as pd
 
-from msticpy.data import QueryProvider
 from msticpy.nbtools import nbwidgets, nbdisplay
 from msticpy.nbtools import entities, foliummap
 from msticpy.sectools import GeoLiteLookup, TILookup
@@ -83,12 +82,12 @@ class NetworkFlowSummary(Notebooklet):
         default_options=["plot_flows", "plot_flow_values", "flow_summary"],
         keywords=["host", "computer", "network", "flow"],
         entity_types=["host", "ip_address"],
+        req_providers=["azure_sentinel"],
     )
 
     def __init__(
         self,
         data_providers: Optional[DataProviders] = None,
-        query_provider: Optional[QueryProvider] = None,
         **kwargs,
     ):
         """
@@ -99,15 +98,11 @@ class NetworkFlowSummary(Notebooklet):
         data_providers : DataProviders, Optional
             Optional DataProviders instance to query data.
             Most classes require this.
-        query_provider : QueryProvider
-            Optional query_provider instance to query data.
-            Most classes require this.
 
         """
-        super().__init__(data_providers, query_provider, **kwargs)
+        super().__init__(data_providers, **kwargs)
 
         self.asn_selector: Optional[nbwidgets.SelectSubset] = None
-        self._last_result: Optional[NetworkFlowResult] = None
         self.ti_lookup = find_type_in_globals(TILookup, last=True) or TILookup()
 
     def run(

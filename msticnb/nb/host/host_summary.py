@@ -8,12 +8,12 @@ from typing import Any, Optional, Iterable, List, Tuple
 
 import attr
 import pandas as pd
+from azure.common.exceptions import CloudError
 from msticpy.data import QueryProvider
-from msticpy.nbtools import nbwidgets, nbdisplay
+from msticpy.nbtools import nbdisplay
 from msticpy.nbtools import entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities, create_ip_record
 from msticpy.common.utility import md
-from azure.common.exceptions import CloudError
 
 from ...common import TimeSpan, NotebookletException
 from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
@@ -60,10 +60,11 @@ class HostSummary(Notebooklet):
     metadata = NBMetaData(
         name=__name__,
         description="Host summary",
-        options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_data"],
-        default_options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_data"],
+        options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
+        default_options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
         keywords=["host", "computer", "heartbeat", "windows", "linux"],
         entity_types=["host"],
+        req_providers=["azure_sentinel"],
     )
 
     def run(
@@ -109,11 +110,14 @@ class HostSummary(Notebooklet):
         if not timespan:
             raise NotebookletException("parameter 'timespan' is required.")
 
+        self._last_result = HostSummaryResult(description=self.metadata.description)
+
         host_name, verified = _verify_host_name(self.query_provider, timespan, value)
         if not verified:
-            md(f"Could not verify host name {value}. Results may not be reliable.")
+            md(f"Could not verify unique host name {value}. Results may not be reliable.")
+            return self._last_result
 
-        host_entity = None
+        host_entity = entities.Host(HostName=host_name)
         if "heartbeat" in self.options:
             host_entity = get_heartbeat(self.query_provider, host_name)
         if "azure_net" in self.options:
@@ -125,20 +129,21 @@ class HostSummary(Notebooklet):
             related_alerts = _get_related_alerts(
                 self.query_provider, timespan, host_name
             )
-        # If azure_details flag is set, ann encrichment provider is given, and the resource is an Azure host get resource details from Azure API
+        # If azure_details flag is set, an encrichment provider is given,
+        # and the resource is an Azure host get resource details from Azure API
         if (
             "azure_api" in self.options
-            and "azure_data" in self.enrichment_providers
+            and "azure_api" in self.data_providers.providers
             and host_entity.Environment == "Azure"
         ):
-            azure_data = _azure_api_details(
-                self.enrichment_providers["azure_data"], host_entity
+            azure_api = _azure_api_details(
+                self.data_providers.providers["azure_api"], host_entity
             )
-            if azure_data:
-                host_entity.AzureDetails["ResourceDetails"] = azure_data[
+            if azure_api:
+                host_entity.AzureDetails["ResourceDetails"] = azure_api[
                     "resoure_details"
                 ]
-                host_entity.AzureDetails["SubscriptionDetails"] = azure_data[
+                host_entity.AzureDetails["SubscriptionDetails"] = azure_api[
                     "sub_details"
                 ]
 
@@ -147,24 +152,22 @@ class HostSummary(Notebooklet):
                 self.query_provider, timespan, host_name
             )
 
-        self._last_result = HostSummaryResult(
-            description="Host Summary",
-            host_entity=host_entity,
-            related_alerts=related_alerts,
-            related_bookmarks=related_bookmarks,
-        )
+        self._last_result.host_entity = host_entity
+        self._last_result.related_alerts = related_alerts
+        self._last_result.related_bookmarks = related_bookmarks
+
         return self._last_result
 
 
 # Get Azure Resource details from API
-def _azure_api_details(az, host_record):
+def _azure_api_details(az_cli, host_record):
     try:
         # Get subscription details
-        sub_details = az.get_subscription_info(
+        sub_details = az_cli.get_subscription_info(
             host_record.AzureDetails["SubscriptionId"]
         )
         # Get resource details
-        resource_details = az.get_resource_details(
+        resource_details = az_cli.get_resource_details(
             resource_id=host_record.AzureDetails["ResourceId"],
             sub_id=host_record.AzureDetails["SubscriptionId"],
         )
@@ -202,8 +205,8 @@ def _azure_api_details(az, host_record):
             "Network Interfaces": network_ints,
             "Tags": str(resource_details["tags"]),
         }
-        azure_data = {"resoure_details": resource_details, "sub_details": sub_details}
-        return azure_data
+        azure_api = {"resoure_details": resource_details, "sub_details": sub_details}
+        return azure_api
     except CloudError:
         return None
 
@@ -245,15 +248,11 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
     if len(host_names) > 1:
         print(
             f"Multiple matches for '{host_name}'.",
-            "Please select a host from the list.",
+            "Please select a host and re-run.",
+            "\n".join(host_names),
         )
-        host_select = nbwidgets.SelectString(
-            item_list=list(host_names),
-            description="Select the host.",
-            auto_display=True,
-        )
-        return host_select, True
-    if not host_names:
+        return ", ".join(host_names), False
+    if host_names:
         print(f"Unique host found: {host_names[0]}")
         return host_names[0], True
 
@@ -306,6 +305,16 @@ def get_heartbeat(
             ]
             host_entity.VMUUID = host_hb["VMUUID"]
 
+            host_entity.Environment = host_hb["ComputerEnvironment"]
+            if host_entity.Environment == "Azure":
+                host_entity.AzureDetails = {
+                    "SubscriptionId": host_hb["SubscriptionId"],
+                    "ResourceProvider": host_hb["ResourceProvider"],
+                    "ResourceType": host_hb["ResourceType"],
+                    "ResourceGroup": host_hb["ResourceGroup"],
+                    "ResourceId": host_hb["ResourceId"],
+                    "Solutions": host_hb["Solutions"],
+                }
             host_entity.IPAddress = create_ip_record(heartbeat_df=host_hb_df)
 
     return host_entity

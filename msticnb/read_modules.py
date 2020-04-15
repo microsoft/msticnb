@@ -4,6 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """read_modules - handles reading noebooklets modules."""
+from collections import namedtuple
 import importlib
 import inspect
 from operator import itemgetter
@@ -19,7 +20,7 @@ from ._version import VERSION
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
-notebooklets: NBContainer = NBContainer()
+nblts: NBContainer = NBContainer()
 nb_index: Dict[str, Notebooklet] = {}
 
 
@@ -39,22 +40,22 @@ def discover_modules(path: Union[str, Iterable[str]] = None) -> NBContainer:
         as a tree mirroring the source folder names.
     """
     # pylint: disable=global-statement, invalid-name
-    global notebooklets
+    global nblts
     # pylint: enable=global-statement, invalid-name
 
-    notebooklets = NBContainer()
+    nblts = NBContainer()
 
     pkg_folder = Path(__file__).parent / "nb"
     _import_from_folder(pkg_folder)
 
     if not path:
-        return notebooklets
+        return nblts
     if isinstance(path, str):
         _import_from_folder(Path(path))
     elif isinstance(path, list):
         for path_item in path:
             _import_from_folder(Path(path_item))
-    return notebooklets
+    return nblts
 
 
 def _import_from_folder(nb_folder: Path):
@@ -105,7 +106,7 @@ def _find_cls_modules(folder):
 
 
 def _get_container(path_parts: Tuple[str, ...]) -> NBContainer:
-    cur_container = notebooklets
+    cur_container = nblts
     for path_item in path_parts:
         child_item = getattr(cur_container, path_item, None)
         if not child_item:
@@ -115,7 +116,10 @@ def _get_container(path_parts: Tuple[str, ...]) -> NBContainer:
     return cur_container
 
 
-def find_nbs(keywords: str) -> List[Tuple[bool, int, str, Notebooklet]]:
+FindResult = namedtuple("FindResult", "full_match match_count, name, nb_class")
+
+
+def find(keywords: str) -> List[Tuple[bool, int, str, Notebooklet]]:
     """
     Search for Notebooklets matching key words.
 
@@ -138,10 +142,10 @@ def find_nbs(keywords: str) -> List[Tuple[bool, int, str, Notebooklet]]:
 
     """
     matches = []
-    for name, nb_class in notebooklets.iter_classes():
+    for name, nb_class in nblts.iter_classes():
         full_match, match_count = nb_class.match_terms(keywords)
         if match_count:
-            matches.append((full_match, match_count, name, nb_class))
+            matches.append(FindResult(full_match, match_count, name, nb_class))
 
     # return list sorted by full_match, then match count, highest to lowest
     return sorted(matches, key=itemgetter(0, 1), reverse=True)
