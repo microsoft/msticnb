@@ -114,7 +114,9 @@ class HostSummary(Notebooklet):
 
         host_name, verified = _verify_host_name(self.query_provider, timespan, value)
         if not verified:
-            md(f"Could not verify unique host name {value}. Results may not be reliable.")
+            md(
+                f"Could not verify unique host name {value}. Results may not be reliable."
+            )
             return self._last_result
 
         host_entity = entities.Host(HostName=host_name)

@@ -4,19 +4,21 @@
 # license information.
 # --------------------------------------------------------------------------
 
-#ToDo - docstrings, verbose output options, exception handling
 """logons_summary - provides overview of host logon events."""
-from typing import Any, Optional, Iterable, List, Tuple, Dict
+from typing import Any, Optional, Iterable, Tuple, Dict
+import re
+from math import pi
 
 import attr
 import pandas as pd
 from bokeh.plotting import figure
+from bokeh.io import output_notebook
+from bokeh.palettes import Category20c
+from bokeh.transform import cumsum
 from msticpy.data import QueryProvider
-from msticpy.nbtools import nbdisplay
-from msticpy.nbtools import entities
-from msticpy.nbtools.foliummap import FoliumMap
-from msticpy.sectools.ip_utils import convert_to_ip_entities, create_ip_record
-from msticpy.common.utility import md
+from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
+from msticpy.sectools.ip_utils import convert_to_ip_entities
+from msticpy.nbtools import timeline
 
 from ...common import TimeSpan, NotebookletException
 from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
@@ -27,8 +29,9 @@ __version__ = VERSION
 __author__ = "Pete Bryan"
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True)  # pylint: disable=too-few-public-methods
 class HostLogonsSummaryResults(NotebookletResult):
+
     """
     Host Logons Summary Results.
 
@@ -41,14 +44,15 @@ class HostLogonsSummaryResults(NotebookletResult):
     """
 
     logon_sessions: pd.DataFrame = None
+    logon_matrix: pd.DataFrame = None
     logon_map: FoliumMap = None
     timeline: figure = None
     plots: Dict = None
 
 
-class HostLogonsSummary(Notebooklet):
-    """
+class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
+    """
     HostLogonsSummary Notebooklet class.
 
     Notes
@@ -71,7 +75,7 @@ class HostLogonsSummary(Notebooklet):
         entity_types=["host"],
         req_providers=["azure_sentinel"],
     )
-
+    # pylint: disable=too-many-locals, too-many-branches
     def run(
         self,
         value: Any = None,
@@ -116,26 +120,33 @@ class HostLogonsSummary(Notebooklet):
                 "Either data, or a hostname and timespan is required."
             )
 
+        # Add description to results for context
+        self._last_result = HostLogonsSummaryResults(
+            description=self.metadata.description
+        )
+
         # If data is not provided use host_name and timespan to get data
         if not data:
+            if self.verbose is True:
+                print(f"Collecting logon data from {value}")
             host_name_type, verified = _verify_host_name_type(
                 self.query_provider, timespan, value
             )
             if not verified:
-                md(
+                print(
                     f"Could not verify unique host name {value}. Results may not be reliable."
                 )
                 return self._last_result
-            if verified is True:
-                host_name = next(iter(host_name_type))
-                if list(host_name_type.values())[0] == "Windows":
-                    data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
-                        host_name=host_name, start=timespan.start, end=timespan.end
-                    )
-                else:
-                    data = self.query_provider.LinuxSyslog.list_logons_for_host(
-                        host_name=host_name, start=timespan.start, end=timespan.end
-                    )
+
+            host_name = next(iter(host_name_type))
+            if list(host_name_type.values())[0] == "Windows":
+                data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
+                    host_name=host_name, start=timespan.start, end=timespan.end
+                )
+            else:
+                data = self.query_provider.LinuxSyslog.list_logons_for_host(
+                    host_name=host_name, start=timespan.start, end=timespan.end
+                )
         else:
             # If data is provided do some required formatting
             data = _format_raw_data(data)
@@ -144,33 +155,41 @@ class HostLogonsSummary(Notebooklet):
         if not isinstance(data, pd.DataFrame) or data.empty:
             raise NotebookletException("No valid data avaliable")
 
-        # Add description to results for context
-        self._last_result = HostSummaryResult(description=self.metadata.description)
-
         # Conduct analysis and get visualizations
+        if self.verbose is True:
+            print(f"Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
         logon_matrix = _logon_matrix(data)
         if "map" in self.options:
             logon_map = _map_logons(data)
             self._last_result.logon_map = logon_map
         if "timeline" in self.options:
-            # timeline =
-            self._last_result.timeline = timeline
+            tl_plot = timeline.display_timeline(
+                data[data["LogonResult"] != "Unknown"],
+                group_by="LogonResult",
+                source_columns=["Account", "LogonProcessName", "SourceIP"],
+                hide=True,
+            )
+            self._last_result.timeline = tl_plot
         if "charts" in self.options:
             pie = _users_pie(data)
-            bar = _process_stack_bar(data)
-            charts = {"User Pie Chart": pie, "Process Bar Chart": bar}
+            stack_bar = _process_stack_bar(data)
+            charts = {"User Pie Chart": pie, "Process Bar Chart": stack_bar}
             self._last_result.plots = charts
 
         self._last_result.logon_sessions = logon_sessions_df
         self._last_result.logon_matrix = logon_matrix
 
         return self._last_result
+        # pylint: enable=too-many-locals, too-many-branches
 
 
-def _verify_host_name_type(qry_prov, timespan, host_name) -> Tuple[Any, bool]:
+def _verify_host_name_type(
+    qry_prov: QueryProvider, timespan: TimeSpan, host_name: str
+) -> Tuple[Any, bool]:
+    """Verify a host name is valid and get the host type (Linux or Windows)."""
     host_names: Dict = {}
-    # Get single event
+    # Check for Windows hosts matching host_name
     if "SecurityEvent" in qry_prov.schema_tables:
         sec_event_host = """
             SecurityEvent
@@ -187,7 +206,7 @@ def _verify_host_name_type(qry_prov, timespan, host_name) -> Tuple[Any, bool]:
             for host in win_hosts_df["Computer"].to_list():
                 host_names.update({host: "Windows"})
 
-        host_names += win_host_names
+    # Check for Linux hosts matching host_name
     if "Syslog" in qry_prov.schema_tables:
         syslog_host = """
             Syslog
@@ -200,8 +219,9 @@ def _verify_host_name_type(qry_prov, timespan, host_name) -> Tuple[Any, bool]:
         )
         if lx_hosts_df is not None and not lx_hosts_df.empty:
             for host in lx_hosts_df["Computer"].to_list():
-                host_names.update({host: "Linxu"})
+                host_names.update({host: "Linux"})
 
+    # If we have more than one host let the user decide
     if len(host_names.keys()) > 1:
         print(
             f"Multiple matches for '{host_name}'.",
@@ -211,7 +231,7 @@ def _verify_host_name_type(qry_prov, timespan, host_name) -> Tuple[Any, bool]:
         return ", ".join(host_names.keys()), False
 
     if host_names:
-        unique_host = next(iter(test))
+        unique_host = next(iter(host_names))
         print(f"Unique host found: {unique_host}")
         return {unique_host: host_names[unique_host]}, True
 
@@ -219,40 +239,42 @@ def _verify_host_name_type(qry_prov, timespan, host_name) -> Tuple[Any, bool]:
     return host_name, False
 
 
-def _get_logon_result_lx(row):
+def _get_logon_result_lx(row: pd.Series) -> str:
+    """Identify if a Linux syslog event is for a sucessful or failed logon."""
     failure_events = row.str.contains(
-        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",
+        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",  # pylint: disable=line-too-long # noqa
         regex=True,
     )
     success_events = row.str.contains("Accepted|Successful", regex=True)
     if failure_events["SyslogMessage"] is True:
         return "Failure"
-    elif success_events["SyslogMessage"] is True:
+    if success_events["SyslogMessage"] is True:
         return "Success"
-    else:
-        return "Unknown"
+    return "Unknown"
 
 
-def _parse_user_lx(row):
+def _parse_user_lx(row: pd.Series) -> str:
+    """Extract a user name from Syslog message related to a logon."""
     if row.str.contains("publickey")["SyslogMessage"] is True:
         regex = re.compile("for ([^ ]*)")
         user = re.search(regex, row["SyslogMessage"])
         return user[1]
-    else:
-        regex = re.compile("user |user= ([^ ]*)")
-        user = re.search(regex, row["SyslogMessage"])
-        return user[1]
+
+    regex = re.compile("user |user= ([^ ]*)")
+    user = re.search(regex, row["SyslogMessage"])
+    return user[1]
 
 
-def _parse_ip_lx(row):
-    regex = re.compile("((?:[0-9]{1,3}\.){3}[0-9]{1,3})")
+def _parse_ip_lx(row: pd.Series) -> str:
+    """Extract an IP Address from an Syslog message."""
+    regex = re.compile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3})")
     ips = re.search(regex, row["SyslogMessage"])
     return ips[1]
 
 
-def _map_logons(data):
-    ip_list = []
-    ip_fail_list = []
+def _map_logons(data: pd.DataFrame) -> FoliumMap:
+    """Produces a map of source IP logon locations."""
+    # Seperate out failed and sucessful logons and clean the data
     remote_logons = data[data["LogonResult"] == "Success"]
     failed_logons = data[data["LogonResult"] == "Failure"]
     remote_logons.replace("", "NaN", inplace=True)
@@ -263,6 +285,7 @@ def _map_logons(data):
     ip_fail_list = [
         convert_to_ip_entities(ip)[0] for ip in failed_logons["SourceIP"] if ip != "NaN"
     ]
+    # Get center point of logons and build map acount that
     location = get_center_ip_entities(ip_fail_list + ip_list)
     folium_map = FoliumMap(location=location, zoom_start=4)
     if len(ip_fail_list) > 0:
@@ -274,9 +297,8 @@ def _map_logons(data):
     return folium_map
 
 
-def _users_pie(data):
-    if "User" in data.columns and "Account" not in data.columns:
-        data["Account"] = data["User"]
+def _users_pie(data: pd.DataFrame) -> figure:
+    """Produce pie chart based on observence of user names in data."""
     output_notebook()
     user_logons = (
         data["Account"]
@@ -285,12 +307,13 @@ def _users_pie(data):
         .reset_index(name="value")
         .rename(columns={"index": "Account"})
     )
+    # Exclude blank user names as Linux data can be skewed by this
     if "" in user_logons:
         user_logons.drop("", inplace=True)
     user_logons["angle"] = user_logons["value"] / user_logons["value"].sum() * 2 * pi
     user_logons["color"] = Category20c[len(user_logons)]
 
-    p = figure(
+    viz = figure(
         plot_height=350,
         title="20 most prevelent users",
         toolbar_location=None,
@@ -299,7 +322,7 @@ def _users_pie(data):
         x_range=(-0.5, 1.0),
     )
 
-    p.wedge(
+    viz.wedge(
         x=0,
         y=1,
         radius=0.4,
@@ -311,17 +334,15 @@ def _users_pie(data):
         source=user_logons,
     )
 
-    p.axis.axis_label = None
-    p.axis.visible = False
-    p.grid.grid_line_color = None
+    viz.axis.axis_label = None
+    viz.axis.visible = False
+    viz.grid.grid_line_color = None
 
-    return p
+    return viz
 
 
-def _process_stack_bar(data):
-    if "EventId" in data.columns and "LogonResult" not in data.columns:
-        data["LogonResult"] = data["EventId"]
-
+def _process_stack_bar(data: pd.DataFrame) -> figure:
+    """Produce stacked bar chart showing logon result by process."""
     proc_list = data["LogonProcessName"].unique()
     s_data = []
     f_data = []
@@ -337,8 +358,10 @@ def _process_stack_bar(data):
             s_count = 0
         try:
             f_count = proc_events["Failure"]
+        # Catch error caused if one type of logon result is missing
         except KeyError:
             f_count = 0
+        # Convert counts to a percentage to get a more useful output
         if (s_count + f_count) > 0:
             s_per = s_count / (f_count + s_count)
             f_per = 100 - s_per
@@ -352,7 +375,7 @@ def _process_stack_bar(data):
 
     data = {"processes": procs, "Success": s_data, "Failure": f_data}
 
-    p = figure(
+    viz = figure(
         x_range=processes,
         plot_height=350,
         title="Logon Result % by Process",
@@ -361,7 +384,7 @@ def _process_stack_bar(data):
         tooltips="@processes $name: @$name%",
     )
 
-    p.vbar_stack(
+    viz.vbar_stack(
         results,
         x="processes",
         width=0.75,
@@ -370,29 +393,30 @@ def _process_stack_bar(data):
         legend_label=results,
     )
 
-    p.y_range.start = 0
-    p.x_range.range_padding = 0.1
-    p.xgrid.grid_line_color = None
-    p.axis.minor_tick_line_color = None
-    p.yaxis.axis_label = "% of logons"
-    p.xaxis.axis_label = "Process name"
-    p.outline_line_color = None
-    p.legend.location = "top_left"
-    p.legend.orientation = "horizontal"
+    viz.y_range.start = 0
+    viz.x_range.range_padding = 0.1
+    viz.xgrid.grid_line_color = None
+    viz.axis.minor_tick_line_color = None
+    viz.yaxis.axis_label = "% of logons"
+    viz.xaxis.axis_label = "Process name"
+    viz.outline_line_color = None
+    viz.legend.location = "top_left"
+    viz.legend.orientation = "horizontal"
 
-    return p
+    return viz
 
 
-def _event_id_to_result(row):
+def _event_id_to_result(row: pd.Series):
+    """Transform Windows event id to string for logon results."""
     if row["EventID"] == 4624:
         return "Success"
     if row["EventID"] == 4625:
         return "Failure"
-    else:
-        return "Unknown"
+    return "Unknown"
 
 
-def _logon_matrix(data):
+def _logon_matrix(data: pd.DataFrame) -> pd.DataFrame:
+    """Produce DataFrame showing logons grouped by user and process."""
     logon_by_type = (
         data[data["Account"] != ""][["Account", "LogonProcessName", "LogonResult"]]
         .groupby(["Account", "LogonProcessName"])
@@ -406,14 +430,15 @@ def _logon_matrix(data):
     return logon_by_type
 
 
-def _win_remote_ip(row):
+def _win_remote_ip(row: pd.Series) -> str:
+    """Return remote IP address from Windows log if logon type is remote."""
     if row["LogonType"] == 3:
         return row["IpAddress"]
-    else:
-        return "NaN"
+    return "NaN"
 
 
-def _format_raw_data(data):
+def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
+    """Populate required fields in DataFrame if they aren not included."""
     if "SourceSystem" in data.columns and data["SourceSystem"].iloc[0] == "Linux":
         if "LogonResult" not in data.columns:
             data["LogonResult"] = data.apply(_get_logon_result_lx, axis=1)

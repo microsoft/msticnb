@@ -22,6 +22,7 @@ from ...common import TimeSpan, NotebookletException
 from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
 
 from ..._version import VERSION
+
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
@@ -209,8 +210,7 @@ def _get_win_security_events(qry_prov, host_name, timespan):
 def _display_event_pivot(event_pivot):
     md("Yellow highlights indicate account with highest event count")
     display(
-        event_pivot.style
-        .applymap(lambda x: "color: white" if x == 0 else "")
+        event_pivot.style.applymap(lambda x: "color: white" if x == 0 else "")
         .applymap(
             lambda x: "background-color: lightblue"
             if not isinstance(x, str) and x > 0

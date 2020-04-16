@@ -68,11 +68,7 @@ class Notebooklet(ABC):
     )
     __doc__ += "\nAvailable options: " + ",".join(metadata.options)
 
-    def __init__(
-        self,
-        data_providers: Optional[DataProviders] = None,
-        **kwargs
-    ):
+    def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
         Intialize a new instance of the notebooklet class.
 
@@ -95,11 +91,11 @@ class Notebooklet(ABC):
         if not self.data_providers:
             raise NotebookletException(
                 "No current DataProviders instance was found.",
-                "Please create an instance of msticnb."
+                "Please create an instance of msticnb.",
             )
         self.query_provider = self.data_providers.query_provider
-        missing_provs = (
-            set(self.metadata.req_providers) - set(self.data_providers.providers)
+        missing_provs = set(self.metadata.req_providers) - set(
+            self.data_providers.providers
         )
         if missing_provs:
             raise NotebookletException(
@@ -163,7 +159,8 @@ class Notebooklet(ABC):
         if provider_name not in self.data_providers.providers:
             raise NotebookletException(
                 f"Data provider {provider_name} not found.",
-                "Please check that you have specified the required providers")
+                "Please check that you have specified the required providers",
+            )
         return self.data_providers.providers.get(provider_name)
 
     @property
@@ -308,8 +305,7 @@ class Notebooklet(ABC):
         search_text += cls.__class__.__doc__ or ""
         match_count = 0
         terms = [
-            subterm for term in search_terms.split(",")
-            for subterm in term.split()
+            subterm for term in search_terms.split(",") for subterm in term.split()
         ]
         for term in terms:
             if re.search(term, search_text, re.IGNORECASE):

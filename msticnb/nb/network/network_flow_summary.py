@@ -86,9 +86,7 @@ class NetworkFlowSummary(Notebooklet):
     )
 
     def __init__(
-        self,
-        data_providers: Optional[DataProviders] = None,
-        **kwargs,
+        self, data_providers: Optional[DataProviders] = None, **kwargs,
     ):
         """
         Intialize a new instance of the notebooklet class.
