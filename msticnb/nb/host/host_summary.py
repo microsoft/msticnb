@@ -15,7 +15,7 @@ from msticpy.nbtools import entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities, create_ip_record
 from msticpy.common.utility import md
 
-from ...common import TimeSpan, NotebookletException
+from ...common import TimeSpan, NotebookletException, print_data_wait, print_status
 from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
 
 from ..._version import VERSION
@@ -224,6 +224,7 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
             | where Computer has {host}
             | distinct Computer
              """
+        print_data_wait("SecurityEvent")
         win_hosts_df = qry_prov.exec_query(
             sec_event_host.format(
                 start=timespan.start, end=timespan.end, host=host_name
@@ -239,6 +240,7 @@ def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
             | where Computer has {host}
             | distinct Computer
             """
+        print_data_wait("Syslog")
         lx_hosts_df = qry_prov.exec_query(
             syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
         )
@@ -285,7 +287,7 @@ def get_heartbeat(
     """
     host_entity = entities.Host(HostName=host_name)
     if "HeartBeat" in qry_prov.schema_tables:
-        print(f"Looking for {host_name or host_ip} in OMS Heartbeat data...")
+        print_data_wait("Heartbeat")
         host_hb_df = None
         if host_name:
             host_hb_df = qry_prov.Network.get_heartbeat_for_host(host_name=host_name)
@@ -342,7 +344,7 @@ def get_aznet_topology(
 
     """
     if "AzureNetworkAnalytics_CL" in qry_prov.schema_tables:
-        print(f"Looking for {host_name or host_ip} IP addresses in network flows...")
+        print_data_wait("AzureNetworkAnalytics")
         if host_name:
             az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
         elif host_ip:
@@ -393,6 +395,7 @@ def _get_related_alerts(qry_prov, timespan, host_name):
 
 
 def _get_related_bookmarks(qry_prov, timespan, host_name):
+    print_data_wait("Bookmarks")
     host_bkmks = qry_prov.AzureSentinel.list_bookmarks_for_entity(
         timespan, entity_id=f"'{host_name}'"
     )

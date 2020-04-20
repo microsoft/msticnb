@@ -20,7 +20,12 @@ from msticpy.sectools.ip_utils import get_whois_df, get_whois_info, get_ip_type
 from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
 from msticpy.common.utility import md, md_warn
 
-from ...common import TimeSpan, NotebookletException, find_type_in_globals
+from ...common import (
+    TimeSpan,
+    NotebookletException,
+    find_type_in_globals,
+    print_data_wait,
+)
 from ...data_providers import DataProviders
 from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
 from ..host.host_summary import get_heartbeat, get_aznet_topology
@@ -86,9 +91,7 @@ class NetworkFlowSummary(Notebooklet):
     )
 
     def __init__(
-        self,
-        data_providers: Optional[DataProviders] = None,
-        **kwargs,
+        self, data_providers: Optional[DataProviders] = None, **kwargs,
     ):
         """
         Intialize a new instance of the notebooklet class.
@@ -167,6 +170,7 @@ class NetworkFlowSummary(Notebooklet):
         result.network_flows = flow_df
 
         if "resolve_host" in self.options:
+            print_data_wait("HostResolver")
             result.host_entity = _get_host_details(
                 qry_prov=self.query_provider, host_entity=result.host_entity
             )
@@ -276,7 +280,9 @@ def _get_host_details(qry_prov, host_entity):
     host_ip = getattr(host_entity, "IpAddress", None)
     host_name = getattr(host_entity, "HostName", None)
 
+    print_data_wait("Heartbeat")
     host_entity = get_heartbeat(qry_prov=qry_prov, host_ip=host_ip, host_name=host_name)
+    print_data_wait("AzureNetworkAnalytics")
     get_aznet_topology(
         qry_prov=qry_prov, host_ip=host_ip, host_entity=host_entity, host_name=host_name
     )
@@ -286,13 +292,15 @@ def _get_host_details(qry_prov, host_entity):
 # %%
 # Get network flows
 def _get_az_net_flows(qry_prov, timespan, ip_addr, hostname):
+    print_data_wait("AzureNetworkAnalytics")
     if ip_addr:
         flow_df = qry_prov.Network.list_azure_network_flows_by_ip(
             timespan, ip_address_list=ip_addr
         )
-    flow_df = qry_prov.Network.list_azure_network_flows_by_host(
-        timespan, host_name=hostname
-    )
+    else:
+        flow_df = qry_prov.Network.list_azure_network_flows_by_host(
+            timespan, host_name=hostname
+        )
 
     flow_df["TotalAllowedFlows"] = (
         flow_df["AllowedOutFlows"] + flow_df["AllowedInFlows"]
@@ -409,9 +417,8 @@ def _get_flow_summary(flow_index):
     )
 
     num_ips = len(flows_df["source"].unique()) + len(flows_df["dest"].unique())
-    # if verbose:
-    print(f"Performing WhoIs lookups for {num_ips} IPs ", end="")
 
+    print_data_wait("Whois")
     flows_df = get_whois_df(flows_df, ip_column="dest", asn_col="DestASN")
     flows_df = get_whois_df(flows_df, ip_column="source", asn_col="SourceASN")
 
@@ -548,6 +555,7 @@ def _display_geo_map_all(flow_df, host_entity):
     if selected_out.empty:
         ips_out = []
     else:
+        print_data_wait("IP Geolocation")
         ips_out = list(
             selected_out.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "dest"), axis=1
@@ -558,6 +566,7 @@ def _display_geo_map_all(flow_df, host_entity):
     if selected_in.empty:
         ips_in = []
     else:
+        print_data_wait("IP Geolocation")
         ips_in = list(
             selected_in.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1
@@ -599,6 +608,7 @@ def _display_geo_map(flow_df, host_entity, ti_results, select_asn):
     if selected_out.empty:
         ips_out = []
     else:
+        print_data_wait("IP Geolocation")
         ips_out = list(
             selected_out.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "dest"), axis=1
@@ -608,6 +618,7 @@ def _display_geo_map(flow_df, host_entity, ti_results, select_asn):
     if selected_in.empty:
         ips_in = []
     else:
+        print_data_wait("IP Geolocation")
         ips_in = list(
             selected_in.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1

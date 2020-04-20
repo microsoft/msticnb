@@ -6,9 +6,10 @@
 """Common definitions and classes."""
 import inspect
 from typing import Optional, List, Dict, Any
+import warnings
 
 from msticpy.data import QueryProvider
-from msticpy.data.azure_data import AzureData
+from msticpy.data.azure_data import AzureData, MsticpyAzureException
 from msticpy.common.wsconfig import WorkspaceConfig
 
 from .common import NotebookletException
@@ -65,7 +66,7 @@ class SingletonDecorator:
 class DataProviders:
     """Notebooklet DataProviders class."""
 
-    _default_providers = ["azure_sentinel"]
+    _default_providers = ["azure_sentinel", "azure_api"]
 
     def __init__(self, providers: Optional[List[str]] = None, **kwargs):
         """
@@ -80,21 +81,31 @@ class DataProviders:
         self.provider_names = providers or self._default_providers
         self.providers: Dict[str, Any] = {}
 
-        if "azure_sentinel" in self.provider_names:
+        if _Providers.azure_sentinel in self.provider_names:
             azsent_args = self._get_provider_kwargs("azure_sentinel.", **kwargs)
             self.query_provider = QueryProvider("LogAnalytics")
-            self.providers["azure_sentinel"] = self.query_provider
+            self.providers[_Providers.azure_sentinel] = self.query_provider
             azsent_connect_args = self._get_azsent_connect_args(**azsent_args)
-            self.query_provider.connect(azsent_connect_args)
+            if not azsent_connect_args:
+                # if no explict args, try to get them from config.
+                workspace = azsent_args.get("workspace")
+                config_file = azsent_args.get("config_file")
+                azsent_connect_args["connection_str"] = WorkspaceConfig(
+                    workspace=workspace, config_file=config_file
+                ).code_connect_str
+            self.query_provider.connect(**azsent_connect_args)
 
         if "azure_api" in self.provider_names:
             az_data_args = self._get_provider_kwargs("azure_api.", **kwargs)
-            az_provider = AzureData()
-            az_connect_args = self._get_connect_args(
-                az_provider.connect, **az_data_args
-            )
-            az_provider.connect(**az_connect_args)
-            self.providers["azure_api"] = az_provider
+            try:
+                az_provider = AzureData()
+                az_connect_args = self._get_connect_args(
+                    az_provider.connect, **az_data_args
+                )
+                az_provider.connect(**az_connect_args)
+                self.providers["azure_api"] = az_provider
+            except MsticpyAzureException as mp_ex:
+                warnings.warn(mp_ex.args)
 
     @staticmethod
     def _get_provider_kwargs(prefix, **kwargs):
@@ -154,3 +165,8 @@ def init(providers: Optional[List[str]] = None, **kwargs):
 
     """
     return DataProviders(providers, **kwargs)
+
+
+class _Providers:
+    azure_sentinel = "azure_sentinel"
+    azure_api = "azure_api"

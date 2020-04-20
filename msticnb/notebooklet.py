@@ -11,11 +11,13 @@ from typing import Optional, Any, Iterable, List, Set, Tuple
 
 import attr
 from attr import Factory
+from IPython.core.getipython import get_ipython
 import pandas as pd
 import tqdm
 
-from .data_providers import DataProviders
 from .common import TimeSpan, NotebookletException
+from .data_providers import DataProviders
+from .options import get_opt
 
 from ._version import VERSION
 
@@ -66,7 +68,7 @@ class Notebooklet(ABC):
     metadata: NBMetaData = NBMetaData(
         name="Notebooklet", description="Base class", options=[]
     )
-    __doc__ += "\nAvailable options: " + ",".join(metadata.options)
+    module_path = ""
 
     def __init__(
         self,
@@ -85,8 +87,7 @@ class Notebooklet(ABC):
         """
         self._kwargs = kwargs
         self.options: List[str] = []
-        self.verbose: bool = kwargs.pop("verbose", False)
-        self._set_tqdm_notebook(self.verbose)
+        self._set_tqdm_notebook(get_opt("verbose"))
         self._last_result: Any = None
 
         # pylint: disable=no-member
@@ -136,8 +137,7 @@ class Notebooklet(ABC):
         """
         if not options:
             self.options = self.metadata.options
-        self.verbose = kwargs.pop("verbose", self.verbose)
-        self._set_tqdm_notebook(self.verbose)
+        self._set_tqdm_notebook(get_opt("verbose"))
         return NotebookletResult()
 
     def get_provider(self, provider_name: str):
@@ -321,3 +321,12 @@ class Notebooklet(ABC):
     def _set_tqdm_notebook(verbose=False):
         if verbose:
             tqdm.tqdm_notebook().pandas()
+
+    @classmethod
+    def import_cell(cls):
+        if cls.module_path:
+            with open(cls.module_path, "r") as mod_file:
+                mod_text = mod_file.read()
+            if mod_text:
+                shell = get_ipython()
+                shell.set_next_input(mod_text)

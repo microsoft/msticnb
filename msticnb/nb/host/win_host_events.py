@@ -18,7 +18,7 @@ import pandas as pd
 from msticpy.nbtools import nbdisplay
 from msticpy.common.utility import md
 
-from ...common import TimeSpan, NotebookletException
+from ...common import TimeSpan, NotebookletException, print_data_wait, print_status
 from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
 
 from ..._version import VERSION
@@ -162,7 +162,7 @@ class WinHostEvents(Notebooklet):
         """
         if not self._last_result or self._last_result.all_events is None:  # type: ignore
             print(
-                "Please use 'run()' before using this method.",
+                "Please use 'run()' to fetch the data before using this method.",
                 "\nThen call 'expand_events()'",
             )
             return None
@@ -175,8 +175,7 @@ class WinHostEvents(Notebooklet):
 # %%
 # Get Windows Security Events
 def _get_win_security_events(qry_prov, host_name, timespan):
-    md(f"Collecting Windows Event Logs for {host_name}.")
-    md("This may take a few minutes...")
+    print_data_wait("SecurityEvent")
 
     all_events_df = qry_prov.WindowsSecurity.list_host_events(
         timespan,
@@ -273,6 +272,7 @@ def _parse_eventdata(event_data, event_ids: Optional[Union[int, Iterable[int]]] 
         eventdata = event_data[event_data["EventID"].isin(event_ids)]
 
     # Parse event properties into a dictionary
+    print_status("Parsing event data...")
     eventdata["EventProperties"] = eventdata.apply(_parse_event_data_row, axis=1)
     return _expand_event_properties(eventdata)
 

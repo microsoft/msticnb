@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Iterable, Tuple, Dict, List, Union
 
 from . import nb
-from .common import NBContainer, NotebookletException
+from .common import NBContainer, NotebookletException, print_debug
 from .notebooklet import Notebooklet
 
 from ._version import VERSION
@@ -39,11 +39,11 @@ def discover_modules(path: Union[str, Iterable[str]] = None) -> NBContainer:
         Container of notebooklets. This is structured
         as a tree mirroring the source folder names.
     """
-    # pylint: disable=global-statement, invalid-name
-    global nblts
-    # pylint: enable=global-statement, invalid-name
+    # # pylint: disable=global-statement, invalid-name
+    # global nblts
+    # # pylint: enable=global-statement, invalid-name
 
-    nblts = NBContainer()
+    # nblts = NBContainer()
 
     pkg_folder = Path(__file__).parent / "nb"
     _import_from_folder(pkg_folder)
@@ -85,23 +85,19 @@ def _find_cls_modules(folder):
         if item.name.startswith("_"):
             continue
         if item.is_file():
+            print_debug("module to import", item)
             mod_name = "." + ".".join(list(folder.parts[-1:]) + [item.stem])
             try:
                 imp_module = importlib.import_module(mod_name, package=nb.__package__)
             except ImportError:
+                print_debug("import failed", item)
                 continue
             mod_classes = inspect.getmembers(imp_module, inspect.isclass)
             for cls_name, mod_class in mod_classes:
                 if issubclass(mod_class, Notebooklet) and not mod_class == Notebooklet:
+                    print_debug("imported", cls_name)
+                    mod_class.module_path = item
                     found_classes[cls_name] = mod_class
-                # if (
-                #     issubclass(mod_class, NotebookletResult)
-                #     and not mod_class == NotebookletResult
-                # ):
-                #     print("notebooklet result subclass", mod_class.__name__)
-                #     found_classes[cls_name] = mod_class
-        else:
-            print("ignored", item)
     return found_classes
 
 
@@ -119,7 +115,7 @@ def _get_container(path_parts: Tuple[str, ...]) -> NBContainer:
 FindResult = namedtuple("FindResult", "full_match match_count, name, nb_class")
 
 
-def find(keywords: str) -> List[Tuple[bool, int, str, Notebooklet]]:
+def find(keywords: str, full_match=True) -> List[Tuple[bool, int, str, Notebooklet]]:
     """
     Search for Notebooklets matching key words.
 
@@ -144,8 +140,9 @@ def find(keywords: str) -> List[Tuple[bool, int, str, Notebooklet]]:
     matches = []
     for name, nb_class in nblts.iter_classes():
         full_match, match_count = nb_class.match_terms(keywords)
-        if match_count:
+        if full_match or (match_count and not full_match):
             matches.append(FindResult(full_match, match_count, name, nb_class))
 
     # return list sorted by full_match, then match count, highest to lowest
-    return sorted(matches, key=itemgetter(0, 1), reverse=True)
+    results = sorted(matches, key=itemgetter(0, 1), reverse=True)
+    return [(result[2], result[3]) for result in results]

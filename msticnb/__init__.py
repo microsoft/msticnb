@@ -19,8 +19,8 @@ To start using notebooklets:
 >
 > # help
 > help(host_summary)
-> host_summary.options()
-> host_summary.print_settings()
+> print("Options:", host_summary.all_options())
+> print("Settings:", host_summary.get_settings())
 >
 > # find a notebooklet
 > nb.find("host linux azure")

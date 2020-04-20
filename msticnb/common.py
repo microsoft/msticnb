@@ -7,7 +7,11 @@
 from datetime import datetime, timedelta
 from typing import Union, Optional, Iterable, Tuple, Any
 
+from IPython.core.getipython import get_ipython
+from IPython.display import clear_output
 import pandas as pd
+
+from .options import get_opt
 
 from ._version import VERSION
 
@@ -23,6 +27,7 @@ class TimeSpan:
         start: Optional[Union[datetime, str]] = None,
         end: Optional[Union[datetime, str]] = None,
         period: Optional[Union[timedelta, str]] = None,
+        time_selector: Any = None,
     ):
         """
         Initialize Timespan.
@@ -35,6 +40,9 @@ class TimeSpan:
             datetime of the end of the time period, by default utcnow
         period : Optional[Union[timedelta, str]], optional
             duration of the period, by default None
+        time_selector : Any
+            an object that has either `start` and `end` or `start` and
+            `period` date_time-like attributes.
 
         Raises
         ------
@@ -42,6 +50,13 @@ class TimeSpan:
             If neither `start` nor `period` are specified.
 
         """
+        if not start and hasattr(time_selector, "start"):
+            start = getattr(time_selector, "start", None)
+        if not end and hasattr(time_selector, "end"):
+            end = getattr(time_selector, "end", None)
+        if not period and hasattr(time_selector, "period"):
+            period = getattr(time_selector, "period", None)
+
         if not start and not period:
             raise ValueError("At least one of 'start' or 'period' must be specified.")
 
@@ -107,6 +122,39 @@ def find_type_in_globals(req_type: type, last=False):
     found = [inst for inst in globals() if isinstance(inst, req_type)]
     return found[0 if last else -1] if found else None
 
+
+
+def print_status(mssg: Any):
+    """
+    Print a status message
+
+    Parameters
+    ----------
+    mssg : Any
+        The item/message to show
+
+    """
+    if get_opt("verbose"):
+        print(mssg, end="")
+
+
+def print_data_wait(source: str):
+    """
+    Print Getting data message.
+
+    Parameters
+    ----------
+    source : str
+        The data source.
+
+    """
+    print_status(f"Getting data from {source}...")
+
+def print_debug(*args):
+    if get_opt("debug"):
+        for arg in args:
+            print(arg, end="--")
+        print()
 
 class NotebookletException(Exception):
     """Generic exception class for Notebooklets."""
