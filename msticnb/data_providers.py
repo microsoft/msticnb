@@ -6,13 +6,16 @@
 """Common definitions and classes."""
 import inspect
 from typing import Optional, List, Dict, Any
+import sys
 import warnings
 
 from msticpy.data import QueryProvider
 from msticpy.data.azure_data import AzureData, MsticpyAzureException
 from msticpy.common.wsconfig import WorkspaceConfig
+from msticpy.sectools import TILookup, GeoLiteLookup
 
 from .common import NotebookletException
+from .options import get_opt
 
 from ._version import VERSION
 
@@ -66,7 +69,7 @@ class SingletonDecorator:
 class DataProviders:
     """Notebooklet DataProviders class."""
 
-    _default_providers = ["azure_sentinel", "azure_api"]
+    _default_providers = ["azure_sentinel", "azure_api", "ti_lookup", "geolite_lookup"]
 
     def __init__(self, providers: Optional[List[str]] = None, **kwargs):
         """
@@ -81,36 +84,66 @@ class DataProviders:
         self.provider_names = providers or self._default_providers
         self.providers: Dict[str, Any] = {}
 
-        if _Providers.azure_sentinel in self.provider_names:
-            azsent_args = self._get_provider_kwargs("azure_sentinel.", **kwargs)
-            self.query_provider = QueryProvider("LogAnalytics")
-            self.providers[_Providers.azure_sentinel] = self.query_provider
-            azsent_connect_args = self._get_azsent_connect_args(**azsent_args)
-            if not azsent_connect_args:
-                # if no explict args, try to get them from config.
-                workspace = azsent_args.get("workspace")
-                config_file = azsent_args.get("config_file")
-                azsent_connect_args["connection_str"] = WorkspaceConfig(
-                    workspace=workspace, config_file=config_file
-                ).code_connect_str
-            self.query_provider.connect(**azsent_connect_args)
+        provider_dispatch = {
+            "azure_sentinel": self._azure_sentinel_prov,
+            "azure_api": self._azure_api_prov,
+            "ti_lookup": self._ti_lookup_prov,
+            "geolite_lookup": self._geolite_lookup_prov
+        }
+        self.query_provider = None
+        self.azure_api = None
+        self.ti_lookup = None
+        self.geolite_lookup = None
 
-        if "azure_api" in self.provider_names:
-            az_data_args = self._get_provider_kwargs("azure_api.", **kwargs)
-            try:
-                az_provider = AzureData()
-                az_connect_args = self._get_connect_args(
-                    az_provider.connect, **az_data_args
-                )
-                az_provider.connect(**az_connect_args)
-                self.providers["azure_api"] = az_provider
-            except MsticpyAzureException as mp_ex:
+        for provider in self.provider_names:
+            if provider in provider_dispatch:
+                provider_dispatch[provider](provider, **kwargs)
+                setattr(self, provider, self.providers.get(provider))
+
+    # Provider initializers
+    def _azure_sentinel_prov(self, provider, **kwargs):
+        # Get any keys with the provider prefix and initialize the provider
+        azsent_args = self._get_provider_kwargs(provider, **kwargs)
+        self.query_provider = QueryProvider("LogAnalytics")
+        self.providers[provider] = self.query_provider
+        azsent_connect_args = self._get_azsent_connect_args(**azsent_args)
+
+        # If we don't have connection args from kwargs, get them from config
+        if not azsent_connect_args:
+            # if no explict args, try to get them from config.
+            workspace = azsent_args.get("workspace")
+            config_file = azsent_args.get("config_file")
+            azsent_connect_args["connection_str"] = WorkspaceConfig(
+                workspace=workspace, config_file=config_file
+            ).code_connect_str
+        self.query_provider.connect(**azsent_connect_args)
+
+    def _azure_api_prov(self, provider, **kwargs):
+        az_data_args = self._get_provider_kwargs(provider, **kwargs)
+        try:
+            az_provider = AzureData()
+            az_connect_args = self._get_connect_args(
+                az_provider.connect, **az_data_args
+            )
+            az_provider.connect(**az_connect_args)
+            self.providers[provider] = az_provider
+        except MsticpyAzureException as mp_ex:
+            if get_opt("verbose"):
                 warnings.warn(mp_ex.args)
 
+    def _ti_lookup_prov(self, provider, **kwargs):
+        ti_lookup_args = self._get_provider_kwargs(provider, **kwargs)
+        self.providers[provider] = TILookup(ti_lookup_args)
+
+    def _geolite_lookup_prov(self, provider, **kwargs):
+        geolite_lookup_args = self._get_provider_kwargs(provider, **kwargs)
+        self.providers[provider] = GeoLiteLookup(geolite_lookup_args)
+
+    # Helper methods
     @staticmethod
     def _get_provider_kwargs(prefix, **kwargs):
         return {
-            name.replace(prefix, ""): arg
+            name.replace(f"{prefix}.", ""): arg
             for name, arg in kwargs.items()
             if name.startswith(prefix)
         }
@@ -164,9 +197,8 @@ def init(providers: Optional[List[str]] = None, **kwargs):
         A list of provider names, by default "azure_sentinel"
 
     """
-    return DataProviders(providers, **kwargs)
-
-
-class _Providers:
-    azure_sentinel = "azure_sentinel"
-    azure_api = "azure_api"
+    d_provs = DataProviders(providers, **kwargs)
+    print(f"Loaded providers: {', '.join(d_provs.providers.keys())}")
+    msticnb = sys.modules["msticnb"]
+    setattr(msticnb, "data_providers", d_provs.providers)
+    return d_provs

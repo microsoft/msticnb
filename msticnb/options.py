@@ -3,8 +3,18 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""Notebooklets options."""
-from typing import Any
+"""
+Notebooklets global options.
+
+Available options are:
+[name, type (default value), description]
+
+`verbose`: bool (True) - Show progress messages.
+`debug`: bool (False) - Turn on debug output.
+`show_sample_results`: bool (True) - Display sample of results as they are produced.
+
+"""
+from typing import Any, Dict
 
 from ._version import VERSION
 
@@ -12,10 +22,28 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-_OPTIONS = {
-    "verbose": True,
-    "debug": False,
+_OPTION_DEFN = {
+    "verbose": (True, "Show progress messages."),
+    "debug": (False, "Turn on debug output."),
+    "show_sample_results": (False, "Display sample of results as they are produced."),
 }
+
+
+_OPT_DICT: Dict[str, Any] = {key: val[0] for key, val in _OPTION_DEFN.items()}
+
+
+def show():
+    """Show help for options."""
+    print(
+        "\n".join(
+            [f"{key} (def {val[0]}): {val[1]}" for key, val in _OPTION_DEFN.items()]
+        )
+    )
+
+
+def current():
+    """Show current settings."""
+    print("\n".join([f"{key}: {val[0]}" for key, val in _OPT_DICT.items()]))
 
 
 def get_opt(option: str) -> Any:
@@ -38,9 +66,9 @@ def get_opt(option: str) -> Any:
         An invalid option name was supplied.
 
     """
-    if option in _OPTIONS:
-        return _OPTIONS[option]
-    raise KeyError(f"Unrecognized option {option}.")
+    if option in _OPT_DICT:
+        return _OPT_DICT[option]
+    raise KeyError(f"Unknown option {option}.")
 
 
 def set_opt(option: str, value: Any):
@@ -63,7 +91,7 @@ def set_opt(option: str, value: Any):
         Option value was not the correct type.
 
     """
-    cur_opt = _OPTIONS.get(option)
+    cur_opt = _OPT_DICT.get(option)
     if cur_opt is None:
         raise KeyError(f"Unrecognized option {option}.")
     if not isinstance(value, type(cur_opt)):
@@ -77,5 +105,6 @@ def set_opt(option: str, value: Any):
             except ValueError:
                 raise TypeError(
                     f"Option is of type {type(cur_opt)}.",
-                    "{value} cannot be converted to that type.")
-    _OPTIONS[option] = value
+                    "{value} cannot be converted to that type.",
+                )
+    _OPT_DICT[option] = value

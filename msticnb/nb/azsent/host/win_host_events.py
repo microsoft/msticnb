@@ -11,17 +11,24 @@ from defusedxml import ElementTree
 from defusedxml.ElementTree import ParseError
 
 import attr
-import bokeh
+from bokeh.plotting.figure import Figure
 from IPython.display import display
 import numpy as np
 import pandas as pd
-from msticpy.nbtools import nbdisplay
 from msticpy.common.utility import md
+from msticpy.nbtools import nbdisplay
 
-from ...common import TimeSpan, NotebookletException, print_data_wait, print_status
-from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....common import (
+    TimeSpan,
+    NotebookletException,
+    print_data_wait,
+    print_status,
+    set_text,
+)
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
 
-from ..._version import VERSION
+from ...._version import VERSION
+
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
@@ -36,15 +43,16 @@ class WinHostEventsResult(NotebookletResult):
     all_events : pd.DataFrame
     event_pivot : pd.DataFrame
     account_events : pd.DataFrame
-    account_timeline : bokeh.plotting.figure
+    account_timeline : bokeh.plotting.figure.Figure
     related_bookmarks: pd.DataFrame
 
     """
 
+    description: str = "Windows Host Security Events"
     all_events: pd.DataFrame = None
     event_pivot: pd.DataFrame = None
     account_events: pd.DataFrame = None
-    account_timeline: bokeh.plotting.figure = None
+    account_timeline: Figure = None
     expanded_events: pd.DataFrame = None
 
 
@@ -64,7 +72,8 @@ class WinHostEvents(Notebooklet):
     """
 
     metadata = NBMetaData(
-        name=__name__,
+        name=__qualname__,
+        mod_name=__name__,
         description="Window security events summary",
         options=["event_pivot", "expand_events", "acct_events"],
         default_options=["event_pivot", "acct_events"],
@@ -73,6 +82,11 @@ class WinHostEvents(Notebooklet):
         req_providers=["azure_sentinel"],
     )
 
+    @set_text(
+        title="Host Security Events Summary",
+        hd_level=1,
+        text="Data and plots are store in the result class returned by this function",
+    )
     def run(
         self,
         value: Any = None,
@@ -129,6 +143,7 @@ class WinHostEvents(Notebooklet):
 
         if "acct_events" in self.options:
             result.account_events = _extract_acct_mgmt_events(event_data=all_events_df)
+            _display_acct_event_pivot(account_event_data=result.account_events)
             result.account_timeline = _display_acct_mgmt_timeline(
                 acct_event_data=result.account_events
             )
@@ -136,6 +151,7 @@ class WinHostEvents(Notebooklet):
         if "expand_events" in self.options:
             result.expanded_events = _parse_eventdata(all_events_df)
 
+        md("To unpack eventdata from selected events use expand_events()")
         self._last_result = result
         return self._last_result
 
@@ -205,11 +221,15 @@ def _get_win_security_events(qry_prov, host_name, timespan):
     return all_events_df, event_pivot_df
 
 
+@set_text(
+    title="Summary of Security Events on host",
+    text="""
+Yellow highlights indicate account with highest event count.
+""",
+)
 def _display_event_pivot(event_pivot):
-    md("Yellow highlights indicate account with highest event count")
     display(
-        event_pivot.style
-        .applymap(lambda x: "color: white" if x == 0 else "")
+        event_pivot.style.applymap(lambda x: "color: white" if x == 0 else "")
         .applymap(
             lambda x: "background-color: lightblue"
             if not isinstance(x, str) and x > 0
@@ -265,16 +285,27 @@ def _expand_event_properties(input_df):
     )
 
 
+@set_text(
+    title="Parsing eventdata into columns",
+    hd_level=3,
+    text="""
+This may take some time to complete for large numbers of events.
+
+Since event types have different schema, some of the columns will
+not be populated for certain Event IDs and will show as `NaN`.
+""",
+    md=True,
+)
 def _parse_eventdata(event_data, event_ids: Optional[Union[int, Iterable[int]]] = None):
     if event_ids:
         if isinstance(event_ids, int):
             event_ids = [event_ids]
-        eventdata = event_data[event_data["EventID"].isin(event_ids)]
+        event_data = event_data[event_data["EventID"].isin(event_ids)]
 
     # Parse event properties into a dictionary
     print_status("Parsing event data...")
-    eventdata["EventProperties"] = eventdata.apply(_parse_event_data_row, axis=1)
-    return _expand_event_properties(eventdata)
+    event_data["EventProperties"] = event_data.apply(_parse_event_data_row, axis=1)
+    return _expand_event_properties(event_data)
 
 
 # %%
@@ -298,6 +329,47 @@ def _extract_acct_mgmt_events(event_data):
     return event_data[event_data["EventID"].isin(event_list)]
 
 
+@set_text(
+    title="Summary of Account Management Events on host",
+    text="""
+Yellow highlights indicate account with highest event count.
+""",
+)
+def _display_acct_event_pivot(account_event_data):
+    # Create a pivot of Event vs. Account
+    win_events_acc = account_event_data[["Account", "Activity", "TimeGenerated"]].copy()
+    win_events_acc = win_events_acc.replace("-\\-", "No Account").replace(
+        {"Account": ""}, value="No Account"
+    )
+    win_events_acc["Account"] = win_events_acc.apply(
+        lambda x: x.Account.split("\\")[-1], axis=1
+    )
+    event_pivot_df = (
+        pd.pivot_table(
+            win_events_acc,
+            values="TimeGenerated",
+            index=["Activity"],
+            columns=["Account"],
+            aggfunc="count",
+        )
+        .fillna(0)
+        .reset_index()
+    )
+
+    display(
+        event_pivot_df.style.applymap(lambda x: "color: white" if x == 0 else "")
+        .applymap(
+            lambda x: "background-color: lightblue"
+            if not isinstance(x, str) and x > 0
+            else ""
+        )
+        .set_properties(subset=["Activity"], **{"width": "400px", "text-align": "left"})
+        .highlight_max(axis=1)
+        .hide_index()
+    )
+
+
+@set_text(title="Timeline of Account Management Events on host")
 def _display_acct_mgmt_timeline(acct_event_data):
     # Plot events on a timeline
     return nbdisplay.display_timeline(

@@ -4,21 +4,27 @@
 # license information.
 # --------------------------------------------------------------------------
 """host_summary - handles reading noebooklets modules."""
-from typing import Any, Optional, Iterable, List, Tuple
+from functools import lru_cache
+from typing import Any, Optional, Iterable
 
 import attr
 import pandas as pd
 from azure.common.exceptions import CloudError
-from msticpy.data import QueryProvider
 from msticpy.nbtools import nbdisplay
 from msticpy.nbtools import entities
-from msticpy.sectools.ip_utils import convert_to_ip_entities, create_ip_record
 from msticpy.common.utility import md
 
-from ...common import TimeSpan, NotebookletException, print_data_wait, print_status
-from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....common import (
+    TimeSpan,
+    NotebookletException,
+    print_data_wait,
+    print_status,
+    set_text,
+)
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
 
-from ..._version import VERSION
+from ...._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -58,7 +64,8 @@ class HostSummary(Notebooklet):
     """
 
     metadata = NBMetaData(
-        name=__name__,
+        name=__qualname__,
+        mod_name=__name__,
         description="Host summary",
         options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
         default_options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
@@ -67,6 +74,11 @@ class HostSummary(Notebooklet):
         req_providers=["azure_sentinel"],
     )
 
+    @set_text(
+        title="Host Entity Summary",
+        hd_level=1,
+        text="Data and plots are store in the result class returned by this function",
+    )
     def run(
         self,
         value: Any = None,
@@ -112,10 +124,17 @@ class HostSummary(Notebooklet):
 
         self._last_result = HostSummaryResult(description=self.metadata.description)
 
-        host_name, verified = _verify_host_name(self.query_provider, timespan, value)
-        if not verified:
-            md(f"Could not verify unique host name {value}. Results may not be reliable.")
+        host_name, host_names = verify_host_name(self.query_provider, timespan, value)
+        if host_names:
+            md(f"Could not obtain unique host name from {value}. Aborting.")
             return self._last_result
+        if not host_name:
+            md(
+                f"Could not find event records for host {value}. "
+                + "Results may be unreliable.",
+                "orange",
+            )
+        host_name = host_name or value
 
         host_entity = entities.Host(HostName=host_name)
         if "heartbeat" in self.options:
@@ -124,10 +143,6 @@ class HostSummary(Notebooklet):
             host_entity = host_entity or entities.Host(HostName=host_name)
             get_aznet_topology(
                 self.query_provider, host_entity=host_entity, host_name=host_name
-            )
-        if "alerts" in self.options:
-            related_alerts = _get_related_alerts(
-                self.query_provider, timespan, host_name
             )
         # If azure_details flag is set, an encrichment provider is given,
         # and the resource is an Azure host get resource details from Azure API
@@ -146,7 +161,12 @@ class HostSummary(Notebooklet):
                 host_entity.AzureDetails["SubscriptionDetails"] = azure_api[
                     "sub_details"
                 ]
-
+        _show_host_entity(host_entity)
+        if "alerts" in self.options:
+            related_alerts = _get_related_alerts(
+                self.query_provider, timespan, host_name
+            )
+            _show_alert_timeline(related_alerts)
         if "bookmarks" in self.options:
             related_bookmarks = _get_related_bookmarks(
                 self.query_provider, timespan, host_name
@@ -160,6 +180,7 @@ class HostSummary(Notebooklet):
 
 
 # Get Azure Resource details from API
+@lru_cache()
 def _azure_api_details(az_cli, host_record):
     try:
         # Get subscription details
@@ -206,166 +227,33 @@ def _azure_api_details(az_cli, host_record):
             "Tags": str(resource_details["tags"]),
         }
         azure_api = {"resoure_details": resource_details, "sub_details": sub_details}
+
         return azure_api
     except CloudError:
         return None
 
 
 # %%
-# Get heartbeat
-def _verify_host_name(qry_prov, timespan, host_name) -> Tuple[str, bool]:
+# Get IP Information from Heartbeat
+@set_text(
+    title="Host Entity details",
+    text="""
+These are the host entity details gathered from Heartbeat
+and, if applicable, AzureNetworkAnalytics and Azure management
+API.
 
-    host_names: List[str] = []
-    # Get single event - try process creation
-    if "SecurityEvent" in qry_prov.schema_tables:
-        sec_event_host = """
-            SecurityEvent
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
-            | distinct Computer
-             """
-        print_data_wait("SecurityEvent")
-        win_hosts_df = qry_prov.exec_query(
-            sec_event_host.format(
-                start=timespan.start, end=timespan.end, host=host_name
-            )
-        )
-        if win_hosts_df is not None and not win_hosts_df.empty:
-            host_names.extend(win_hosts_df["Computer"].to_list())
-
-    if "Syslog" in qry_prov.schema_tables:
-        syslog_host = """
-            Syslog
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
-            | distinct Computer
-            """
-        print_data_wait("Syslog")
-        lx_hosts_df = qry_prov.exec_query(
-            syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
-        )
-        if lx_hosts_df is not None and not lx_hosts_df.empty:
-            host_names.extend(lx_hosts_df["Computer"].to_list())
-
-    if len(host_names) > 1:
-        print(
-            f"Multiple matches for '{host_name}'.",
-            "Please select a host and re-run.",
-            "\n".join(host_names),
-        )
-        return ", ".join(host_names), False
-    if host_names:
-        print(f"Unique host found: {host_names[0]}")
-        return host_names[0], True
-
-    print(f"Host not found: {host_name}")
-    return host_name, False
-
-
-# %%
-# Get IP Information
-def get_heartbeat(
-    qry_prov: QueryProvider, host_name: str = None, host_ip: str = None
-) -> entities.Host:
-    """
-    Get Heartbeat information for host or IP.
-
-    Parameters
-    ----------
-    qry_prov : QueryProvider
-        Query provider to use for queries
-    host_name : str, optional
-        Host name, by default None
-    host_ip : str, optional
-        Host IP Address, by default None
-
-    Returns
-    -------
-    Host
-        Host entity
-
-    """
-    host_entity = entities.Host(HostName=host_name)
-    if "HeartBeat" in qry_prov.schema_tables:
-        print_data_wait("Heartbeat")
-        host_hb_df = None
-        if host_name:
-            host_hb_df = qry_prov.Network.get_heartbeat_for_host(host_name=host_name)
-        elif host_ip:
-            host_hb_df = qry_prov.Network.get_heartbeat_for_ip(ip_address=host_ip)
-        if host_hb_df is not None and not host_hb_df.empty:
-            host_hb = host_hb_df.iloc[0]
-            host_entity = entities.Host(host_hb)
-            host_entity.SourceComputerId = host_hb["SourceComputerId"]
-            host_entity.OSType = host_hb["OSType"]
-            host_entity.OSMajorVersion = host_hb["OSMajorVersion"]
-            host_entity.OSMinorVersion = host_hb["OSMinorVersion"]
-            host_entity.ComputerEnvironment = host_hb["ComputerEnvironment"]
-            host_entity.ResourceId = host_hb["ResourceId"]
-            host_entity.OmsSolutions = [
-                sol.strip() for sol in host_hb["Solutions"].split(",")
-            ]
-            host_entity.VMUUID = host_hb["VMUUID"]
-
-            host_entity.Environment = host_hb["ComputerEnvironment"]
-            if host_entity.Environment == "Azure":
-                host_entity.AzureDetails = {
-                    "SubscriptionId": host_hb["SubscriptionId"],
-                    "ResourceProvider": host_hb["ResourceProvider"],
-                    "ResourceType": host_hb["ResourceType"],
-                    "ResourceGroup": host_hb["ResourceGroup"],
-                    "ResourceId": host_hb["ResourceId"],
-                    "Solutions": host_hb["Solutions"],
-                }
-            host_entity.IPAddress = create_ip_record(heartbeat_df=host_hb_df)
-
-    return host_entity
-
-
-def get_aznet_topology(
-    qry_prov: QueryProvider,
-    host_entity: entities.Host,
-    host_name: str = None,
-    host_ip: str = None,
-):
-    """
-    Get Azure Network topology information for host or IP address.
-
-    Parameters
-    ----------
-    qry_prov : QueryProvider
-        Query provider to use for queries
-    host_entity : Host
-        Host entity to populate data with
-    host_name : str, optional
-        Host name, by default None
-    host_ip : str, optional
-        Host IP Address, by default None
-
-    """
-    if "AzureNetworkAnalytics_CL" in qry_prov.schema_tables:
-        print_data_wait("AzureNetworkAnalytics")
-        if host_name:
-            az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
-        elif host_ip:
-            az_net_df = qry_prov.Network.host_for_ip(ip_address=host_ip)
-
-        if not az_net_df.empty:
-            host_entity.private_ips = convert_to_ip_entities(
-                az_net_df["PrivateIPAddresses"].iloc[0]
-            )
-            host_entity.public_ips = convert_to_ip_entities(
-                az_net_df["PublicIPAddresses"].iloc[0]
-            )
-        else:
-            if "private_ips" not in host_entity:
-                host_entity.private_ips = []
-            if "public_ips" not in host_entity:
-                host_entity.public_ips = []
+The data shows OS information, IP Addresses assigned the
+host and any Azure VM information available.
+""",
+    md=True,
+)
+def _show_host_entity(host_entity):
+    print(host_entity)
 
 
 # %%
 # Get related alerts
+@lru_cache()
 def _get_related_alerts(qry_prov, timespan, host_name):
     related_alerts = qry_prov.SecurityAlert.list_related_alerts(
         timespan, host_name=host_name
@@ -376,24 +264,32 @@ def _get_related_alerts(qry_prov, timespan, host_name):
             related_alerts[["AlertName", "TimeGenerated"]]
             .groupby("AlertName")
             .TimeGenerated.agg("count")
-            .to_dict()
         )
-        md(f"Found {len(host_alert_items)} related alerts", "bold")
-        for alert_name, count in host_alert_items:
-            md(f"- {alert_name}, ({count} found)")
-
-        if len(related_alerts) > 1:
-            nbdisplay.display_timeline(
-                data=related_alerts,
-                title="Related Alerts",
-                source_columns=["AlertName", ""],
-                height=200,
-            )
+        print_status(
+            f"Found {len(related_alerts)} related alerts ({len(host_alert_items)}) types"
+        )
     else:
-        md("No related alerts found.")
+        print_status("No related alerts found.")
     return related_alerts
 
 
+@set_text(
+    title="Timeline of related alerts",
+    text="""
+Each marker on the timeline indicates one or more alerts related to the host
+"""
+)
+def _show_alert_timeline(related_alerts):
+    if len(related_alerts) > 1:
+        nbdisplay.display_timeline(
+            data=related_alerts,
+            title="Related Alerts",
+            source_columns=["AlertName", "TimeGenerated"],
+            height=200,
+        )
+
+
+@lru_cache()
 def _get_related_bookmarks(qry_prov, timespan, host_name):
     print_data_wait("Bookmarks")
     host_bkmks = qry_prov.AzureSentinel.list_bookmarks_for_entity(
@@ -401,5 +297,7 @@ def _get_related_bookmarks(qry_prov, timespan, host_name):
     )
 
     if not host_bkmks.empty:
-        md(f"{len(host_bkmks)} investigation bookmarks found for this host.", "bold")
+        print_status(f"{len(host_bkmks)} investigation bookmarks found for this host.")
+    else:
+        print_status("No bookmarks found.")
     return host_bkmks

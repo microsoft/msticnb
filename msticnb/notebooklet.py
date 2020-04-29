@@ -11,9 +11,10 @@ from typing import Optional, Any, Iterable, List, Set, Tuple
 
 import attr
 from attr import Factory
+from bokeh.plotting.figure import Figure
 from IPython.core.getipython import get_ipython
 import pandas as pd
-import tqdm
+from tqdm import tqdm
 
 from .common import TimeSpan, NotebookletException
 from .data_providers import DataProviders
@@ -31,13 +32,49 @@ class NotebookletResult:
 
     description: str = "Default Result"
 
+    def __str__(self):
+        """Return string representation of object."""
+        return "\n".join(
+            [
+                f"{name}: {self._str_repr(val)}"
+                for name, val in attr.asdict(self).items()
+            ]
+        )
+
+    @staticmethod
+    def _str_repr(obj):
+        if isinstance(obj, pd.DataFrame):
+            return f"DataFrame: {len(obj)} rows"
+        if isinstance(obj, Figure):
+            return f"Bokeh plot"
+        return str(obj)
+
+    def _repr_html_(self):
+        """Display HTML represention for notebook."""
+        attrib_lines = [
+            f"<h4>{name}</h4>{self._html_repr(val)}"
+            for name, val in attr.asdict(self).items()
+        ]
+        return "<br>".join(attrib_lines)
+
+    # pylint: disable=protected-access
+    @staticmethod
+    def _html_repr(obj):
+        if isinstance(obj, pd.DataFrame):
+            return obj.head(5)._repr_html_()
+        if hasattr(obj, "_repr_html_"):
+            return obj._repr_html_()
+        return str(obj).replace("\n", "<br>").replace(' ', '&nbsp')
+    # pylint: enable=protected-access
+
 
 @attr.s(auto_attribs=True)
 class NBMetaData:
     """Notebooklet metadata class."""
 
     name: str
-    description: str
+    mod_name: str = ""
+    description: str = ""
     options: List[str] = Factory(list)
     default_options: List[str] = Factory(list)
     entity_types: List[str] = Factory(list)
@@ -70,11 +107,7 @@ class Notebooklet(ABC):
     )
     module_path = ""
 
-    def __init__(
-        self,
-        data_providers: Optional[DataProviders] = None,
-        **kwargs
-    ):
+    def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
         Intialize a new instance of the notebooklet class.
 
@@ -96,11 +129,11 @@ class Notebooklet(ABC):
         if not self.data_providers:
             raise NotebookletException(
                 "No current DataProviders instance was found.",
-                "Please create an instance of msticnb."
+                "Please create an instance of msticnb.",
             )
         self.query_provider = self.data_providers.query_provider
-        missing_provs = (
-            set(self.metadata.req_providers) - set(self.data_providers.providers)
+        missing_provs = set(self.metadata.req_providers) - set(
+            self.data_providers.providers
         )
         if missing_provs:
             raise NotebookletException(
@@ -136,7 +169,7 @@ class Notebooklet(ABC):
             Result class from the notebooklet
         """
         if not options:
-            self.options = self.metadata.options
+            self.options = self.metadata.default_options
         self._set_tqdm_notebook(get_opt("verbose"))
         return NotebookletResult()
 
@@ -163,7 +196,8 @@ class Notebooklet(ABC):
         if provider_name not in self.data_providers.providers:
             raise NotebookletException(
                 f"Data provider {provider_name} not found.",
-                "Please check that you have specified the required providers")
+                "Please check that you have specified the required providers",
+            )
         return self.data_providers.providers.get(provider_name)
 
     @property
@@ -305,11 +339,10 @@ class Notebooklet(ABC):
 
         """
         search_text = " ".join(cls.metadata.search_terms)
-        search_text += cls.__class__.__doc__ or ""
+        search_text += cls.__doc__ or ""
         match_count = 0
         terms = [
-            subterm for term in search_terms.split(",")
-            for subterm in term.split()
+            subterm for term in search_terms.split(",") for subterm in term.split()
         ]
         for term in terms:
             if re.search(term, search_text, re.IGNORECASE):
@@ -320,10 +353,11 @@ class Notebooklet(ABC):
     @staticmethod
     def _set_tqdm_notebook(verbose=False):
         if verbose:
-            tqdm.tqdm_notebook().pandas()
+            tqdm.pandas()
 
     @classmethod
     def import_cell(cls):
+        """Import the text of this module into a new cell."""
         if cls.module_path:
             with open(cls.module_path, "r") as mod_file:
                 mod_text = mod_file.read()

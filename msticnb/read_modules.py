@@ -24,14 +24,17 @@ nblts: NBContainer = NBContainer()
 nb_index: Dict[str, Notebooklet] = {}
 
 
-def discover_modules(path: Union[str, Iterable[str]] = None) -> NBContainer:
+def discover_modules(
+    data_provider: str = "azsent",
+    nb_path: Union[str, Iterable[str]] = None
+) -> NBContainer:
     """
     Discover notebooks modules.
 
     Parameters
     ----------
-    path : Union[str, Iterable[str]], optional
-        Additional p, by default None
+    nb_path : Union[str, Iterable[str]], optional
+        Additional path to search for notebooklets, by default None
 
     Returns
     -------
@@ -39,21 +42,16 @@ def discover_modules(path: Union[str, Iterable[str]] = None) -> NBContainer:
         Container of notebooklets. This is structured
         as a tree mirroring the source folder names.
     """
-    # # pylint: disable=global-statement, invalid-name
-    # global nblts
-    # # pylint: enable=global-statement, invalid-name
+    pkg_folder = Path(__file__).parent / "nb" / data_provider
 
-    # nblts = NBContainer()
-
-    pkg_folder = Path(__file__).parent / "nb"
     _import_from_folder(pkg_folder)
 
-    if not path:
+    if not nb_path:
         return nblts
-    if isinstance(path, str):
-        _import_from_folder(Path(path))
-    elif isinstance(path, list):
-        for path_item in path:
+    if isinstance(nb_path, str):
+        _import_from_folder(Path(nb_path))
+    elif isinstance(nb_path, list):
+        for path_item in nb_path:
             _import_from_folder(Path(path_item))
     return nblts
 
@@ -86,7 +84,7 @@ def _find_cls_modules(folder):
             continue
         if item.is_file():
             print_debug("module to import", item)
-            mod_name = "." + ".".join(list(folder.parts[-1:]) + [item.stem])
+            mod_name = "." + ".".join(list(folder.parts[-2:]) + [item.stem])
             try:
                 imp_module = importlib.import_module(mod_name, package=nb.__package__)
             except ImportError:
@@ -115,7 +113,7 @@ def _get_container(path_parts: Tuple[str, ...]) -> NBContainer:
 FindResult = namedtuple("FindResult", "full_match match_count, name, nb_class")
 
 
-def find(keywords: str, full_match=True) -> List[Tuple[bool, int, str, Notebooklet]]:
+def find(keywords: str, full_match=True) -> List[Tuple[str, Notebooklet]]:
     """
     Search for Notebooklets matching key words.
 
@@ -127,7 +125,7 @@ def find(keywords: str, full_match=True) -> List[Tuple[bool, int, str, Notebookl
 
     Returns
     -------
-    List[Tuple[bool, int, str, Notebooklet]]
+    List[Tuple[str, Notebooklet]]
         List of matches sorted by closest match
 
     Notes
@@ -139,9 +137,9 @@ def find(keywords: str, full_match=True) -> List[Tuple[bool, int, str, Notebookl
     """
     matches = []
     for name, nb_class in nblts.iter_classes():
-        full_match, match_count = nb_class.match_terms(keywords)
-        if full_match or (match_count and not full_match):
-            matches.append(FindResult(full_match, match_count, name, nb_class))
+        all_match, match_count = nb_class.match_terms(keywords)
+        if all_match or (match_count and not full_match):
+            matches.append(FindResult(all_match, match_count, name, nb_class))
 
     # return list sorted by full_match, then match count, highest to lowest
     results = sorted(matches, key=itemgetter(0, 1), reverse=True)

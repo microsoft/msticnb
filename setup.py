@@ -14,6 +14,7 @@ INSTALL_REQUIRES = [
     "deprecated>=1.2.4",
     "ipython>=7.2.0",
     "ipywidgets>=7.4.2",
+    "markdown",
     "msticpy>=0.4.0",
     "numpy>=1.15.4",
     "pandas>=0.25.0",

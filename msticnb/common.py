@@ -5,10 +5,11 @@
 # --------------------------------------------------------------------------
 """Common definitions and classes."""
 from datetime import datetime, timedelta
-from typing import Union, Optional, Iterable, Tuple, Any
+import functools
+from typing import Union, Optional, Iterable, Tuple, Any, List
 
-from IPython.core.getipython import get_ipython
-from IPython.display import clear_output
+from IPython.display import display, HTML
+from markdown import markdown
 import pandas as pd
 
 from .options import get_opt
@@ -22,6 +23,7 @@ __author__ = "Ian Hellen"
 class TimeSpan:
     """Timespan parameter for notebook modules."""
 
+    # pylint: disable=too-many-branches
     def __init__(
         self,
         start: Optional[Union[datetime, str]] = None,
@@ -91,6 +93,7 @@ class TimeSpan:
             raise NotebookletException(
                 f"'start' must be a datetime or a datetime string."
             )
+    # pylint: disable=too-many-branches
 
 
 class NBContainer:
@@ -123,10 +126,9 @@ def find_type_in_globals(req_type: type, last=False):
     return found[0 if last else -1] if found else None
 
 
-
 def print_status(mssg: Any):
     """
-    Print a status message
+    Print a status message.
 
     Parameters
     ----------
@@ -135,7 +137,7 @@ def print_status(mssg: Any):
 
     """
     if get_opt("verbose"):
-        print(mssg, end="")
+        print(mssg)
 
 
 def print_data_wait(source: str):
@@ -150,11 +152,98 @@ def print_data_wait(source: str):
     """
     print_status(f"Getting data from {source}...")
 
+
 def print_debug(*args):
+    """Print debug args."""
     if get_opt("debug"):
         for arg in args:
             print(arg, end="--")
         print()
+
+
+# pylint: disable=invalid-name
+def set_text(
+    title: Optional[str] = None,
+    hd_level: int = 2,
+    text: Optional[str] = None,
+    md: bool = False,
+):
+    """
+    Decorate function to print title/text before execution.
+
+    Parameters
+    ----------
+    title : Optional[str], optional
+        Title text to print, by default None
+    hd_level : int
+        Heading level (1-4), by default 2
+    text : Optional[str], optional
+        Text to print, by default None
+    md : bool, optional
+        Treat `text` as markdown, by default False
+
+    Returns
+    -------
+    Callable[*args, **kwargs]
+        Wrapped function
+
+    """
+
+    def text_wrapper(func):
+        @functools.wraps(func)
+        def print_text(*args, **kwargs):
+            if title:
+                h_level = max(min(hd_level, 4), 1)
+                display(HTML(f"<h{h_level}>{title}</h{h_level}>"))
+            if text:
+                if md:
+                    display(HTML(markdown(text=text)))
+                else:
+                    fmt_text = text.replace("\n", "<br>")
+                    display(HTML(f"{fmt_text}"))
+            return func(*args, **kwargs)
+
+        return print_text
+
+    return text_wrapper
+
+
+# pylint: disable=invalid-name
+
+
+def add_result(result: Any, attr_name: Union[str, List[str]]):
+    """
+    Decorate func to add return value(s) to `result`.
+
+    Parameters
+    ----------
+    result : Any
+        Object that will have result attributes set.
+    attr_name: str or List[str]
+        Name of return attribute to set on `result`
+
+    Returns
+    -------
+    Callable[*args, **kwargs]
+        Wrapped function
+
+    """
+
+    def result_wrapper(func):
+        @functools.wraps(func)
+        def add_results(*args, **kwargs):
+            func_results = func(*args, **kwargs)
+            if isinstance(attr_name, str):
+                setattr(result, attr_name, func_results)
+            elif isinstance(attr_name, list):
+                for attr, ret_val in zip(attr_name, func_results):
+                    setattr(result, attr, ret_val)
+            return func_results
+
+        return add_results
+
+    return result_wrapper
+
 
 class NotebookletException(Exception):
     """Generic exception class for Notebooklets."""

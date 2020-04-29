@@ -9,28 +9,28 @@ from itertools import chain
 from typing import Any, Optional, Iterable, Tuple
 
 import attr
-import bokeh
+from bokeh.plotting.figure import Figure
 from IPython.display import display
 import pandas as pd
 
 from msticpy.nbtools import nbwidgets, nbdisplay
 from msticpy.nbtools import entities, foliummap
-from msticpy.sectools import GeoLiteLookup, TILookup
 from msticpy.sectools.ip_utils import get_whois_df, get_whois_info, get_ip_type
 from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
 from msticpy.common.utility import md, md_warn
 
-from ...common import (
+from ....common import (
     TimeSpan,
     NotebookletException,
-    find_type_in_globals,
     print_data_wait,
+    print_status,
+    set_text,
 )
-from ...data_providers import DataProviders
-from ...notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from ..host.host_summary import get_heartbeat, get_aznet_topology
+from ....data_providers import DataProviders
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....nblib.azsent.host import get_heartbeat, get_aznet_topology
 
-from ..._version import VERSION
+from ...._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -47,17 +47,25 @@ class NetworkFlowResult(NotebookletResult):
     ----------
     host_entity : msticpy.data.nbtools.entities.Host
     network_flows : pd.DataFrame
-    related_bookmarks: pd.DataFrame
+    plot_flows_by_protocol : Figure
+    plot_flows_by_direction : Figure
+    plot_flow_values : Figure
+    flow_index : pd.DataFrame
+    flow_index_data : pd.DataFrame
+    flow_summary : pd.DataFrame
+    ti_results : pd.DataFrame
+    geo_map : foliummap.FoliumMap
 
     """
 
     description: str = "Network flow results"
     host_entity: entities.Host = None
     network_flows: pd.DataFrame = None
-    plot_flows_by_protocol: bokeh.plotting.figure = None
-    plot_flows_by_direction: bokeh.plotting.figure = None
-    plot_flow_values: bokeh.plotting.figure = None
+    plot_flows_by_protocol: Figure = None
+    plot_flows_by_direction: Figure = None
+    plot_flow_values: Figure = None
     flow_index: pd.DataFrame = None
+    flow_index_data: pd.DataFrame = None
     flow_summary: pd.DataFrame = None
     ti_results: pd.DataFrame = None
     geo_map: foliummap.FoliumMap = None
@@ -75,7 +83,8 @@ class NetworkFlowSummary(Notebooklet):
     """
 
     metadata = NBMetaData(
-        name=__name__,
+        name=__qualname__,
+        mod_name=__name__,
         description="Network flow summary",
         options=[
             "plot_flows",
@@ -106,8 +115,13 @@ class NetworkFlowSummary(Notebooklet):
         super().__init__(data_providers, **kwargs)
 
         self.asn_selector: Optional[nbwidgets.SelectSubset] = None
-        self.ti_lookup = find_type_in_globals(TILookup, last=True) or TILookup()
+        self.flow_index_data = pd.DataFrame()
 
+    @set_text(
+        title="Host Network Summary",
+        hd_level=1,
+        text="Data and plots are store in the result class returned by this function",
+    )
     def run(
         self,
         value: Any = None,
@@ -170,7 +184,6 @@ class NetworkFlowSummary(Notebooklet):
         result.network_flows = flow_df
 
         if "resolve_host" in self.options:
-            print_data_wait("HostResolver")
             result.host_entity = _get_host_details(
                 qry_prov=self.query_provider, host_entity=result.host_entity
             )
@@ -180,17 +193,31 @@ class NetworkFlowSummary(Notebooklet):
         if "plot_flow_values" in self.options:
             result.plot_flow_values = _plot_flow_values(flow_df)
         if "flow_summary" in self.options:
-            result.flow_index = _get_flow_index_display(_extract_flow_ips(flow_df))
-            result.flow_summary = _get_flow_summary(result.flow_index)
+            flow_index = _extract_flow_ips(flow_df)
+            result.flow_index = _get_flow_index_display(flow_index)
+            result.flow_summary = _get_flow_summary(flow_index)
+            result.flow_index_data = flow_index
         if "geo_map" in self.options:
-            result.geo_map = _display_geo_map_all(flow_df, result.host_entity)
+            result.geo_map = _display_geo_map_all(
+                flow_index=flow_index,
+                ip_locator=self.data_providers.geolite_lookup,
+                host_entity=result.host_entity,
+            )
+
+        md("Select ASNs to examine using select_asns()")
+        md(
+            "Lookup threat intel for IPs from selected ASNs using"
+            + " lookup_ti_for_asn_ips()",
+        )
+        md("Display Geolocation of threats with show_selected_asn_map()")
+        md("For usage type 'help(NetworkFlowSummary.function_name)'")
 
         self._last_result = result
         return self._last_result
 
     def select_asns(self):
         """Show selector to choose which ASNs to process."""
-        if not self._last_result or not self._last_result.flow_summary:
+        if not self._last_result or self._last_result.flow_summary is None:
             print(
                 "Please use 'run' with 'flow_summary' option before using",
                 "this method.",
@@ -206,12 +233,14 @@ class NetworkFlowSummary(Notebooklet):
         """Lookup IPs of selected ASN in TILookip."""
         if (
             not self._last_result
-            or not self._last_result.flow_summary
+            or self._last_result.flow_summary is None
             or not self.asn_selector
         ):
             print(
                 "Please use 'run()' with 'flow_summary' option before using",
-                "this method. Then call 'lookup_ti_for_asn_ips()'",
+                "this method.\n",
+                "Then call 'select_asns()' to select the ASNs to lookup.\n",
+                "Then call 'lookup_ti_for_asn_ips()'.",
             )
             return
 
@@ -221,7 +250,7 @@ class NetworkFlowSummary(Notebooklet):
         ti_results = _lookup_ip_ti(
             flows_df=self._last_result,
             selected_ips=selected_ips,
-            ti_lookup=self.ti_lookup,
+            ti_lookup=self.data_providers.ti_lookup,
         )
         self._last_result.ti_results = ti_results
 
@@ -237,7 +266,7 @@ class NetworkFlowSummary(Notebooklet):
         """
         if (
             not self._last_result
-            or not self._last_result.flow_summary
+            or self._last_result.flow_summary is None
             or not self.asn_selector
         ):
             print(
@@ -248,7 +277,8 @@ class NetworkFlowSummary(Notebooklet):
             )
             return None
         return _display_geo_map(
-            flow_df=self._last_result.flow_summary,
+            flow_index=self._last_result.flow_index_data,
+            ip_locator=self.data_providers.geolite_lookup,
             host_entity=self._last_result.host_entity,
             ti_results=self._last_result.ti_results,
             select_asn=self.asn_selector,
@@ -280,9 +310,7 @@ def _get_host_details(qry_prov, host_entity):
     host_ip = getattr(host_entity, "IpAddress", None)
     host_name = getattr(host_entity, "HostName", None)
 
-    print_data_wait("Heartbeat")
     host_entity = get_heartbeat(qry_prov=qry_prov, host_ip=host_ip, host_name=host_name)
-    print_data_wait("AzureNetworkAnalytics")
     get_aznet_topology(
         qry_prov=qry_prov, host_ip=host_ip, host_entity=host_entity, host_name=host_name
     )
@@ -310,6 +338,7 @@ def _get_az_net_flows(qry_prov, timespan, ip_addr, hostname):
 
 # %%
 # Plot flows
+@set_text(title="Timeline of network flows by protocol type.",)
 def _plot_flows_by_protocol(flow_df):
     return nbdisplay.display_timeline(
         data=flow_df,
@@ -323,6 +352,9 @@ def _plot_flows_by_protocol(flow_df):
     )
 
 
+@set_text(
+    title="Timeline of network flows by direction.", text="I = inbound, O = outbound."
+)
 def _plot_flows_by_direction(flow_df):
     return nbdisplay.display_timeline(
         data=flow_df,
@@ -338,6 +370,14 @@ def _plot_flows_by_direction(flow_df):
 
 # %%
 # Plot flow values
+@set_text(
+    title="Timeline of network flows quantity.",
+    text="""
+Each protocol is plotted as a separate colored series.
+The vertical axis indicates the number for flows recorded for
+that time slot.
+""",
+)
 def _plot_flow_values(flow_df, related_alert=None):
     return nbdisplay.display_timeline_values(
         data=flow_df,
@@ -389,9 +429,21 @@ def _extract_flow_ips(flow_df):
 
     flow_index["source"] = flow_index.apply(get_source_ip, axis=1)
     flow_index["dest"] = flow_index.apply(get_dest_ip, axis=1)
+
     return flow_index
 
 
+@set_text(
+    title="Select the ASNs to process.",
+    hd_level=3,
+    text="""
+Choose any unusual looking ASNs that you want to examine.
+
+The remote IPs from each selected ASN will be sent to your selected
+Threat Intelligence providers to check if there are indications of
+malicious activity associated with these IPs.
+""",
+)
 def _get_flow_index_display(flow_summary_df):
     return (
         flow_summary_df[
@@ -417,10 +469,15 @@ def _get_flow_summary(flow_index):
     )
 
     num_ips = len(flows_df["source"].unique()) + len(flows_df["dest"].unique())
+    print_status(f"Found {num_ips} unique IP Addresses.")
 
     print_data_wait("Whois")
-    flows_df = get_whois_df(flows_df, ip_column="dest", asn_col="DestASN")
-    flows_df = get_whois_df(flows_df, ip_column="source", asn_col="SourceASN")
+    flows_df = get_whois_df(
+        flows_df, ip_column="dest", asn_col="DestASN", show_progress=True
+    )
+    flows_df = get_whois_df(
+        flows_df, ip_column="source", asn_col="SourceASN", show_progress=True
+    )
 
     # Split the tuple returned by get_whois_info into separate columns
     flows_df["DestASNFull"] = flows_df.apply(lambda x: x.DestASN[1], axis=1)
@@ -458,6 +515,18 @@ def _get_source_host_asns(host_entity):
     return host_asns
 
 
+@set_text(
+    title="Select the ASNs to process.",
+    text="""
+Choose any unusual looking ASNs that you want to examine.
+
+The remote IPs from each selected ASN will be sent to your selected
+Threat Intelligence providers to check if there are indications of
+malicious activity associated with these IPs.
+
+By default, the most infrequently accessed ASNs are selected.
+""",
+)
 def _select_asn_subset(flow_sum_df, host_entity):
     our_host_asns = _get_source_host_asns(host_entity)
     all_asns = list(flow_sum_df["DestASN"].unique()) + list(
@@ -472,7 +541,6 @@ def _select_asn_subset(flow_sum_df, host_entity):
         quant_25pc_df["SourceASN"].unique()
     )
     other_asns = set(other_asns) - set(our_host_asns)
-    md("Choose IPs from Selected ASNs to look up for Threat Intel.", "bold")
     sel_asn = nbwidgets.SelectSubset(source_items=all_asns, default_selected=other_asns)
 
     return sel_asn
@@ -500,17 +568,25 @@ def _get_ips_from_selected_asn(flow_sum_df, select_asn):
     return selected_ips
 
 
+@set_text(
+    title="TI Lookup for selected ASNs.",
+    text="""
+The remote IPs from each selected ASN are looked up by your selected
+Threat Intelligence providers to check if there are indications of
+malicious activity associated with these IPs.
+""",
+)
 def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
     def ti_check_ser_sev(severity, threshold):
         threshold = TISeverity.parse(threshold)
         return severity.apply(lambda x: TISeverity.parse(x) >= threshold)
 
     # Add the IoCType to save cost of inferring each item
-    md("Looking up TI...")
+    print_data_wait("Threat Intelligence")
     selected_ip_dict = {ip: "ipv4" for ip in selected_ips}
     ti_results = ti_lookup.lookup_iocs(data=selected_ip_dict)
 
-    md(f"{len(ti_results)} results received.")
+    md(f"{len(ti_results)} TI results received.")
 
     ti_results_pos = ti_results[ti_check_ser_sev(ti_results["Severity"], 1)]
     print(f"{len(ti_results_pos)} positive results found.")
@@ -541,16 +617,29 @@ def _format_ip_entity(ip_loc, row, ip_col):
     return ip_entity
 
 
-def _display_geo_map_all(flow_df, host_entity):
-    ip_locator = GeoLiteLookup()
-    # from msticpy.nbtools.foliummap import FoliumMap
+@set_text(
+    title="Map of geographic location of IPs communicating with host",
+    text="""
+Numbered circles indicate multiple items - click to expand these.
+
+Hovering over a location shows brief details, clicking on an IP location
+shows more detail.
+
+Location marker key:
+- Blue = outbound
+- Purple = inbound
+- Green = Host
+""",
+    md=True,
+)
+def _display_geo_map_all(flow_index, ip_locator, host_entity):
     folium_map = foliummap.FoliumMap(zoom_start=4)
-    if flow_df is None or flow_df.empty:
+    if flow_index is None or flow_index.empty:
         print("No network flow data available.")
         return None
 
     # Get the flow records for all flows not in the TI results
-    selected_out = flow_df
+    selected_out = flow_index
 
     if selected_out.empty:
         ips_out = []
@@ -562,7 +651,7 @@ def _display_geo_map_all(flow_df, host_entity):
             )
         )
 
-    selected_in = flow_df
+    selected_in = flow_index
     if selected_in.empty:
         ips_in = []
     else:
@@ -572,10 +661,6 @@ def _display_geo_map_all(flow_df, host_entity):
                 lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1
             )
         )
-
-    md("External IP Addresses communicating with host", "large")
-    md("Numbered circles indicate multiple items - click to expand")
-    md("Location markers: <br>Blue = outbound, Purple = inbound, Green = Host")
 
     icon_props = {"color": "green"}
     for ips in host_entity.public_ips:
@@ -590,17 +675,31 @@ def _display_geo_map_all(flow_df, host_entity):
     return folium_map
 
 
-def _display_geo_map(flow_df, host_entity, ti_results, select_asn):
-    ip_locator = GeoLiteLookup()
-    # from msticpy.nbtools.foliummap import FoliumMap
+@set_text(
+    title="Map of geographic location of selected IPs communicating with host",
+    text="""
+Numbered circles indicate multiple items - click to expand these.
+
+Hovering over a location shows brief details, clicking on an IP location
+shows more detail.
+
+Location marker key:
+- Blue = outbound
+- Purple = inbound
+- Green = Host
+- Red = Threats
+""",
+    md=True,
+)
+def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn):
     folium_map = foliummap.FoliumMap(zoom_start=4)
-    if flow_df is None or flow_df.empty:
+    if flow_index is None or flow_index.empty:
         print("No network flow data available.")
         return None
 
     # Get the flow records for all flows not in the TI results
-    selected_out = flow_df[flow_df["DestASN"].isin(select_asn.selected_items)]
-    selected_in = flow_df[flow_df["SourceASN"].isin(select_asn.selected_items)]
+    selected_out = flow_index[flow_index["DestASN"].isin(select_asn.selected_items)]
+    selected_in = flow_index[flow_index["SourceASN"].isin(select_asn.selected_items)]
     if ti_results is not None and not ti_results.empty:
         selected_out = selected_out[~selected_out["dest"].isin(ti_results["Ioc"])]
         selected_in = selected_in[~selected_in["source"].isin(ti_results["Ioc"])]
@@ -624,13 +723,6 @@ def _display_geo_map(flow_df, host_entity, ti_results, select_asn):
                 lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1
             )
         )
-
-    md("External IP Addresses communicating with host", "large")
-    md("Numbered circles indicate multiple items - click to expand")
-    md(
-        "Location markers: <br>Blue = outbound, Purple = inbound, "
-        + " Green = Host, Red = Threats"
-    )
 
     icon_props = {"color": "green"}
     for ip_addr in host_entity.public_ips:
