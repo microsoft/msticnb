@@ -1,4 +1,11 @@
 
+# Notebooklets
+
+Notebooklets are reusable Jupyter notebook code patterns for InfoSec investigators
+and hunters.
+
+The goals for notebooklets are:
+- 
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a

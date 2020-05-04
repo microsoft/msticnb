@@ -3,8 +3,9 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""read_modules - handles reading noebooklets modules."""
+"""read_modules - handles reading notebooklets modules."""
 from collections import namedtuple
+from functools import partial
 import importlib
 import inspect
 from operator import itemgetter
@@ -12,7 +13,8 @@ from pathlib import Path
 from typing import Iterable, Tuple, Dict, List, Union
 
 from . import nb
-from .common import NBContainer, NotebookletException, print_debug
+from .class_doc import get_class_doc
+from .common import NBContainer, MsticnbError, print_debug
 from .notebooklet import Notebooklet
 
 from ._version import VERSION
@@ -25,8 +27,7 @@ nb_index: Dict[str, Notebooklet] = {}
 
 
 def discover_modules(
-    data_provider: str = "azsent",
-    nb_path: Union[str, Iterable[str]] = None
+    data_provider: str = "azsent", nb_path: Union[str, Iterable[str]] = None
 ) -> NBContainer:
     """
     Discover notebooks modules.
@@ -42,9 +43,12 @@ def discover_modules(
         Container of notebooklets. This is structured
         as a tree mirroring the source folder names.
     """
-    pkg_folder = Path(__file__).parent / "nb" / data_provider
+    pkg_folder = Path(__file__).parent
+    dp_pkg_folder = pkg_folder / "nb" / data_provider
+    _import_from_folder(dp_pkg_folder, pkg_folder)
 
-    _import_from_folder(pkg_folder)
+    common_pkg_folder = pkg_folder / "nb/common"
+    _import_from_folder(common_pkg_folder, pkg_folder)
 
     if not nb_path:
         return nblts
@@ -56,13 +60,14 @@ def discover_modules(
     return nblts
 
 
-def _import_from_folder(nb_folder: Path):
+def _import_from_folder(nb_folder: Path, parent_folder: Path):
     if not nb_folder.is_dir():
-        raise NotebookletException(f"Notebooklet folder {nb_folder} not found.")
+        raise MsticnbError(f"Notebooklet folder {nb_folder} not found.")
 
     folders = [f for f in nb_folder.glob("./**") if f.is_dir() and not f == nb_folder]
     for folder in folders:
         rel_folder_parts = folder.relative_to(nb_folder).parts
+        full_rel_path_paths = folder.relative_to(parent_folder).parts
         # skip hidden folder paths with . or _ prefix
         if any([f for f in rel_folder_parts if f.startswith(".") or f.startswith("_")]):
             continue
@@ -73,7 +78,7 @@ def _import_from_folder(nb_folder: Path):
         cur_container = _get_container(rel_folder_parts)
         for cls_name, nb_class in nb_classes.items():
             setattr(cur_container, cls_name, nb_class)
-            cls_index = ".".join(list(rel_folder_parts) + [cls_name])
+            cls_index = ".".join(list(full_rel_path_paths) + [cls_name])
             nb_index[cls_index] = nb_class
 
 
@@ -87,14 +92,18 @@ def _find_cls_modules(folder):
             mod_name = "." + ".".join(list(folder.parts[-2:]) + [item.stem])
             try:
                 imp_module = importlib.import_module(mod_name, package=nb.__package__)
-            except ImportError:
-                print_debug("import failed", item)
+            except ImportError as err:
+                print_debug("import failed", item, err)
                 continue
             mod_classes = inspect.getmembers(imp_module, inspect.isclass)
             for cls_name, mod_class in mod_classes:
                 if issubclass(mod_class, Notebooklet) and not mod_class == Notebooklet:
                     print_debug("imported", cls_name)
                     mod_class.module_path = item
+                    # set the function to return documentation
+                    setattr(
+                        mod_class, "_get_doc", partial(get_class_doc, doc_cls=mod_class)
+                    )
                     found_classes[cls_name] = mod_class
     return found_classes
 

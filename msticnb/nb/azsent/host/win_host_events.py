@@ -20,7 +20,7 @@ from msticpy.nbtools import nbdisplay
 
 from ....common import (
     TimeSpan,
-    NotebookletException,
+    MsticnbMissingParameterError,
     print_data_wait,
     print_status,
     set_text,
@@ -41,10 +41,22 @@ class WinHostEventsResult(NotebookletResult):
     Attributes
     ----------
     all_events : pd.DataFrame
+        DataFrame of all raw events retrieved.
     event_pivot : pd.DataFrame
+        DataFrame that is a pivot table of event ID
+        vs. Account
     account_events : pd.DataFrame
+        DataFrame containing a subset of account management
+        events such as account and group modification.
+    acct_pivot : pd.DataFrame
+        DataFrame that is a pivot table of event ID
+        vs. Account of account management events
     account_timeline : bokeh.plotting.figure.Figure
-    related_bookmarks: pd.DataFrame
+        Bokeh plot figure showing the account events on an
+        interactive timeline.
+    expanded_events : pd.DataFrame
+        If `expand_events` option is specified, this will contain
+        the parsed/expanded EventData as individual columns.
 
     """
 
@@ -52,31 +64,46 @@ class WinHostEventsResult(NotebookletResult):
     all_events: pd.DataFrame = None
     event_pivot: pd.DataFrame = None
     account_events: pd.DataFrame = None
+    account_pivot: pd.DataFrame = None
     account_timeline: Figure = None
     expanded_events: pd.DataFrame = None
 
 
 class WinHostEvents(Notebooklet):
     """
-
     Windows host Security Events Notebooklet class.
 
-    Notes
-    -----
     Queries and displays Windows Security Events including:
+
     - All security events summary
     - Extracting and displaying account management events
     - Account management event timeline
     - Optionally parsing packed event data into DataFrame columns
 
+    Process (4688) and Account Logon (4624, 4625) are not included
+    in the event types processed by this module.
+
+    Default Options
+    ---------------
+    - event_pivot: Display a summary of all event types.
+    - acct_events: Display and summary and timeline of account
+      management events.
+
+    Other Options
+    -------------
+    - expand_events: parses the XML EventData column into separate
+      DataFrame columns. This can be very expensive with a large
+      event set. We recommend using the expand_events() method to
+      select a specific subset of events to process.
+
     """
 
     metadata = NBMetaData(
-        name=__qualname__,
+        name=__qualname__,  # type: ignore  # noqa
         mod_name=__name__,
         description="Window security events summary",
-        options=["event_pivot", "expand_events", "acct_events"],
         default_options=["event_pivot", "acct_events"],
+        other_options=["expand_events"],
         keywords=["host", "computer", "events", "windows", "account"],
         entity_types=["host"],
         req_providers=["azure_sentinel"],
@@ -107,8 +134,11 @@ class WinHostEvents(Notebooklet):
         timespan : TimeSpan
             Timespan for queries
         options : Optional[Iterable[str]], optional
-            List of options to use, by default None
+            List of options to use, by default None.
             A value of None means use default options.
+            Options prefixed with "+" will be added to the default options.
+            To see the list of available options type `help(cls)` where
+            "cls" is the notebooklet class or an instance of this class.
 
         Returns
         -------
@@ -117,7 +147,7 @@ class WinHostEvents(Notebooklet):
 
         Raises
         ------
-        NotebookletException
+        MsticnbMissingParameterError
             If required parameters are missing
 
         """
@@ -126,9 +156,9 @@ class WinHostEvents(Notebooklet):
         )
 
         if not value:
-            raise NotebookletException("parameter 'value' is required.")
+            raise MsticnbMissingParameterError("value")
         if not timespan:
-            raise NotebookletException("parameter 'timespan' is required.")
+            raise MsticnbMissingParameterError("timespan.")
 
         result = WinHostEventsResult()
 
@@ -143,7 +173,10 @@ class WinHostEvents(Notebooklet):
 
         if "acct_events" in self.options:
             result.account_events = _extract_acct_mgmt_events(event_data=all_events_df)
-            _display_acct_event_pivot(account_event_data=result.account_events)
+            result.account_pivot = _create_acct_event_pivot(
+                account_event_data=result.account_events
+            )
+            _display_acct_event_pivot(event_pivot_df=result.account_pivot)
             result.account_timeline = _display_acct_mgmt_timeline(
                 acct_event_data=result.account_events
             )
@@ -155,14 +188,17 @@ class WinHostEvents(Notebooklet):
         self._last_result = result
         return self._last_result
 
-    def expand_events(self, event_ids: Optional[Union[int, Iterable[int]]] = None):
+    def expand_events(
+        self, event_ids: Optional[Union[int, Iterable[int]]] = None
+    ) -> pd.DataFrame:
         """
-        Expand `eventdata` column into separate properties.
+        Expand `EventData` for `event_ids` into separate columns.
 
         Parameters
         ----------
         event_ids : Optional[Union[int, Iterable[int]]], optional
-            Single or interable of eventid ints, by default None
+            Single or interable of event IDs (ints).
+            If no event_ids are specified all events will be expanded.
 
         Returns
         -------
@@ -175,6 +211,7 @@ class WinHostEvents(Notebooklet):
         into their own columns using this function.
         You can do this for the whole data set but it will time-consuming
         and result in a lot of sparse columns in the output data frame.
+
         """
         if not self._last_result or self._last_result.all_events is None:  # type: ignore
             print(
@@ -329,13 +366,7 @@ def _extract_acct_mgmt_events(event_data):
     return event_data[event_data["EventID"].isin(event_list)]
 
 
-@set_text(
-    title="Summary of Account Management Events on host",
-    text="""
-Yellow highlights indicate account with highest event count.
-""",
-)
-def _display_acct_event_pivot(account_event_data):
+def _create_acct_event_pivot(account_event_data):
     # Create a pivot of Event vs. Account
     win_events_acc = account_event_data[["Account", "Activity", "TimeGenerated"]].copy()
     win_events_acc = win_events_acc.replace("-\\-", "No Account").replace(
@@ -355,7 +386,16 @@ def _display_acct_event_pivot(account_event_data):
         .fillna(0)
         .reset_index()
     )
+    return event_pivot_df
 
+
+@set_text(
+    title="Summary of Account Management Events on host",
+    text="""
+Yellow highlights indicate account with highest event count.
+""",
+)
+def _display_acct_event_pivot(event_pivot_df):
     display(
         event_pivot_df.style.applymap(lambda x: "color: white" if x == 0 else "")
         .applymap(

@@ -5,18 +5,22 @@
 # --------------------------------------------------------------------------
 """Notebooklet base classes."""
 from abc import ABC, abstractmethod
+import inspect
 import re
-from typing import Optional, Any, Iterable, List, Set, Tuple
+from typing import Optional, Any, Iterable, List, Set, Tuple, Dict
 
 
 import attr
 from attr import Factory
+import bokeh.io
+from bokeh.models import LayoutDOM
 from bokeh.plotting.figure import Figure
 from IPython.core.getipython import get_ipython
+from IPython.display import display, HTML
 import pandas as pd
 from tqdm import tqdm
 
-from .common import TimeSpan, NotebookletException
+from .common import TimeSpan, MsticnbDataProviderError
 from .data_providers import DataProviders
 from .options import get_opt
 
@@ -30,7 +34,16 @@ __author__ = "Ian Hellen"
 class NotebookletResult:
     """Base result class."""
 
-    description: str = "Default Result"
+    description: str = "Notebooklet base class"
+    _attribute_desc: Dict[str, Tuple[str, str]] = Factory(dict)  # type: ignore
+
+    def __attrs_post_init__(self):
+        """Populate the `_attribute_desc` dictionary on init."""
+        if not self.description:
+            # pylint: disable=pointless-statement
+            self.description == self.__class__.__qualname__
+            # pylint: enable=pointless-statement
+        self._populate_attr_desc()
 
     def __str__(self):
         """Return string representation of object."""
@@ -38,6 +51,7 @@ class NotebookletResult:
             [
                 f"{name}: {self._str_repr(val)}"
                 for name, val in attr.asdict(self).items()
+                if not name.startswith("_")
             ]
         )
 
@@ -49,23 +63,70 @@ class NotebookletResult:
             return f"Bokeh plot"
         return str(obj)
 
+    # pylint: disable=unsubscriptable-object, no-member
     def _repr_html_(self):
         """Display HTML represention for notebook."""
-        attrib_lines = [
-            f"<h4>{name}</h4>{self._html_repr(val)}"
-            for name, val in attr.asdict(self).items()
-        ]
+        attrib_lines = []
+        for name, val in attr.asdict(self).items():
+            if name.startswith("_"):
+                continue
+            attr_desc = ""
+            attr_type, attr_text = (
+                self._attribute_desc.get(name, (None, None))  # type: ignore
+            )
+            if attr_type:
+                attr_desc += f"[{attr_type}]<br>"
+            if attr_text:
+                attr_desc += f"{attr_text}<br>"
+            attrib_lines.append(f"<h4>{name}</h4>{attr_desc}{self._html_repr(val)}")
         return "<br>".join(attrib_lines)
+
+    # pylint: enable=unsubscriptable-object, no-member
 
     # pylint: disable=protected-access
     @staticmethod
     def _html_repr(obj):
         if isinstance(obj, pd.DataFrame):
             return obj.head(5)._repr_html_()
+        if isinstance(obj, (LayoutDOM, Figure)):
+            bokeh.io.show(obj)
         if hasattr(obj, "_repr_html_"):
             return obj._repr_html_()
-        return str(obj).replace("\n", "<br>").replace(' ', '&nbsp')
+        return str(obj).replace("\n", "<br>").replace(" ", "&nbsp;")
+
     # pylint: enable=protected-access
+
+    def _populate_attr_desc(self):
+        indent = " " * 4
+        in_attribs = False
+        attr_name = None
+        attr_type = None
+        attr_dict = {}
+        attr_lines = []
+        doc_str = inspect.cleandoc(self.__doc__)
+        for line in doc_str.split("\n"):
+            if line.strip() == "Attributes":
+                in_attribs = True
+                continue
+            if (
+                line.strip() == "-" * len("Attributes")
+                or not in_attribs
+                or not line.strip()
+            ):
+                continue
+            if not line.startswith(indent):
+                # if existing attribute, add to dict
+                if attr_name:
+                    attr_dict[attr_name] = attr_type, " ".join(attr_lines)
+                print(line)
+                attr_name, attr_type = [item.strip() for item in line.split(":")]
+                attr_lines = []
+            else:
+                attr_lines.append(line.strip())
+        attr_dict[attr_name] = attr_type, " ".join(attr_lines)
+        # pylint: disable=no-member
+        self._attribute_desc.update(attr_dict)  # type: ignore
+        # pylint: enable=no-member
 
 
 @attr.s(auto_attribs=True)
@@ -75,8 +136,8 @@ class NBMetaData:
     name: str
     mod_name: str = ""
     description: str = ""
-    options: List[str] = Factory(list)
     default_options: List[str] = Factory(list)
+    other_options: List[str] = Factory(list)
     entity_types: List[str] = Factory(list)
     keywords: List[str] = Factory(list)
     req_providers: List[str] = Factory(list)
@@ -89,7 +150,7 @@ class NBMetaData:
             [self.name]
             + [obj.casefold() for obj in self.entity_types]  # type: ignore
             + [key.casefold() for key in self.keywords]  # type: ignore
-            + [opt.casefold() for opt in self.options]  # type: ignore
+            + [opt.casefold() for opt in self.all_options]  # type: ignore
         )
 
     # pylint: enable=not-an-iterable
@@ -98,12 +159,17 @@ class NBMetaData:
         """Return string representation of object."""
         return "\n".join([f"{name}: {val}" for name, val in attr.asdict(self).items()])
 
+    @property
+    def all_options(self):
+        """Return combination of default and other options."""
+        return sorted(list(set(self.default_options + self.other_options)))
+
 
 class Notebooklet(ABC):
     """Base class for Notebooklets."""
 
     metadata: NBMetaData = NBMetaData(
-        name="Notebooklet", description="Base class", options=[]
+        name="Notebooklet", description="Base class", default_options=[]
     )
     module_path = ""
 
@@ -117,9 +183,16 @@ class Notebooklet(ABC):
             Optional DataProviders instance to query data.
             Most classes require this.
 
+        Raises
+        ------
+        MsticnbDataProviderError
+            If DataProviders has not been initialized.
+            If required providers are specified by the notebooklet
+            but are not available.
+
         """
         self._kwargs = kwargs
-        self.options: List[str] = []
+        self.options: List[str] = self.metadata.default_options
         self._set_tqdm_notebook(get_opt("verbose"))
         self._last_result: Any = None
 
@@ -127,7 +200,7 @@ class Notebooklet(ABC):
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
         # pylint: enable=no-member
         if not self.data_providers:
-            raise NotebookletException(
+            raise MsticnbDataProviderError(
                 "No current DataProviders instance was found.",
                 "Please create an instance of msticnb.",
             )
@@ -136,7 +209,7 @@ class Notebooklet(ABC):
             self.data_providers.providers
         )
         if missing_provs:
-            raise NotebookletException(
+            raise MsticnbDataProviderError(
                 f"Required data provider(s) {missing_provs} not found."
             )
 
@@ -161,7 +234,11 @@ class Notebooklet(ABC):
         timespan : Optional[TimeSpan], optional
             Timespan over , by default None
         options :Optional[Iterable[str]], optional
-            [description], by default None
+            List of options to use, by default None
+            A value of None means use default options.
+            Options prefixed with "+" will be added to the default options.
+            To see the list of available options type `help(cls)` where
+            "cls" is the notebooklet class or an instance of this class.
 
         Returns
         -------
@@ -170,6 +247,12 @@ class Notebooklet(ABC):
         """
         if not options:
             self.options = self.metadata.default_options
+        else:
+            add_options = [opt[1:] for opt in options if opt.startswith("+")]
+            if add_options:
+                self.options = self.metadata.default_options + add_options
+            else:
+                self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
         return NotebookletResult()
 
@@ -189,12 +272,12 @@ class Notebooklet(ABC):
 
         Raises
         ------
-        NotebookletException
+        MsticnbDataProviderError
             If provider is not found.
 
         """
         if provider_name not in self.data_providers.providers:
-            raise NotebookletException(
+            raise MsticnbDataProviderError(
                 f"Data provider {provider_name} not found.",
                 "Please check that you have specified the required providers",
             )
@@ -251,7 +334,7 @@ class Notebooklet(ABC):
             Supported options.
 
         """
-        return cls.metadata.options
+        return cls.metadata.all_options
 
     @classmethod
     def default_options(cls) -> List[str]:
@@ -362,5 +445,23 @@ class Notebooklet(ABC):
             with open(cls.module_path, "r") as mod_file:
                 mod_text = mod_file.read()
             if mod_text:
+                # replace relative references with absolute paths
+                mod_text = re.sub(r"\.{3,}", "msticnb.", mod_text)
                 shell = get_ipython()
                 shell.set_next_input(mod_text)
+
+    @classmethod
+    def show_help(cls):
+        """Display Documentation for class."""
+        display(HTML(cls.get_help()))
+
+    @classmethod
+    def get_help(cls, fmt="html") -> str:
+        """Return HTML document for class."""
+        return cls._get_doc(fmt=fmt)
+
+    @classmethod
+    def _get_doc(cls, fmt):
+        """Placeholder attribute for documentation func."""
+        del fmt
+        return "No documentation available."

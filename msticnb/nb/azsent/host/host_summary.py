@@ -16,7 +16,7 @@ from msticpy.common.utility import md
 
 from ....common import (
     TimeSpan,
-    NotebookletException,
+    MsticnbMissingParameterError,
     print_data_wait,
     print_status,
     set_text,
@@ -38,8 +38,16 @@ class HostSummaryResult(NotebookletResult):
     Attributes
     ----------
     host_entity : msticpy.data.nbtools.entities.Host
+        The host entity object contains data about the host
+        such as name, environment, operating system version,
+        IP addresses and Azure VM details. Depending on the
+        type of host, not all of this data may be populated.
     related_alerts : pd.DataFrame
+        Pandas DataFrame of any alerts recorded for the host
+        within the query time span.
     related_bookmarks: pd.DataFrame
+        Pandas DataFrame of any investigation bookmarks
+        relating to the host.
 
     """
 
@@ -53,21 +61,32 @@ class HostSummary(Notebooklet):
 
     HostSummary Notebooklet class.
 
-    Notes
-    -----
     Queries and displays information about a host including:
+
     - IP address assignment
     - Related alerts
     - Related hunting/investigation bookmarks
     - Azure subscription/resource data.
 
+    Default Options
+    ---------------
+    - heartbeat: Query Heartbeat table for host information.
+    - azure_net: Query AzureNetworkAnalytics table for host
+      network topology information.
+    - azure_api: Query Azure API for VM information.
+    - alerts: Query any alerts for the host.
+    - bookmarks: Query any bookmarks for the host.
+
+    Other Options
+    -------------
+    - None
+
     """
 
     metadata = NBMetaData(
-        name=__qualname__,
+        name=__qualname__,  # type: ignore  # noqa
         mod_name=__name__,
         description="Host summary",
-        options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
         default_options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
         keywords=["host", "computer", "heartbeat", "windows", "linux"],
         entity_types=["host"],
@@ -101,6 +120,9 @@ class HostSummary(Notebooklet):
         options : Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
+            Options prefixed with "+" will be added to the default options.
+            To see the list of available options type `help(cls)` where
+            "cls" is the notebooklet class or an instance of this class.
 
         Returns
         -------
@@ -109,7 +131,7 @@ class HostSummary(Notebooklet):
 
         Raises
         ------
-        NotebookletException
+        MsticnbMissingParameterError
             If required parameters are missing
 
         """
@@ -118,9 +140,9 @@ class HostSummary(Notebooklet):
         )
 
         if not value:
-            raise NotebookletException("parameter 'value' is required.")
+            raise MsticnbMissingParameterError("value")
         if not timespan:
-            raise NotebookletException("parameter 'timespan' is required.")
+            raise MsticnbMissingParameterError("timespan.")
 
         self._last_result = HostSummaryResult(description=self.metadata.description)
 

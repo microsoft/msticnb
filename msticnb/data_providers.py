@@ -7,14 +7,13 @@
 import inspect
 from typing import Optional, List, Dict, Any
 import sys
-import warnings
 
 from msticpy.data import QueryProvider
 from msticpy.data.azure_data import AzureData, MsticpyAzureException
 from msticpy.common.wsconfig import WorkspaceConfig
 from msticpy.sectools import TILookup, GeoLiteLookup
 
-from .common import NotebookletException
+from .common import MsticnbError
 from .options import get_opt
 
 from ._version import VERSION
@@ -129,7 +128,7 @@ class DataProviders:
             self.providers[provider] = az_provider
         except MsticpyAzureException as mp_ex:
             if get_opt("verbose"):
-                warnings.warn(mp_ex.args)
+                print("Warning:", mp_ex.args)
 
     def _ti_lookup_prov(self, provider, **kwargs):
         ti_lookup_args = self._get_provider_kwargs(provider, **kwargs)
@@ -178,7 +177,7 @@ class DataProviders:
             ws_config = WorkspaceConfig()
 
         if not ws_config.config_loaded:
-            raise NotebookletException(
+            raise MsticnbError(
                 "Could not find valid Azure Sentinel configuration.",
                 "Please ensure configuration files are set correctly or supply",
                 "azure_sentinel.workspace_id and azure_sentinel.tenant_id",
@@ -201,4 +200,3 @@ def init(providers: Optional[List[str]] = None, **kwargs):
     print(f"Loaded providers: {', '.join(d_provs.providers.keys())}")
     msticnb = sys.modules["msticnb"]
     setattr(msticnb, "data_providers", d_provs.providers)
-    return d_provs

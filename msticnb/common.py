@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import functools
 from typing import Union, Optional, Iterable, Tuple, Any, List
 
+from dateutil.parser import ParserError
 from IPython.display import display, HTML
 from markdown import markdown
 import pandas as pd
@@ -23,7 +24,7 @@ __author__ = "Ian Hellen"
 class TimeSpan:
     """Timespan parameter for notebook modules."""
 
-    # pylint: disable=too-many-branches
+    # pylint: enable=too-many-branches
     def __init__(
         self,
         start: Optional[Union[datetime, str]] = None,
@@ -60,40 +61,54 @@ class TimeSpan:
             period = getattr(time_selector, "period", None)
 
         if not start and not period:
-            raise ValueError("At least one of 'start' or 'period' must be specified.")
+            raise MsticnbMissingParameterError(
+                "start, period",
+                "At least one of 'start' or 'period' must be specified."
+            )
 
         self.period = None
         if period:
-            if isinstance(period, str):
-                # parse period string properly
-                self.period = pd.TimeDelta(str).to_pytimedelta()
-            elif isinstance(period, timedelta):
-                self.period = timedelta
-            else:
-                raise NotebookletException(
-                    "'period' must be a pandas-compatible time period string",
-                    " or Python timedelta.",
-                )
+            self.period = self._parse_timedelta(period)
 
-        if end is None:
+        self.end = self._parse_time(end, "end")
+        self.start = self._parse_time(start, "start")
+        if self.start and self.period:
+            self.end = self.start + self.period
+        if self.end is None:
             self.end = datetime.utcnow()
-        elif isinstance(end, str):
-            self.end = pd.to_datetime(end, infer_datetime_format=True)
-        elif isinstance(end, datetime):
-            self.end = end
-        else:
-            raise NotebookletException("'end' must be a datetime or a datetime string.")
-        if start is None and self.period:
+        if self.start is None and self.period:
             self.start = self.end - self.period
-        elif isinstance(start, str):
-            self.start = pd.to_datetime(start, infer_datetime_format=True)
-        elif isinstance(start, datetime):
-            self.start = start
-        else:
-            raise NotebookletException(
-                f"'start' must be a datetime or a datetime string."
-            )
-    # pylint: disable=too-many-branches
+
+    @staticmethod
+    def _parse_time(time_val, prop_name):
+        if time_val is None:
+            return None
+        if isinstance(time_val, datetime):
+            return time_val
+        try:
+            if isinstance(time_val, str):
+                return pd.to_datetime(time_val, infer_datetime_format=True)
+        except (ValueError, ParserError):
+            pass
+        raise ValueError(
+            f"'{prop_name}' must be a datetime or a datetime string."
+        )
+
+    @staticmethod
+    def _parse_timedelta(time_val):
+        if time_val is None:
+            return None
+        if isinstance(time_val, timedelta):
+            return time_val
+        try:
+            if isinstance(time_val, str):
+                return pd.Timedelta(time_val).to_pytimedelta()
+        except (ValueError, ParserError):
+            pass
+        raise ValueError(
+            "'period' must be a pandas-compatible time period string",
+            " or Python timedelta.",
+        )
 
 
 class NBContainer:
@@ -118,12 +133,6 @@ class NBContainer:
                 yield from val.iter_classes()
             else:
                 yield key, val
-
-
-def find_type_in_globals(req_type: type, last=False):
-    """Return first (or last) instance of a type if it exists in globals."""
-    found = [inst for inst in globals() if isinstance(inst, req_type)]
-    return found[0 if last else -1] if found else None
 
 
 def print_status(mssg: Any):
@@ -245,5 +254,27 @@ def add_result(result: Any, attr_name: Union[str, List[str]]):
     return result_wrapper
 
 
-class NotebookletException(Exception):
+class MsticnbError(Exception):
     """Generic exception class for Notebooklets."""
+
+
+class MsticnbMissingParameterError(MsticnbError):
+    """Parameter Error."""
+
+    def __init__(self, *args):
+        """
+        Exception for missing parameter.
+
+        Parameters
+        ----------
+        args : str
+            First arg is the name or names of the parameters.
+        """
+        if args:
+            self.mssg = f"Required parameter(s) '{args[0]}' not supplied."
+            args = (self.mssg, *args[1:])
+        super().__init__(*args)
+
+
+class MsticnbDataProviderError(MsticnbError):
+    """DataProvider Error."""

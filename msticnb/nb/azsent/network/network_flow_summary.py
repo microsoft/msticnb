@@ -21,7 +21,7 @@ from msticpy.common.utility import md, md_warn
 
 from ....common import (
     TimeSpan,
-    NotebookletException,
+    MsticnbMissingParameterError,
     print_data_wait,
     print_status,
     set_text,
@@ -46,15 +46,28 @@ class NetworkFlowResult(NotebookletResult):
     Attributes
     ----------
     host_entity : msticpy.data.nbtools.entities.Host
+        The host entity object contains data about the host
+        such as name, environment, operating system version,
+        IP addresses and Azure VM details. Depending on the
+        type of host, not all of this data may be populated.
     network_flows : pd.DataFrame
+        The raw network flows recorded for this host.
     plot_flows_by_protocol : Figure
+        Bokeh timeline plot of flow events by protocol.
     plot_flows_by_direction : Figure
+        Bokeh timeline plot of flow events by direction (in/out).
     plot_flow_values : Figure
+        Bokeh values plot of flow events by protocol.
     flow_index : pd.DataFrame
+        Summarized DataFrame of flows
     flow_index_data : pd.DataFrame
+        Raw summary data of flows.
     flow_summary : pd.DataFrame
+        Summarized flows grouped by ASN
     ti_results : pd.DataFrame
+        Threat Intelligence results for selected IP Addreses.
     geo_map : foliummap.FoliumMap
+        Folium map showing locations of selected IP Addresses.
 
     """
 
@@ -75,25 +88,45 @@ class NetworkFlowSummary(Notebooklet):
     """
     Network Flow Summary Notebooklet class.
 
-    Notes
-    -----
     Queries network data and plots time lines for network
     traffic to/from a host or IP address.
 
+    - Plot flows events by protocol and direction
+    - Plot flow count by protocol
+    - Display flow summary table
+    - Display flow summary by ASN
+    - Display results on map
+
+    Default Options
+    ---------------
+    - plot_flows: Create plots of flows by protocol and direction.
+    - plot_flow_values: Plot flow county by protocol.
+    - flow_summary: Create a summarization of all flows and all flows
+      grouped by ASN.
+
+    Other Options
+    -------------
+    - resolve_host: Try to resolve the host name before other operations.
+    - geo_map: Plot a map of all IP address locations in communication
+      with the host (see the method below for plotting selected IPs only).
+
+    Methods
+    -------
+    - run: main method for notebooklet.
+    - select_asns: Open an interactive dialog to choose which ASNs to
+      investigate further.
+    - lookup_ti_for_asn_ips: For selected ASNs, lookup Threat Intelligence
+      data for the IPs belonging to those ASNs.
+    - show_selected_asn_map: Show IP address locations for selected IP
+      (including any threats highlighted)
     """
 
     metadata = NBMetaData(
-        name=__qualname__,
+        name=__qualname__,  # type: ignore  # noqa
         mod_name=__name__,
         description="Network flow summary",
-        options=[
-            "plot_flows",
-            "plot_flow_values",
-            "flow_summary",
-            "resolve_host",
-            "geo_map",
-        ],
         default_options=["plot_flows", "plot_flow_values", "flow_summary"],
+        other_options=["resolve_host", "geo_map"],
         keywords=["host", "computer", "network", "flow"],
         entity_types=["host", "ip_address"],
         req_providers=["azure_sentinel"],
@@ -144,6 +177,9 @@ class NetworkFlowSummary(Notebooklet):
         options : Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
+            Options prefixed with "+" will be added to the default options.
+            To see the list of available options type `help(cls)` where
+            "cls" is the notebooklet class or an instance of this class.
 
         Returns
         -------
@@ -152,7 +188,7 @@ class NetworkFlowSummary(Notebooklet):
 
         Raises
         ------
-        NotebookletException
+        MsticnbMissingParameterError
             If required parameters are missing
 
         """
@@ -161,9 +197,9 @@ class NetworkFlowSummary(Notebooklet):
         )
 
         if not value:
-            raise NotebookletException("parameter 'value' is required.")
+            raise MsticnbMissingParameterError("value")
         if not timespan:
-            raise NotebookletException("parameter 'timespan' is required.")
+            raise MsticnbMissingParameterError("timespan.")
 
         result = NetworkFlowResult()
         if isinstance(value, entities.Host):
@@ -216,7 +252,7 @@ class NetworkFlowSummary(Notebooklet):
         return self._last_result
 
     def select_asns(self):
-        """Show selector to choose which ASNs to process."""
+        """Show interactive selector to choose which ASNs to process."""
         if not self._last_result or self._last_result.flow_summary is None:
             print(
                 "Please use 'run' with 'flow_summary' option before using",
@@ -230,7 +266,7 @@ class NetworkFlowSummary(Notebooklet):
         display(self.asn_selector)
 
     def lookup_ti_for_asn_ips(self):
-        """Lookup IPs of selected ASN in TILookip."""
+        """Lookup Threat Intel data for IPs of selected ASNs."""
         if (
             not self._last_result
             or self._last_result.flow_summary is None
@@ -445,7 +481,7 @@ malicious activity associated with these IPs.
 """,
 )
 def _get_flow_index_display(flow_summary_df):
-    return (
+    flow_index_df = (
         flow_summary_df[
             ["source", "dest", "L7Protocol", "FlowDirection", "TotalAllowedFlows"]
         ]
@@ -454,6 +490,8 @@ def _get_flow_index_display(flow_summary_df):
         .reset_index()
         .style.bar(subset=["TotalAllowedFlows"], color="#d65f5f")
     )
+    display(flow_index_df)
+    return flow_index_df
 
 
 # %%
@@ -499,6 +537,7 @@ def _get_flow_summary(flow_index):
         )
         .reset_index()
     )
+    display(flow_sum_df)
     return flow_sum_df
 
 

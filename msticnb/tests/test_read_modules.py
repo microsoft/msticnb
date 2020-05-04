@@ -6,17 +6,14 @@
 """read_modules test class."""
 import unittest
 
-# from datetime import datetime
-# import pytest
-# import warnings
-
-from ..read_modules import discover_modules, Notebooklet, find, nb_index
+from ..read_modules import discover_modules, Notebooklet, find
 
 
 class TestReadModules(unittest.TestCase):
     """Unit test class."""
 
     def test_read_modules(self):
+        """Test method."""
         nbklts = discover_modules()
         self.assertTrue(len(nbklts) > 1)
 

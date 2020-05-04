@@ -36,14 +36,14 @@ def show():
     """Show help for options."""
     print(
         "\n".join(
-            [f"{key} (def {val[0]}): {val[1]}" for key, val in _OPTION_DEFN.items()]
+            [f"{key} (default={val[0]}): {val[1]}" for key, val in _OPTION_DEFN.items()]
         )
     )
 
 
 def current():
     """Show current settings."""
-    print("\n".join([f"{key}: {val[0]}" for key, val in _OPT_DICT.items()]))
+    print("\n".join([f"{key}: {val}" for key, val in _OPT_DICT.items()]))
 
 
 def get_opt(option: str) -> Any:
@@ -95,16 +95,11 @@ def set_opt(option: str, value: Any):
     if cur_opt is None:
         raise KeyError(f"Unrecognized option {option}.")
     if not isinstance(value, type(cur_opt)):
-        if value.casefold() == "true":
-            value = True
-        elif value.casefold() == "false":
-            value = False
-        else:
-            try:
-                value = type(cur_opt)(value)
-            except ValueError:
-                raise TypeError(
-                    f"Option is of type {type(cur_opt)}.",
-                    "{value} cannot be converted to that type.",
-                )
+        try:
+            value = type(cur_opt)(value)
+        except ValueError:
+            raise TypeError(
+                f"Option is of type {type(cur_opt)}.",
+                "{value} cannot be converted to that type.",
+            )
     _OPT_DICT[option] = value
