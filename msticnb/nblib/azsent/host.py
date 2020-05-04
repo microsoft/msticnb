@@ -5,7 +5,7 @@
 # --------------------------------------------------------------------------
 """host_network_summary notebooklet."""
 from functools import lru_cache
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, Dict
 
 from msticpy.data import QueryProvider
 from msticpy.nbtools import entities
@@ -104,7 +104,7 @@ def get_aznet_topology(
 @lru_cache()
 def verify_host_name(
     qry_prov: QueryProvider, timespan: TimeSpan, host_name: str
-) -> Tuple[Optional[str], Optional[List[str]]]:
+) -> Tuple[Optional[Tuple(str,str)], Optional[Dict[str:str]]]:
     """
     Verifies unique hostname by checking Win and Linux logs.
 
@@ -119,7 +119,7 @@ def verify_host_name(
 
     Returns
     -------
-    Tuple[Optional[str], Optional[List[str]]]
+    Tuple[Optional[Tuple(str,str)], Optional[Dict[str:str]]]
         (host_name, host_names)
         If unique hostname found, host_name is populated.
         If multiple matching hostnames found, host_names is
@@ -127,49 +127,52 @@ def verify_host_name(
         If no matching host then both are None.
 
     """
-
-    host_names: List[str] = []
-    # Get single event - try process creation
+    host_names: Dict = {}
+    # Check for Windows hosts matching host_name
     if "SecurityEvent" in qry_prov.schema_tables:
         sec_event_host = """
             SecurityEvent
-            | where TimeGenerated between (datetime({start})..datetime({end}))
-            | where Computer contains "{host}"
+            | where TimeGenerated between (datetime({start})..datetime({end})
+            | where Computer has {host}
             | distinct Computer
              """
-        print_data_wait("SecurityEvent")
         win_hosts_df = qry_prov.exec_query(
             sec_event_host.format(
                 start=timespan.start, end=timespan.end, host=host_name
             )
         )
         if win_hosts_df is not None and not win_hosts_df.empty:
-            host_names.extend(win_hosts_df["Computer"].to_list())
+            for host in win_hosts_df["Computer"].to_list():
+                host_names.update({host: "Windows"})
 
+    # Check for Linux hosts matching host_name
     if "Syslog" in qry_prov.schema_tables:
         syslog_host = """
             Syslog
-            | where TimeGenerated between (datetime({start})..datetime({end}))
-            | where Computer contains "{host}"
+            | where TimeGenerated between (datetime({start})..datetime({end})
+            | where Computer has {host}
             | distinct Computer
             """
-        print_data_wait("Syslog")
         lx_hosts_df = qry_prov.exec_query(
             syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
         )
         if lx_hosts_df is not None and not lx_hosts_df.empty:
-            host_names.extend(lx_hosts_df["Computer"].to_list())
+            for host in lx_hosts_df["Computer"].to_list():
+                host_names.update({host: "Linux"})
 
-    if len(host_names) > 1:
+    # If we have more than one host let the user decide
+    if len(host_names.keys()) > 1:
         print(
             f"Multiple matches for '{host_name}'.",
-            "Please select a specific host and re-run.",
-            "\n".join(host_names),
+            "Please select a host and re-run.",
+            "\n".join(host_names.keys()),
         )
         return None, host_names
+
     if host_names:
-        print(f"Unique host found: {host_names[0]}")
-        return host_names[0], None
+        unique_host = next(iter(host_names))
+        print(f"Unique host found: {unique_host}")
+        return (unique_host, host_names[unique_host]), None
 
     print(f"Host not found: {host_name}")
     return None, None

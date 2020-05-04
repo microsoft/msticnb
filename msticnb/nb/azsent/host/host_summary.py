@@ -156,7 +156,7 @@ class HostSummary(Notebooklet):
                 + "Results may be unreliable.",
                 "orange",
             )
-        host_name = host_name or value
+        host_name = host_name[0] or value
 
         host_entity = entities.Host(HostName=host_name)
         if "heartbeat" in self.options:
