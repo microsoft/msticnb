@@ -11,6 +11,7 @@ import inspect
 from operator import itemgetter
 from pathlib import Path
 from typing import Iterable, Tuple, Dict, List, Union
+from warnings import warn
 
 from . import nb
 from .class_doc import get_class_doc
@@ -43,6 +44,8 @@ def discover_modules(
         Container of notebooklets. This is structured
         as a tree mirroring the source folder names.
     """
+    del nb_path  # TODO enable arbitrary paths
+
     pkg_folder = Path(__file__).parent
     dp_pkg_folder = pkg_folder / "nb" / data_provider
     _import_from_folder(dp_pkg_folder, pkg_folder)
@@ -50,13 +53,13 @@ def discover_modules(
     common_pkg_folder = pkg_folder / "nb/common"
     _import_from_folder(common_pkg_folder, pkg_folder)
 
-    if not nb_path:
-        return nblts
-    if isinstance(nb_path, str):
-        _import_from_folder(Path(nb_path))
-    elif isinstance(nb_path, list):
-        for path_item in nb_path:
-            _import_from_folder(Path(path_item))
+    # if not nb_path:
+    #     return nblts
+    # if isinstance(nb_path, str):
+    #     _import_from_folder(Path(nb_path))
+    # elif isinstance(nb_path, list):
+    #     for path_item in nb_path:
+    #         _import_from_folder(Path(path_item))
     return nblts
 
 
@@ -93,6 +96,7 @@ def _find_cls_modules(folder):
             try:
                 imp_module = importlib.import_module(mod_name, package=nb.__package__)
             except ImportError as err:
+                warn(f"Import failed for {item}.\n" + str(err))
                 print_debug("import failed", item, err)
                 continue
             mod_classes = inspect.getmembers(imp_module, inspect.isclass)

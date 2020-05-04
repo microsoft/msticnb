@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""host_summary - handles reading noebooklets modules."""
+"""Notebooklet for Windows Security Events."""
 import pkgutil
 import os
 from typing import Any, Optional, Iterable, Union
@@ -12,6 +12,7 @@ from defusedxml.ElementTree import ParseError
 
 import attr
 from bokeh.plotting.figure import Figure
+from bokeh.models import LayoutDOM
 from IPython.display import display
 import numpy as np
 import pandas as pd
@@ -51,8 +52,8 @@ class WinHostEventsResult(NotebookletResult):
     acct_pivot : pd.DataFrame
         DataFrame that is a pivot table of event ID
         vs. Account of account management events
-    account_timeline : bokeh.plotting.figure.Figure
-        Bokeh plot figure showing the account events on an
+    account_timeline : Union[Figure, LayoutDOM]
+        Bokeh plot figure or Layout showing the account events on an
         interactive timeline.
     expanded_events : pd.DataFrame
         If `expand_events` option is specified, this will contain
@@ -65,7 +66,7 @@ class WinHostEventsResult(NotebookletResult):
     event_pivot: pd.DataFrame = None
     account_events: pd.DataFrame = None
     account_pivot: pd.DataFrame = None
-    account_timeline: Figure = None
+    account_timeline: Union[Figure, LayoutDOM] = None
     expanded_events: pd.DataFrame = None
 
 
@@ -86,7 +87,7 @@ class WinHostEvents(Notebooklet):
     Default Options
     ---------------
     - event_pivot: Display a summary of all event types.
-    - acct_events: Display and summary and timeline of account
+    - acct_events: Display a summary and timeline of account
       management events.
 
     Other Options

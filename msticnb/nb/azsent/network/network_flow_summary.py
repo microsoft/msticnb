@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""host_network_summary notebooklet."""
+"""Notebooklet for Network Flow Summary."""
 from ipaddress import ip_address
 from itertools import chain
 from typing import Any, Optional, Iterable, Tuple
