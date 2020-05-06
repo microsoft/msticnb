@@ -254,6 +254,7 @@ class TemplateNB(Notebooklet):
 
 # This section contains functions that do the work. It can be split into
 # cells recognized by some editors (like VSCode) but this is optional
+
 # %%
 # Get Windows Security Events
 def _get_all_events(qry_prov, host_name, timespan):

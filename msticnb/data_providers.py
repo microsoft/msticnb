@@ -43,6 +43,7 @@ class SingletonDecorator:
         """Instantiate the class wrapper."""
         self.wrapped_cls = wrapped_cls
         self.instance = None
+        self.__doc__ = wrapped_cls.__doc__
 
     def __call__(self, *args, **kwargs):
         """Overide the __call__ method for the wrapper class."""
@@ -69,6 +70,7 @@ class DataProviders:
     """Notebooklet DataProviders class."""
 
     _default_providers = ["azure_sentinel", "azure_api", "ti_lookup", "geolite_lookup"]
+    _other_providers: List[str] = []
 
     def __init__(self, providers: Optional[List[str]] = None, **kwargs):
         """
@@ -78,6 +80,25 @@ class DataProviders:
         ----------
         providers : Optional[List[str]], optional
             A list of provider names, by default "azure_sentinel"
+
+        Other Parameters
+        ----------------
+        kwargs
+            You can pass parameters to individual providers using
+            the following notation:
+            `provider_name.param_name="param_value"
+            Where `provider_name` is the name of the data provider,
+            `param_name` is the parameter name expected by the
+            provider and `param_value` is the value to assign to
+            `param_name`. `param_value` can be any type.
+
+            Depending on the provider, these parameters (with the
+            prefix stripped) are sent to either the constructor or
+            `connect` method.
+
+        Notes
+        -----
+        To see a list of current providers
 
         """
         self.provider_names = providers or self._default_providers
@@ -99,7 +120,33 @@ class DataProviders:
                 provider_dispatch[provider](provider, **kwargs)
                 setattr(self, provider, self.providers.get(provider))
 
+    @classmethod
+    def get_providers(cls) -> List[str]:
+        """
+        Return the list of all providers
+
+        Returns
+        -------
+        List[str]
+            List of all providers.
+
+        """
+        return cls._default_providers + cls._other_providers
     # Provider initializers
+
+    @classmethod
+    def get_def_providers(cls) -> List[str]:
+        """
+        Return the list of default providers
+
+        Returns
+        -------
+        List[str]
+            List of default providers.
+
+        """
+        return cls._default_providers
+
     def _azure_sentinel_prov(self, provider, **kwargs):
         # Get any keys with the provider prefix and initialize the provider
         azsent_args = self._get_provider_kwargs(provider, **kwargs)
@@ -194,6 +241,21 @@ def init(providers: Optional[List[str]] = None, **kwargs):
     ----------
     providers : Optional[List[str]], optional
         A list of provider names, by default "azure_sentinel"
+
+    Other Parameters
+    ----------------
+    kwargs
+        You can pass parameters to individual providers using
+        the following notation:
+        `provider_name.param_name="param_value"
+        Where `provider_name` is the name of the data provider,
+        `param_name` is the parameter name expected by the
+        provider and `param_value` is the value to assign to
+        `param_name`. `param_value` can be any type.
+
+        Depending on the provider, these parameters (with the
+        prefix stripped) are sent to either the constructor or
+        `connect` method.
 
     """
     d_provs = DataProviders(providers, **kwargs)

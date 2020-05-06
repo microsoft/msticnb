@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""host_summary - handles reading noebooklets modules."""
+"""Notebooklet for Host Summary."""
 from functools import lru_cache
 from typing import Any, Optional, Iterable
 
@@ -116,13 +116,23 @@ class HostSummary(Notebooklet):
         data : Optional[pd.DataFrame], optional
             Not used, by default None
         timespan : TimeSpan
-            Timespan for queries
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
         options : Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
+
+        Other Parameters
+        ----------------
+        start : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
+        end : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
 
         Returns
         -------
@@ -146,7 +156,9 @@ class HostSummary(Notebooklet):
 
         self._last_result = HostSummaryResult(description=self.metadata.description)
 
-        host_name, host_names = verify_host_name(self.query_provider, timespan, value)
+        host_name, host_names = verify_host_name(
+            self.query_provider, self.timespan, value
+        )
         if host_names:
             md(f"Could not obtain unique host name from {value}. Aborting.")
             return self._last_result
@@ -186,12 +198,13 @@ class HostSummary(Notebooklet):
         _show_host_entity(host_entity)
         if "alerts" in self.options:
             related_alerts = _get_related_alerts(
-                self.query_provider, timespan, host_name
+                self.query_provider, self.timespan, host_name
             )
-            _show_alert_timeline(related_alerts)
+            if len(related_alerts) > 0:
+                _show_alert_timeline(related_alerts)
         if "bookmarks" in self.options:
             related_bookmarks = _get_related_bookmarks(
-                self.query_provider, timespan, host_name
+                self.query_provider, self.timespan, host_name
             )
 
         self._last_result.host_entity = host_entity
@@ -298,8 +311,8 @@ def _get_related_alerts(qry_prov, timespan, host_name):
 @set_text(
     title="Timeline of related alerts",
     text="""
-Each marker on the timeline indicates one or more alerts related to the host
-"""
+Each marker on the timeline indicates one or more alerts related to the host.
+""",
 )
 def _show_alert_timeline(related_alerts):
     if len(related_alerts) > 1:
@@ -309,6 +322,10 @@ def _show_alert_timeline(related_alerts):
             source_columns=["AlertName", "TimeGenerated"],
             height=200,
         )
+    elif len(related_alerts) == 1:
+        md("A single alert cannot be plotted on a timeline.")
+    else:
+        md("No alerts available to be plotted.")
 
 
 @lru_cache()

@@ -133,13 +133,23 @@ class WinHostEvents(Notebooklet):
         data : Optional[pd.DataFrame], optional
             Not used, by default None
         timespan : TimeSpan
-            Timespan for queries
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
         options : Optional[Iterable[str]], optional
             List of options to use, by default None.
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
+
+        Other Parameters
+        ----------------
+        start : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
+        end : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
 
         Returns
         -------
@@ -164,7 +174,7 @@ class WinHostEvents(Notebooklet):
         result = WinHostEventsResult()
 
         all_events_df, event_pivot_df = _get_win_security_events(
-            self.query_provider, host_name=value, timespan=timespan
+            self.query_provider, host_name=value, timespan=self.timespan
         )
         result.all_events = all_events_df
         result.event_pivot = event_pivot_df

@@ -27,8 +27,7 @@ nblts: NBContainer = NBContainer()
 nb_index: Dict[str, Notebooklet] = {}
 
 
-def discover_modules(
-    data_provider: str = "azsent", nb_path: Union[str, Iterable[str]] = None
+def discover_modules(nb_path: Union[str, Iterable[str]] = None
 ) -> NBContainer:
     """
     Discover notebooks modules.
@@ -47,11 +46,11 @@ def discover_modules(
     del nb_path  # TODO enable arbitrary paths
 
     pkg_folder = Path(__file__).parent
-    dp_pkg_folder = pkg_folder / "nb" / data_provider
+    dp_pkg_folder = pkg_folder / "nb"
     _import_from_folder(dp_pkg_folder, pkg_folder)
 
-    common_pkg_folder = pkg_folder / "nb/common"
-    _import_from_folder(common_pkg_folder, pkg_folder)
+    # common_pkg_folder = pkg_folder / "nb/common"
+    # _import_from_folder(common_pkg_folder, pkg_folder)
 
     # if not nb_path:
     #     return nblts
@@ -70,7 +69,6 @@ def _import_from_folder(nb_folder: Path, parent_folder: Path):
     folders = [f for f in nb_folder.glob("./**") if f.is_dir() and not f == nb_folder]
     for folder in folders:
         rel_folder_parts = folder.relative_to(nb_folder).parts
-        full_rel_path_paths = folder.relative_to(parent_folder).parts
         # skip hidden folder paths with . or _ prefix
         if any([f for f in rel_folder_parts if f.startswith(".") or f.startswith("_")]):
             continue
@@ -81,7 +79,7 @@ def _import_from_folder(nb_folder: Path, parent_folder: Path):
         cur_container = _get_container(rel_folder_parts)
         for cls_name, nb_class in nb_classes.items():
             setattr(cur_container, cls_name, nb_class)
-            cls_index = ".".join(list(full_rel_path_paths) + [cls_name])
+            cls_index = "nblts." + ".".join(list(rel_folder_parts) + [cls_name])
             nb_index[cls_index] = nb_class
 
 

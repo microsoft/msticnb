@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import functools
 from typing import Union, Optional, Iterable, Tuple, Any, List
 
-from dateutil.parser import ParserError
+from dateutil.parser import ParserError  # type: ignore
 from IPython.display import display, HTML
 from markdown import markdown
 import pandas as pd

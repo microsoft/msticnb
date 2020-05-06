@@ -90,7 +90,6 @@ class TestCommon(unittest.TestCase):
 
     def test_print_methods(self):
         """Test method."""
-
         set_opt("verbose", True)
         f_stream = io.StringIO()
         with redirect_stdout(f_stream):

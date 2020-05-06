@@ -173,13 +173,23 @@ class NetworkFlowSummary(Notebooklet):
         data : Optional[pd.DataFrame], optional
             Not used, by default None
         timespan : TimeSpan
-            Timespan for queries
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
         options : Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
+
+        Other Parameters
+        ----------------
+        start : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
+        end : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
 
         Returns
         -------
@@ -216,7 +226,9 @@ class NetworkFlowSummary(Notebooklet):
             "Network flow summary for " + host_name or host_ip  # type: ignore
         )
 
-        flow_df = _get_az_net_flows(self.query_provider, timespan, host_ip, host_name)
+        flow_df = _get_az_net_flows(
+            self.query_provider, self.timespan, host_ip, host_name
+        )
         result.network_flows = flow_df
 
         if "resolve_host" in self.options:
