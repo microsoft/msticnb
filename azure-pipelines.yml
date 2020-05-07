@@ -20,7 +20,7 @@ steps:
    pip install --upgrade pytest-cov
    pip install -e .
    set MSTICPY_TEST_NOSKIP=1
-   pytest tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml --cov-config=.ci_config/coverage.ini
+   pytest tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
    REM --cov-report=html
   displayName: pytest
 
