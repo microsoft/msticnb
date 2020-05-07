@@ -62,7 +62,6 @@ steps:
   displayName: 'Run CredScan'
   inputs:
     toolMajorVersion: V2
-    suppressionsFile: '.ci_config/credscan.json'
     debugMode: false
 
 - task: securedevelopmentteam.vss-secure-development-tools.build-task-autoapplicability.AutoApplicability@1
