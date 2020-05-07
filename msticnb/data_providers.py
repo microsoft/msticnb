@@ -37,6 +37,7 @@ class SingletonDecorator:
       will instantiate a new class.
     - The class method `current()` will always return the
       last instance of the class.
+
     """
 
     def __init__(self, wrapped_cls):
@@ -108,7 +109,7 @@ class DataProviders:
             "azure_sentinel": self._azure_sentinel_prov,
             "azure_api": self._azure_api_prov,
             "ti_lookup": self._ti_lookup_prov,
-            "geolite_lookup": self._geolite_lookup_prov
+            "geolite_lookup": self._geolite_lookup_prov,
         }
         self.query_provider = None
         self.azure_api = None
@@ -123,7 +124,7 @@ class DataProviders:
     @classmethod
     def get_providers(cls) -> List[str]:
         """
-        Return the list of all providers
+        Return the list of all providers.
 
         Returns
         -------
@@ -132,12 +133,13 @@ class DataProviders:
 
         """
         return cls._default_providers + cls._other_providers
+
     # Provider initializers
 
     @classmethod
     def get_def_providers(cls) -> List[str]:
         """
-        Return the list of default providers
+        Return the list of default providers.
 
         Returns
         -------

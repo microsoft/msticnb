@@ -17,6 +17,7 @@ class TestReadModules(unittest.TestCase):
         nbklts = discover_modules()
         self.assertGreaterEqual(len(list(nbklts.iter_classes())), 3)
 
+        # pylint: disable=no-member
         match, m_count = nblts.azsent.host.HostSummary.match_terms("host, linux, azure")
         self.assertTrue(match)
         self.assertEqual(m_count, 3)

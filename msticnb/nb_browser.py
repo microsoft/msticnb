@@ -23,12 +23,12 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-few-public-methods
 class NBBrowser:
     """Interactive browser/viewer for Notebooklets."""
 
     def __init__(self):
         """Initialize and Display Notebooklet Browser."""
-
         # Define Controls
         nb_list = list(nblts.iter_classes())
 
@@ -68,8 +68,12 @@ class NBBrowser:
         # Widget layout
         vbox = widgets.VBox([self.nb_select, btn_insert_class])
         top_hbox = widgets.HBox([vbox, self.nb_doc])
-        all_vbox = widgets.VBox([top_hbox, nb_det_accdn])
-        display(all_vbox)
+        self._all_controls = widgets.VBox([top_hbox, nb_det_accdn])
+        display(self._all_controls)
+
+    def display(self):
+        """Display the widget."""
+        display(self._all_controls)
 
     @staticmethod
     def _get_class_index(tgt_class):
@@ -118,7 +122,7 @@ class NBBrowser:
     def _create_code_sample(self, nb_cls):
         start = (datetime.utcnow() - timedelta(1)).strftime("%Y-%m-%d %H:%M")
         code_sample = self._CODE_TEMPLATE.format(
-            nb_instance=self.pyvar_case(nb_cls.__name__),
+            nb_instance=self._pyvar_case(nb_cls.__name__),
             nb_cls=self._get_class_index(nb_cls),
             start=start,
         )
@@ -126,6 +130,6 @@ class NBBrowser:
 
     def _insert_code(self, change):
         del change
-        code = self._create_code_sample(nb_select.value)
+        code = self._create_code_sample(self.nb_select.value)
         shell = get_ipython()
         shell.set_next_input(code)

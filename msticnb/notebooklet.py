@@ -30,6 +30,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-few-public-methods
 @attr.s(auto_attribs=True)
 class NotebookletResult:
     """Base result class."""
@@ -71,9 +72,9 @@ class NotebookletResult:
             if name.startswith("_"):
                 continue
             attr_desc = ""
-            attr_type, attr_text = (
-                self._attribute_desc.get(name, (None, None))  # type: ignore
-            )
+            attr_type, attr_text = self._attribute_desc.get(
+                name, (None, None)
+            )  # type: ignore
             if attr_type:
                 attr_desc += f"[{attr_type}]<br>"
             if attr_text:

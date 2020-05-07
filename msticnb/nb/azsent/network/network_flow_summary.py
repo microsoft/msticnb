@@ -35,9 +35,8 @@ from ...._version import VERSION
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
-# __all__ = [HostSummary]
 
-
+# pylint: disable=too-few-public-methods, too-many-instance-attributes
 @attr.s(auto_attribs=True)
 class NetworkFlowResult(NotebookletResult):
     """
@@ -119,6 +118,7 @@ class NetworkFlowSummary(Notebooklet):
       data for the IPs belonging to those ASNs.
     - show_selected_asn_map: Show IP address locations for selected IP
       (including any threats highlighted)
+
     """
 
     metadata = NBMetaData(
@@ -132,9 +132,7 @@ class NetworkFlowSummary(Notebooklet):
         req_providers=["azure_sentinel"],
     )
 
-    def __init__(
-        self, data_providers: Optional[DataProviders] = None, **kwargs,
-    ):
+    def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
         Intialize a new instance of the notebooklet class.
 
@@ -255,7 +253,7 @@ class NetworkFlowSummary(Notebooklet):
         md("Select ASNs to examine using select_asns()")
         md(
             "Lookup threat intel for IPs from selected ASNs using"
-            + " lookup_ti_for_asn_ips()",
+            + " lookup_ti_for_asn_ips()"
         )
         md("Display Geolocation of threats with show_selected_asn_map()")
         md("For usage type 'help(NetworkFlowSummary.function_name)'")
@@ -293,7 +291,7 @@ class NetworkFlowSummary(Notebooklet):
             return
 
         selected_ips = _get_ips_from_selected_asn(
-            flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector,
+            flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector
         )
         ti_results = _lookup_ip_ti(
             flows_df=self._last_result,
@@ -386,7 +384,7 @@ def _get_az_net_flows(qry_prov, timespan, ip_addr, hostname):
 
 # %%
 # Plot flows
-@set_text(title="Timeline of network flows by protocol type.",)
+@set_text(title="Timeline of network flows by protocol type.")
 def _plot_flows_by_protocol(flow_df):
     return nbdisplay.display_timeline(
         data=flow_df,

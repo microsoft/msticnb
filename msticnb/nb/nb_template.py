@@ -35,15 +35,16 @@ the code.
 """
 from typing import Any, Optional, Iterable, Union
 
-
 import attr
 from bokeh.plotting.figure import Figure
 import pandas as pd
 from msticpy.common.utility import md
 from msticpy.nbtools import nbdisplay
 
-# Note - when moved to nb/environ/category/mynotebooklet.py
-# you need to change the ".." to "...."
+# Note - when moved to the final location (e.g.
+# nb/environ/category/mynotebooklet.py)
+# you will need to change the ".." to "...." in these
+# imports because the relative path has changed.
 from ..common import (
     TimeSpan,
     MsticnbMissingParameterError,
@@ -55,13 +56,14 @@ from ..common import (
 # change the ".." to "...."
 from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
 
-# you need to change the ".." to "...."
+# change the ".." to "...."
 from .._version import VERSION
 
 __version__ = VERSION
-__author__ = "Ian Hellen"
+__author__ = "Your name"
 
 
+# pylint: disable=too-few-public-methods
 # Rename this class
 @attr.s(auto_attribs=True)
 class TemplateResult(NotebookletResult):
@@ -87,7 +89,10 @@ class TemplateResult(NotebookletResult):
     # above.
     all_events: pd.DataFrame = None
     plot: Figure = None
-    additional_info: dict = None
+    additional_info: Optional[dict] = None
+
+
+# pylint: enable=too-few-public-methods
 
 
 # Rename this class
@@ -205,7 +210,8 @@ class TemplateNB(Notebooklet):
 
         # Assign the result to the _last_result attribute
         # so that you can get to it without having to re-run the operation
-        self._last_result = result
+        self._last_result = result  # pylint: disable=attribute-defined-outside-init
+
         return self._last_result
 
     # You can add further methods to do things after (or before) the main
@@ -233,7 +239,9 @@ class TemplateNB(Notebooklet):
         """
         # Include this to check the "run()" has happened before this method
         # can be run
-        if not self._last_result or self._last_result.all_events is None:  # type: ignore
+        if (
+            not self._last_result or self._last_result.all_events is None
+        ):  # type: ignore
             print(
                 "Please use 'run()' to fetch the data before using this method.",
                 "\nThen call 'expand_events()'",

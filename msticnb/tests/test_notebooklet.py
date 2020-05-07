@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------------
 """common test class."""
 from io import StringIO
+
 # from contextlib import redirect_stdout
 import unittest
 

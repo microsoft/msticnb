@@ -27,8 +27,7 @@ nblts: NBContainer = NBContainer()
 nb_index: Dict[str, Notebooklet] = {}
 
 
-def discover_modules(nb_path: Union[str, Iterable[str]] = None
-) -> NBContainer:
+def discover_modules(nb_path: Union[str, Iterable[str]] = None) -> NBContainer:
     """
     Discover notebooks modules.
 
@@ -42,6 +41,7 @@ def discover_modules(nb_path: Union[str, Iterable[str]] = None
     NBContainer
         Container of notebooklets. This is structured
         as a tree mirroring the source folder names.
+
     """
     del nb_path  # TODO enable arbitrary paths
 
@@ -133,6 +133,9 @@ def find(keywords: str, full_match=True) -> List[Tuple[str, Notebooklet]]:
     keywords : str
         Space or comma-separated words to search for.
         Terms can be regular expressions.
+    full_match : bool
+        If True only return full matches, default is True.
+        If False it will return partial matches.
 
     Returns
     -------

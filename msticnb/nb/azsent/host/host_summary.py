@@ -30,6 +30,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-few-public-methods
 @attr.s(auto_attribs=True)
 class HostSummaryResult(NotebookletResult):
     """
@@ -56,6 +57,7 @@ class HostSummaryResult(NotebookletResult):
     related_bookmarks: pd.DataFrame = None
 
 
+# pylint: disable=too-few-public-methods
 class HostSummary(Notebooklet):
     """
 
@@ -93,7 +95,8 @@ class HostSummary(Notebooklet):
         req_providers=["azure_sentinel"],
     )
 
-    @set_text(
+    # pylint: disable=too-many-branches
+    @set_text(  # noqa MC0001
         title="Host Entity Summary",
         hd_level=1,
         text="Data and plots are store in the result class returned by this function",
@@ -154,6 +157,7 @@ class HostSummary(Notebooklet):
         if not timespan:
             raise MsticnbMissingParameterError("timespan.")
 
+        # pylint: disable=attribute-defined-outside-init
         self._last_result = HostSummaryResult(description=self.metadata.description)
 
         host_name, host_names = verify_host_name(

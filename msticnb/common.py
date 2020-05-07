@@ -21,6 +21,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-few-public-methods
 class TimeSpan:
     """Timespan parameter for notebook modules."""
 
@@ -63,7 +64,7 @@ class TimeSpan:
         if not start and not period:
             raise MsticnbMissingParameterError(
                 "start, period",
-                "At least one of 'start' or 'period' must be specified."
+                "At least one of 'start' or 'period' must be specified.",
             )
 
         self.period = None
@@ -90,9 +91,7 @@ class TimeSpan:
                 return pd.to_datetime(time_val, infer_datetime_format=True)
         except (ValueError, ParserError):
             pass
-        raise ValueError(
-            f"'{prop_name}' must be a datetime or a datetime string."
-        )
+        raise ValueError(f"'{prop_name}' must be a datetime or a datetime string.")
 
     @staticmethod
     def _parse_timedelta(time_val):
@@ -269,6 +268,7 @@ class MsticnbMissingParameterError(MsticnbError):
         ----------
         args : str
             First arg is the name or names of the parameters.
+
         """
         if args:
             self.mssg = f"Required parameter(s) '{args[0]}' not supplied."

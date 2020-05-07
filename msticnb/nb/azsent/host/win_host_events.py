@@ -196,7 +196,7 @@ class WinHostEvents(Notebooklet):
             result.expanded_events = _parse_eventdata(all_events_df)
 
         md("To unpack eventdata from selected events use expand_events()")
-        self._last_result = result
+        self._last_result = result  # pylint: disable=attribute-defined-outside-init
         return self._last_result
 
     def expand_events(
@@ -224,7 +224,9 @@ class WinHostEvents(Notebooklet):
         and result in a lot of sparse columns in the output data frame.
 
         """
-        if not self._last_result or self._last_result.all_events is None:  # type: ignore
+        if (
+            not self._last_result or self._last_result.all_events is None
+        ):  # type: ignore
             print(
                 "Please use 'run()' to fetch the data before using this method.",
                 "\nThen call 'expand_events()'",

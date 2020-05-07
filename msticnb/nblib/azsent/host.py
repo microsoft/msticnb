@@ -107,7 +107,7 @@ def verify_host_name(
     qry_prov: QueryProvider, timespan: TimeSpan, host_name: str
 ) -> Tuple[Optional[str], Optional[List[str]]]:
     """
-    Verifies unique hostname by checking Win and Linux logs.
+    Verify unique hostname by checking Win and Linux logs.
 
     Parameters
     ----------
@@ -128,7 +128,6 @@ def verify_host_name(
         If no matching host then both are None.
 
     """
-
     host_names: List[str] = []
     # Get single event - try process creation
     if "SecurityEvent" in qry_prov.schema_tables:
