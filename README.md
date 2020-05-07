@@ -1,4 +1,64 @@
 
+# Notebooklets
+
+Notebooklets are reusable Jupyter notebook code patterns for InfoSec investigators
+and hunters.
+
+## Notebook Authoring issues
+
+Notebook authors face several issues:
+
+- Code in one notebook cannot easily be reused in other notebooks
+- Code cannot easily be unit tested
+- Updating notebooks that have already been distributed to users is hard.
+
+## Notebooklets Goals
+
+The goals for MSTIC notebooklets are:
+
+- Enable re-use of common notebook patterns
+- Allow unit testing of code blocks
+- Speed up authoring of new notebooks
+- Allow update of notebooklets code for fixes and enhancement
+- Support multiple data platforms
+
+# Installing
+
+```bash
+pip install msticnb
+```
+
+# Usage
+
+### Import and initialize the notebooklets
+
+```python
+import msticnb as nb
+nb.init()
+
+```
+
+### Run a Notebooklet
+
+```python
+from msticnb.common import TimeSpan
+tm_span = TimeSpan(period="7d")  # end defaults to utcnow()
+host_summary = nb.nblts.azsent.host.HostSummary()
+host_summary_rslt = host_summary.run(value="myhost", timespan=tm_span)
+```
+
+### Get Help
+
+```python
+nb.nblts.azsent.host.HostSummary.show_help()
+```
+
+and of course, standard Python help also works as expected
+```python
+help(host_summary)
+help(host_summary.run)
+```
+
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
