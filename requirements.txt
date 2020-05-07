@@ -1,0 +1,10 @@
+bokeh>=1.4.0
+defusedxml>=0.6.0
+ipython>=7.14.0
+ipywidgets>=7.5.1
+lxml>=4.4.2
+Markdown>=3.2.1
+msticpy>=0.4.0
+numpy>=1.17.3
+pandas>=0.25.3
+tqdm>=4.41.1
