@@ -119,7 +119,6 @@ class NotebookletResult:
                 # if existing attribute, add to dict
                 if attr_name:
                     attr_dict[attr_name] = attr_type, " ".join(attr_lines)
-                print(line)
                 attr_name, attr_type = [item.strip() for item in line.split(":")]
                 attr_lines = []
             else:
@@ -128,6 +127,11 @@ class NotebookletResult:
         # pylint: disable=no-member
         self._attribute_desc.update(attr_dict)  # type: ignore
         # pylint: enable=no-member
+
+    @property
+    def properties(self):
+        """Return names of all properties."""
+        return [name for name, val in attr.asdict(self.__class__) if val]
 
 
 @attr.s(auto_attribs=True)
@@ -242,6 +246,7 @@ class Notebooklet(ABC):
             List of options to use, by default None
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
+            Options prefixed with "-" will be removed from the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
 
@@ -265,9 +270,13 @@ class Notebooklet(ABC):
         if not options:
             self.options = self.metadata.default_options
         else:
-            add_options = [opt[1:] for opt in options if opt.startswith("+")]
+            def_options = self.metadata.default_options
+            add_options = {opt[1:] for opt in options if opt.startswith("+")}
+            sub_options = {opt[1:] for opt in options if opt.startswith("-")}
+            if sub_options:
+                def_options = list(set(def_options) - sub_options)
             if add_options:
-                self.options = self.metadata.default_options + add_options
+                self.options = def_options + list(add_options)
             else:
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
