@@ -521,17 +521,19 @@ def _get_flow_summary(flow_index):
 
     print_data_wait("Whois")
     flows_df = get_whois_df(
-        flows_df, ip_column="dest", asn_col="DestASN", show_progress=True
+        flows_df,
+        ip_column="dest",
+        asn_col="DestASN",
+        whois_col="DestASNFull",
+        show_progress=True,
     )
     flows_df = get_whois_df(
-        flows_df, ip_column="source", asn_col="SourceASN", show_progress=True
+        flows_df,
+        ip_column="source",
+        asn_col="SourceASN",
+        whois_col="SourceASNFull",
+        show_progress=True,
     )
-
-    # Split the tuple returned by get_whois_info into separate columns
-    flows_df["DestASNFull"] = flows_df.apply(lambda x: x.DestASN[1], axis=1)
-    flows_df["DestASN"] = flows_df.apply(lambda x: x.DestASN[0], axis=1)
-    flows_df["SourceASNFull"] = flows_df.apply(lambda x: x.SourceASN[1], axis=1)
-    flows_df["SourceASN"] = flows_df.apply(lambda x: x.SourceASN[0], axis=1)
 
     flow_sum_df = (
         flows_df.groupby(["DestASN", "SourceASN"])

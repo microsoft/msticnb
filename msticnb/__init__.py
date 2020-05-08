@@ -7,28 +7,36 @@
 msticnb Notebooklets main package.
 
 To start using notebooklets:
-> import msticnb as nb
-> nb.init()
->
-> # List notebooklets
-> nb.nb_index
->
-> # Use a notebooklet
-> host_summary = nb.nblts.host.HostSummary()
-> host_summary.run()
->
-> # help
-> help(host_summary)
-> print("Options:", host_summary.all_options())
-> print("Settings:", host_summary.get_settings())
->
-> # find a notebooklet
-> nb.find("host linux azure")
+>>> import msticnb as nb
+>>> nb.init()
+>>>
+>>> # Auto-complete tree of notebooklets
+>>> nb.nblts
+>>>
+>>> # List notebooklets
+>>> nb.nb_index
+>>>
+>>> # Use a notebooklet
+>>> host_summary = nb.nblts.azent.host.HostSummary()
+>>> host_summary.run();
+>>>
+>>> # help
+>>> help(host_summary)
+>>> print("Options:", host_summary.all_options())
+>>> print("Settings:", host_summary.get_settings())
+>>>
+>>> # find a notebooklet
+>>> nb.find("host linux azure")
+>>>
+>>> # Interactive notebook browser
+>>> nb.browse()
+
 """
 
 from .data_providers import DataProviders, init  # noqa:F401
 from .read_modules import discover_modules, nblts, nb_index, find  # noqa:F401
 from .options import get_opt, set_opt  # noqa:F401
+from .nb_browser import NBBrowser as browse  # noqa:F401
 
 from ._version import VERSION
 

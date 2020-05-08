@@ -350,12 +350,16 @@ def _parse_eventdata(event_data, event_ids: Optional[Union[int, Iterable[int]]] 
     if event_ids:
         if isinstance(event_ids, int):
             event_ids = [event_ids]
-        event_data = event_data[event_data["EventID"].isin(event_ids)]
+        src_event_data = event_data[event_data["EventID"].isin(event_ids)].copy()
+    else:
+        src_event_data = event_data.copy()
 
     # Parse event properties into a dictionary
     print_status("Parsing event data...")
-    event_data["EventProperties"] = event_data.apply(_parse_event_data_row, axis=1)
-    return _expand_event_properties(event_data)
+    src_event_data["EventProperties"] = src_event_data.apply(
+        _parse_event_data_row, axis=1
+    )
+    return _expand_event_properties(src_event_data)
 
 
 # %%

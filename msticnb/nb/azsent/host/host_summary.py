@@ -5,11 +5,13 @@
 # --------------------------------------------------------------------------
 """Notebooklet for Host Summary."""
 from functools import lru_cache
-from typing import Any, Optional, Iterable
+from typing import Any, Optional, Iterable, Union
 
 import attr
 import pandas as pd
 from azure.common.exceptions import CloudError
+from bokeh.models import LayoutDOM
+from bokeh.plotting.figure import Figure
 from msticpy.nbtools import nbdisplay
 from msticpy.nbtools import entities
 from msticpy.common.utility import md
@@ -46,6 +48,8 @@ class HostSummaryResult(NotebookletResult):
     related_alerts : pd.DataFrame
         Pandas DataFrame of any alerts recorded for the host
         within the query time span.
+    alert_timeline:
+        Bokeh time plot of alerts recorded for host.
     related_bookmarks: pd.DataFrame
         Pandas DataFrame of any investigation bookmarks
         relating to the host.
@@ -54,6 +58,7 @@ class HostSummaryResult(NotebookletResult):
 
     host_entity: entities.Host = None
     related_alerts: pd.DataFrame = None
+    alert_timeline: Union[LayoutDOM, Figure] = None
     related_bookmarks: pd.DataFrame = None
 
 
@@ -205,7 +210,7 @@ class HostSummary(Notebooklet):
                 self.query_provider, self.timespan, host_name
             )
             if len(related_alerts) > 0:
-                _show_alert_timeline(related_alerts)
+                alert_timeline = _show_alert_timeline(related_alerts)
         if "bookmarks" in self.options:
             related_bookmarks = _get_related_bookmarks(
                 self.query_provider, self.timespan, host_name
@@ -214,6 +219,7 @@ class HostSummary(Notebooklet):
         self._last_result.host_entity = host_entity
         self._last_result.related_alerts = related_alerts
         self._last_result.related_bookmarks = related_bookmarks
+        self._last_result.alert_timeline = alert_timeline
 
         return self._last_result
 
@@ -320,12 +326,13 @@ Each marker on the timeline indicates one or more alerts related to the host.
 )
 def _show_alert_timeline(related_alerts):
     if len(related_alerts) > 1:
-        nbdisplay.display_timeline(
+        alert_plot = nbdisplay.display_timeline(
             data=related_alerts,
             title="Related Alerts",
             source_columns=["AlertName", "TimeGenerated"],
             height=200,
         )
+        return alert_plot
     elif len(related_alerts) == 1:
         md("A single alert cannot be plotted on a timeline.")
     else:
