@@ -132,8 +132,8 @@ def verify_host_name(
     if "SecurityEvent" in qry_prov.schema_tables:
         sec_event_host = """
             SecurityEvent
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end})
+            | where Computer has {host_name}
             | distinct Computer
              """
         win_hosts_df = qry_prov.exec_query(
@@ -149,8 +149,8 @@ def verify_host_name(
     if "Syslog" in qry_prov.schema_tables:
         syslog_host = """
             Syslog
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end})
+            | where Computer has {host_name}
             | distinct Computer
             """
         lx_hosts_df = qry_prov.exec_query(

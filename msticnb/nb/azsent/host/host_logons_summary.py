@@ -10,23 +10,24 @@ from math import pi
 
 import attr
 import pandas as pd
-from bokeh.plotting import figure
+from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
-from bokeh.palettes import Category20c
+from bokeh.palettes import viridis
 from bokeh.transform import cumsum
+from IPython.display import display
 from msticpy.data import QueryProvider
 from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 from msticpy.nbtools import timeline
-from msticpy.common.utility import md
 
 from ....common import (
     TimeSpan,
     print_status,
+    print_data_wait,
     set_text,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from ....nblib.azsent.host import verify_host_name
+##from ....nblib.azsent.host import verify_host_name
 
 from ...._version import VERSION
 
@@ -47,8 +48,14 @@ class HostLogonsSummaryResults(NotebookletResult):
     Attributes
     ----------
     logon_sessions: pd.DataFrame
+        A Dataframe summarizing all sucessfull and failed logon attempts observed during the specified time period.
+
     logon_map: FoliumMap
+        A map showing remote logon attempt source locations. Red points represent failed logons, green successful.
+    
     plots: Dict
+        A collection of Bokeh plot figures showing various aspects of observed logons.
+        Keys are a descriptive name of the plot and values are the plot figures.
 
     """
 
@@ -62,24 +69,28 @@ class HostLogonsSummaryResults(NotebookletResult):
 class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
     """
-    HostLogonsSummary Notebooklet class.
+    Host Logons Summary Notebooket class.
 
-    Notes
-    -----
     Queries and displays information about logons to a host including:
+    
     - Summary of sucessfull logons
     - Visualizations of logon event times
     - Geolocation of remote logon sources
     - Visualizations of various logon elements depending on host type
     - Data on users with failed and sucessful logons
 
+    Default Options
+    ---------------
+    - map: Display a map of logon attempt locations.
+    - timeline: Display a timeline of logon atttempts
+    - charts: Display a range of charts depicting different elements of logon events.
+
     """
 
     metadata = NBMetaData(
-        name=__qualname__,
+        name=__qualname__,  # type: ignore  # noqa
         mod_name=__name__,
         description="Host Logons summary",
-        options=["map", "timeline", "charts"],
         default_options=["map", "timeline", "charts"],
         keywords=["host", "computer", "logons", "windows", "linux"],
         entity_types=["host"],
@@ -143,22 +154,22 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
         # If data is not provided use host_name and timespan to get data
         if not data:
-            if self.verbose is True:
-                print(f"Collecting logon data from {value}")
-            host_name, host_names = verify_host_name(
+            print_data_wait(f"{value}")
+            host_name, host_names = _verify_host_name(
                 self.query_provider, timespan, value
             )
             if host_names:
-                md(f"Could not obtain unique host name from {value}. Aborting.")
+                print_status(f"Could not obtain unique host name from {value}. Aborting.")
                 return self._last_result
             if not host_name:
-                md(
+                print_status(
                 f"Could not find event records for host {value}. "
-                + "Results may be unreliable.",
-                "orange",
-                )
-            host_name = host_name[0] or value
+                + "Results may be unreliable.")
+                return self._last_result
+            print(host_names)
+            print(host_name)
             host_type = host_name[1] or None
+            host_name = host_name[0] or value
 
             if host_type == "Windows":
                 data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
@@ -168,7 +179,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
                 data = self.query_provider.LinuxSyslog.list_logons_for_host(
                     host_name=host_name, start=timespan.start, end=timespan.end
                 )
-            # If no know data type try Windows
+            # If no known data type try Windows
             else:
                 data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
                     host_name=host_name, start=timespan.start, end=timespan.end
@@ -182,21 +193,15 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             raise NotebookletException("No valid data avaliable")
 
         # Conduct analysis and get visualizations
-        if self.verbose is True:
-            print(f"Performing analytics and generating visualizations")
+        print_status(f"Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
-        logon_matrix = _logon_matrix(data)
+        if "timeline" in self.options:
+            tl_plot = _gen_timeline(data)
+            self._last_result.timeline = tl_plot        
         if "map" in self.options:
             logon_map = _map_logons(data)
             self._last_result.logon_map = logon_map
-        if "timeline" in self.options:
-            tl_plot = timeline.display_timeline(
-                data[data["LogonResult"] != "Unknown"],
-                group_by="LogonResult",
-                source_columns=["Account", "LogonProcessName", "SourceIP"],
-                hide=True,
-            )
-            self._last_result.timeline = tl_plot
+        logon_matrix = _logon_matrix(data)
         if "charts" in self.options:
             pie = _users_pie(data)
             stack_bar = _process_stack_bar(data)
@@ -211,39 +216,33 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
 
 # Todo Test then remove
-def _verify_host_name_type(
+def _verify_host_name(
     qry_prov: QueryProvider, timespan: TimeSpan, host_name: str
 ) -> Tuple[Any, bool]:
     """Verify a host name is valid and get the host type (Linux or Windows)."""
     host_names: Dict = {}
     # Check for Windows hosts matching host_name
     if "SecurityEvent" in qry_prov.schema_tables:
-        sec_event_host = """
+        sec_event_host = f"""
             SecurityEvent
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
+            | where Computer has "{host_name}"
             | distinct Computer
              """
-        win_hosts_df = qry_prov.exec_query(
-            sec_event_host.format(
-                start=timespan.start, end=timespan.end, host=host_name
-            )
-        )
+        win_hosts_df = qry_prov.exec_query(sec_event_host)
         if win_hosts_df is not None and not win_hosts_df.empty:
             for host in win_hosts_df["Computer"].to_list():
                 host_names.update({host: "Windows"})
 
     # Check for Linux hosts matching host_name
     if "Syslog" in qry_prov.schema_tables:
-        syslog_host = """
+        syslog_host = f"""
             Syslog
-            | where TimeGenerated between (datetime({start})..datetime({end})
-            | where Computer has {host}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
+            | where Computer has "{host_name}"
             | distinct Computer
             """
-        lx_hosts_df = qry_prov.exec_query(
-            syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
-        )
+        lx_hosts_df = qry_prov.exec_query(syslog_host)
         if lx_hosts_df is not None and not lx_hosts_df.empty:
             for host in lx_hosts_df["Computer"].to_list():
                 host_names.update({host: "Linux"})
@@ -260,43 +259,25 @@ def _verify_host_name_type(
     if host_names:
         unique_host = next(iter(host_names))
         print(f"Unique host found: {unique_host}")
-        return {unique_host: host_names[unique_host]}, None
+        return (unique_host, host_names[unique_host]), None
 
     print(f"Host not found: {host_name}")
     return None, None
 
 
-def _get_logon_result_lx(row: pd.Series) -> str:
-    """Identify if a Linux syslog event is for a sucessful or failed logon."""
-    failure_events = row.str.contains(
-        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",  # pylint: disable=line-too-long # noqa
-        regex=True,
-    )
-    success_events = row.str.contains("Accepted|Successful", regex=True)
-    if failure_events["SyslogMessage"] is True:
-        return "Failure"
-    if success_events["SyslogMessage"] is True:
-        return "Success"
-    return "Unknown"
-
-
-def _parse_user_lx(row: pd.Series) -> str:
-    """Extract a user name from Syslog message related to a logon."""
-    if row.str.contains("publickey")["SyslogMessage"] is True:
-        regex = re.compile("for ([^ ]*)")
-        user = re.search(regex, row["SyslogMessage"])
-        return user[1]
-
-    regex = re.compile("user |user= ([^ ]*)")
-    user = re.search(regex, row["SyslogMessage"])
-    return user[1]
-
-
-def _parse_ip_lx(row: pd.Series) -> str:
-    """Extract an IP Address from an Syslog message."""
-    regex = re.compile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3})")
-    ips = re.search(regex, row["SyslogMessage"])
-    return ips[1]
+@set_text(
+    title="Timeline of logon events",
+    text="""
+A breakdown of logon attempts over time, split by the logon attempt result.
+"""
+)
+def _gen_timeline(data: pd.DataFrame):
+    tl = timeline.display_timeline(
+                data[data["LogonResult"] != "Unknown"],
+                group_by="LogonResult",
+                source_columns=["Account", "LogonProcessName", "SourceIP"]
+            )
+    return tl
 
 @set_text(
     title="Map of logon locations",
@@ -326,6 +307,7 @@ def _map_logons(data: pd.DataFrame) -> FoliumMap:
     if len(ip_list) > 0:
         icon_props = {"color": "green"}
         folium_map.add_ip_cluster(ip_entities=ip_list, **icon_props)
+    display(folium_map)
     return folium_map
 
 @set_text(
@@ -348,7 +330,7 @@ def _users_pie(data: pd.DataFrame) -> figure:
     if "" in user_logons:
         user_logons.drop("", inplace=True)
     user_logons["angle"] = user_logons["value"] / user_logons["value"].sum() * 2 * pi
-    user_logons["color"] = Category20c[len(user_logons)]
+    user_logons["color"] = viridis(len(user_logons))
 
     viz = figure(
         plot_height=350,
@@ -374,11 +356,12 @@ def _users_pie(data: pd.DataFrame) -> figure:
     viz.axis.axis_label = None
     viz.axis.visible = False
     viz.grid.grid_line_color = None
+    show(viz)
 
     return viz
 
 @set_text(
-    title="Logon sucess ration by process",
+    title="Logon sucess ratio by process",
     text="""
 Ratio of failed to sucessful logons by process. Red is failure, green is successful.
 """
@@ -444,18 +427,9 @@ def _process_stack_bar(data: pd.DataFrame) -> figure:
     viz.outline_line_color = None
     viz.legend.location = "top_left"
     viz.legend.orientation = "horizontal"
+    show(viz)
 
     return viz
-
-
-def _event_id_to_result(row: pd.Series):
-    """Transform Windows event id to string for logon results."""
-    if row["EventID"] == 4624:
-        return "Success"
-    if row["EventID"] == 4625:
-        return "Failure"
-    return "Unknown"
-
 
 @set_text(
     title="Logon Matrix",
@@ -475,6 +449,7 @@ def _logon_matrix(data: pd.DataFrame) -> pd.DataFrame:
         .style.background_gradient(cmap="viridis", low=0.5, high=0)
         .format("{0:0>3.0f}")
     )
+    display(logon_by_type)
     return logon_by_type
 
 
@@ -499,3 +474,44 @@ def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
             data["LogonResult"] = data.apply(_event_id_to_result, axis=1)
             data["SourceIP"] = data.apply(_win_remote_ip, axis=1)
     return data
+
+def _get_logon_result_lx(row: pd.Series) -> str:
+    """Identify if a Linux syslog event is for a sucessful or failed logon."""
+    failure_events = row.str.contains(
+        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",  # pylint: disable=line-too-long # noqa
+        regex=True,
+    )
+    success_events = row.str.contains("Accepted|Successful", regex=True)
+    if failure_events["SyslogMessage"] is True:
+        return "Failure"
+    if success_events["SyslogMessage"] is True:
+        return "Success"
+    return "Unknown"
+
+
+def _parse_user_lx(row: pd.Series) -> str:
+    """Extract a user name from Syslog message related to a logon."""
+    if row.str.contains("publickey")["SyslogMessage"] is True:
+        regex = re.compile("for ([^ ]*)")
+        user = re.search(regex, row["SyslogMessage"])
+        return user[1]
+
+    regex = re.compile("user |user= ([^ ]*)")
+    user = re.search(regex, row["SyslogMessage"])
+    return user[1]
+
+
+def _parse_ip_lx(row: pd.Series) -> str:
+    """Extract an IP Address from an Syslog message."""
+    regex = re.compile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3})")
+    ips = re.search(regex, row["SyslogMessage"])
+    return ips[1]
+
+
+def _event_id_to_result(row: pd.Series):
+    """Transform Windows event id to string for logon results."""
+    if row["EventID"] == 4624:
+        return "Success"
+    if row["EventID"] == 4625:
+        return "Failure"
+    return "Unknown"
