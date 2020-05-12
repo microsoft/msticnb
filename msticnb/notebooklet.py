@@ -30,6 +30,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-few-public-methods
 @attr.s(auto_attribs=True)
 class NotebookletResult:
     """Base result class."""
@@ -71,9 +72,9 @@ class NotebookletResult:
             if name.startswith("_"):
                 continue
             attr_desc = ""
-            attr_type, attr_text = (
-                self._attribute_desc.get(name, (None, None))  # type: ignore
-            )
+            attr_type, attr_text = self._attribute_desc.get(
+                name, (None, None)
+            )  # type: ignore
             if attr_type:
                 attr_desc += f"[{attr_type}]<br>"
             if attr_text:
@@ -118,7 +119,6 @@ class NotebookletResult:
                 # if existing attribute, add to dict
                 if attr_name:
                     attr_dict[attr_name] = attr_type, " ".join(attr_lines)
-                print(line)
                 attr_name, attr_type = [item.strip() for item in line.split(":")]
                 attr_lines = []
             else:
@@ -127,6 +127,11 @@ class NotebookletResult:
         # pylint: disable=no-member
         self._attribute_desc.update(attr_dict)  # type: ignore
         # pylint: enable=no-member
+
+    @property
+    def properties(self):
+        """Return names of all properties."""
+        return [name for name, val in attr.asdict(self.__class__) if val]
 
 
 @attr.s(auto_attribs=True)
@@ -195,6 +200,7 @@ class Notebooklet(ABC):
         self.options: List[str] = self.metadata.default_options
         self._set_tqdm_notebook(get_opt("verbose"))
         self._last_result: Any = None
+        self.timespan = TimeSpan(period="1d")
 
         # pylint: disable=no-member
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
@@ -231,29 +237,51 @@ class Notebooklet(ABC):
             value to process, by default None
         data : Optional[pd.DataFrame], optional
             Input data to process, by default None
-        timespan : Optional[TimeSpan], optional
-            Timespan over , by default None
+        timespan : Optional[TimeSpan, Any], optional
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
         options :Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
+            Options prefixed with "-" will be removed from the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
+
+        Other Parameters
+        ----------------
+        start : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
+        end : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
 
         Returns
         -------
         NotebookletResult
             Result class from the notebooklet
+
+        See Also
+        --------
+            TimeSpan
+
         """
         if not options:
             self.options = self.metadata.default_options
         else:
-            add_options = [opt[1:] for opt in options if opt.startswith("+")]
+            def_options = self.metadata.default_options
+            add_options = {opt[1:] for opt in options if opt.startswith("+")}
+            sub_options = {opt[1:] for opt in options if opt.startswith("-")}
+            if sub_options:
+                def_options = list(set(def_options) - sub_options)
             if add_options:
-                self.options = self.metadata.default_options + add_options
+                self.options = def_options + list(add_options)
             else:
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
+        if timespan:
+            self.timespan = timespan
         return NotebookletResult()
 
     def get_provider(self, provider_name: str):
@@ -438,6 +466,15 @@ class Notebooklet(ABC):
         if verbose:
             tqdm.pandas()
 
+    def _get_timespan(self, timespan=None, **kwargs):
+        if timespan:
+            if isinstance(timespan, TimeSpan):
+                self.timespan = timespan
+            else:
+                self.timespan = TimeSpan(time_selector=timespan)
+        elif "start" in kwargs and "end" in kwargs:
+            self.timespan = TimeSpan(start=kwargs["start"], end=kwargs["end"])
+
     @classmethod
     def import_cell(cls):
         """Import the text of this module into a new cell."""
@@ -462,6 +499,6 @@ class Notebooklet(ABC):
 
     @classmethod
     def _get_doc(cls, fmt):
-        """Placeholder attribute for documentation func."""
+        """Return documentation func. placeholder."""
         del fmt
         return "No documentation available."

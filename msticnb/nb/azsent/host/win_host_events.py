@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""host_summary - handles reading noebooklets modules."""
+"""Notebooklet for Windows Security Events."""
 import pkgutil
 import os
 from typing import Any, Optional, Iterable, Union
@@ -12,6 +12,7 @@ from defusedxml.ElementTree import ParseError
 
 import attr
 from bokeh.plotting.figure import Figure
+from bokeh.models import LayoutDOM
 from IPython.display import display
 import numpy as np
 import pandas as pd
@@ -51,8 +52,8 @@ class WinHostEventsResult(NotebookletResult):
     acct_pivot : pd.DataFrame
         DataFrame that is a pivot table of event ID
         vs. Account of account management events
-    account_timeline : bokeh.plotting.figure.Figure
-        Bokeh plot figure showing the account events on an
+    account_timeline : Union[Figure, LayoutDOM]
+        Bokeh plot figure or Layout showing the account events on an
         interactive timeline.
     expanded_events : pd.DataFrame
         If `expand_events` option is specified, this will contain
@@ -65,7 +66,7 @@ class WinHostEventsResult(NotebookletResult):
     event_pivot: pd.DataFrame = None
     account_events: pd.DataFrame = None
     account_pivot: pd.DataFrame = None
-    account_timeline: Figure = None
+    account_timeline: Union[Figure, LayoutDOM] = None
     expanded_events: pd.DataFrame = None
 
 
@@ -86,7 +87,7 @@ class WinHostEvents(Notebooklet):
     Default Options
     ---------------
     - event_pivot: Display a summary of all event types.
-    - acct_events: Display and summary and timeline of account
+    - acct_events: Display a summary and timeline of account
       management events.
 
     Other Options
@@ -132,13 +133,23 @@ class WinHostEvents(Notebooklet):
         data : Optional[pd.DataFrame], optional
             Not used, by default None
         timespan : TimeSpan
-            Timespan for queries
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
         options : Optional[Iterable[str]], optional
             List of options to use, by default None.
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
+
+        Other Parameters
+        ----------------
+        start : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
+        end : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
 
         Returns
         -------
@@ -163,7 +174,7 @@ class WinHostEvents(Notebooklet):
         result = WinHostEventsResult()
 
         all_events_df, event_pivot_df = _get_win_security_events(
-            self.query_provider, host_name=value, timespan=timespan
+            self.query_provider, host_name=value, timespan=self.timespan
         )
         result.all_events = all_events_df
         result.event_pivot = event_pivot_df
@@ -185,7 +196,7 @@ class WinHostEvents(Notebooklet):
             result.expanded_events = _parse_eventdata(all_events_df)
 
         md("To unpack eventdata from selected events use expand_events()")
-        self._last_result = result
+        self._last_result = result  # pylint: disable=attribute-defined-outside-init
         return self._last_result
 
     def expand_events(
@@ -213,7 +224,9 @@ class WinHostEvents(Notebooklet):
         and result in a lot of sparse columns in the output data frame.
 
         """
-        if not self._last_result or self._last_result.all_events is None:  # type: ignore
+        if (
+            not self._last_result or self._last_result.all_events is None
+        ):  # type: ignore
             print(
                 "Please use 'run()' to fetch the data before using this method.",
                 "\nThen call 'expand_events()'",
@@ -337,12 +350,16 @@ def _parse_eventdata(event_data, event_ids: Optional[Union[int, Iterable[int]]] 
     if event_ids:
         if isinstance(event_ids, int):
             event_ids = [event_ids]
-        event_data = event_data[event_data["EventID"].isin(event_ids)]
+        src_event_data = event_data[event_data["EventID"].isin(event_ids)].copy()
+    else:
+        src_event_data = event_data.copy()
 
     # Parse event properties into a dictionary
     print_status("Parsing event data...")
-    event_data["EventProperties"] = event_data.apply(_parse_event_data_row, axis=1)
-    return _expand_event_properties(event_data)
+    src_event_data["EventProperties"] = src_event_data.apply(
+        _parse_event_data_row, axis=1
+    )
+    return _expand_event_properties(src_event_data)
 
 
 # %%

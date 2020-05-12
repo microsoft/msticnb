@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""host_network_summary notebooklet."""
+"""Notebooklet for Network Flow Summary."""
 from ipaddress import ip_address
 from itertools import chain
 from typing import Any, Optional, Iterable, Tuple
@@ -35,9 +35,8 @@ from ...._version import VERSION
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
-# __all__ = [HostSummary]
 
-
+# pylint: disable=too-few-public-methods, too-many-instance-attributes
 @attr.s(auto_attribs=True)
 class NetworkFlowResult(NotebookletResult):
     """
@@ -119,6 +118,7 @@ class NetworkFlowSummary(Notebooklet):
       data for the IPs belonging to those ASNs.
     - show_selected_asn_map: Show IP address locations for selected IP
       (including any threats highlighted)
+
     """
 
     metadata = NBMetaData(
@@ -132,9 +132,7 @@ class NetworkFlowSummary(Notebooklet):
         req_providers=["azure_sentinel"],
     )
 
-    def __init__(
-        self, data_providers: Optional[DataProviders] = None, **kwargs,
-    ):
+    def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
         Intialize a new instance of the notebooklet class.
 
@@ -173,13 +171,23 @@ class NetworkFlowSummary(Notebooklet):
         data : Optional[pd.DataFrame], optional
             Not used, by default None
         timespan : TimeSpan
-            Timespan for queries
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
         options : Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
+
+        Other Parameters
+        ----------------
+        start : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
+        end : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
 
         Returns
         -------
@@ -216,7 +224,9 @@ class NetworkFlowSummary(Notebooklet):
             "Network flow summary for " + host_name or host_ip  # type: ignore
         )
 
-        flow_df = _get_az_net_flows(self.query_provider, timespan, host_ip, host_name)
+        flow_df = _get_az_net_flows(
+            self.query_provider, self.timespan, host_ip, host_name
+        )
         result.network_flows = flow_df
 
         if "resolve_host" in self.options:
@@ -243,7 +253,7 @@ class NetworkFlowSummary(Notebooklet):
         md("Select ASNs to examine using select_asns()")
         md(
             "Lookup threat intel for IPs from selected ASNs using"
-            + " lookup_ti_for_asn_ips()",
+            + " lookup_ti_for_asn_ips()"
         )
         md("Display Geolocation of threats with show_selected_asn_map()")
         md("For usage type 'help(NetworkFlowSummary.function_name)'")
@@ -281,7 +291,7 @@ class NetworkFlowSummary(Notebooklet):
             return
 
         selected_ips = _get_ips_from_selected_asn(
-            flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector,
+            flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector
         )
         ti_results = _lookup_ip_ti(
             flows_df=self._last_result,
@@ -374,7 +384,7 @@ def _get_az_net_flows(qry_prov, timespan, ip_addr, hostname):
 
 # %%
 # Plot flows
-@set_text(title="Timeline of network flows by protocol type.",)
+@set_text(title="Timeline of network flows by protocol type.")
 def _plot_flows_by_protocol(flow_df):
     return nbdisplay.display_timeline(
         data=flow_df,
@@ -511,17 +521,19 @@ def _get_flow_summary(flow_index):
 
     print_data_wait("Whois")
     flows_df = get_whois_df(
-        flows_df, ip_column="dest", asn_col="DestASN", show_progress=True
+        flows_df,
+        ip_column="dest",
+        asn_col="DestASN",
+        whois_col="DestASNFull",
+        show_progress=True,
     )
     flows_df = get_whois_df(
-        flows_df, ip_column="source", asn_col="SourceASN", show_progress=True
+        flows_df,
+        ip_column="source",
+        asn_col="SourceASN",
+        whois_col="SourceASNFull",
+        show_progress=True,
     )
-
-    # Split the tuple returned by get_whois_info into separate columns
-    flows_df["DestASNFull"] = flows_df.apply(lambda x: x.DestASN[1], axis=1)
-    flows_df["DestASN"] = flows_df.apply(lambda x: x.DestASN[0], axis=1)
-    flows_df["SourceASNFull"] = flows_df.apply(lambda x: x.SourceASN[1], axis=1)
-    flows_df["SourceASN"] = flows_df.apply(lambda x: x.SourceASN[0], axis=1)
 
     flow_sum_df = (
         flows_df.groupby(["DestASN", "SourceASN"])

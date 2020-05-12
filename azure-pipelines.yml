@@ -1,0 +1,121 @@
+#Multi-configuration and multi-agent job options are not exported to YAML. Configure these options using documentation guidance: https://docs.microsoft.com/vsts/pipelines/process/phases
+
+pool:
+  name: Hosted VS2017
+variables:
+  python.version: '3.6'
+
+steps:
+- task: UsePythonVersion@0
+  displayName: 'Use Python $(python.version)'
+  inputs:
+    versionSpec: '$(python.version)'
+
+- script: 'python -m pip install --upgrade pip && pip install -r requirements.txt'
+  displayName: 'Install dependencies'
+
+- script: |
+   echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
+   pip install --upgrade pytest
+   pip install --upgrade pytest-cov
+   pip install -e .
+   set MSTICPY_TEST_NOSKIP=1
+   pytest msticnb/tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
+   REM --cov-report=html
+  displayName: pytest
+
+- script: |
+   pip install --upgrade black
+   black -t py36 --check --exclude venv . 
+  displayName: Black
+  continueOnError: true
+  condition: succeededOrFailed()
+
+- script: |
+   pip install --upgrade pylint
+   pylint msticnb --disable=bad-continuation
+  displayName: pylint
+  continueOnError: true
+  condition: succeededOrFailed()
+
+- script: 'pip install --upgrade bandit && bandit -x tests -r -s B303,B404,B603,B607 msticnb'
+  displayName: bandit
+  continueOnError: true
+  condition: succeededOrFailed()
+
+- script: |
+   pip install --upgrade flake8 
+   flake8 --max-line-length=90 --exclude=tests* . --ignore=E501,W503
+  displayName: flake8
+  continueOnError: true
+  condition: succeededOrFailed()
+
+- script: |
+   setx MYPYPATH "C:/hostedtoolcache/windows/Python/3.6.8/x64/Lib/site-packages"
+   pip install prospector[with_everything]
+   prospector --ignore-paths tests --with-tool mypy
+  displayName: prospector
+  continueOnError: true
+  condition: succeededOrFailed()
+
+- task: securedevelopmentteam.vss-secure-development-tools.build-task-credscan.CredScan@2
+  displayName: 'Run CredScan'
+  inputs:
+    toolMajorVersion: V2
+    debugMode: false
+
+- task: securedevelopmentteam.vss-secure-development-tools.build-task-autoapplicability.AutoApplicability@1
+  displayName: 'Run AutoApplicability'
+
+- task: securedevelopmentteam.vss-secure-development-tools.build-task-policheck.PoliCheck@1
+  displayName: 'Run PoliCheck'
+  inputs:
+    targetType: F
+
+- task: securedevelopmentteam.vss-secure-development-tools.build-task-vulnerabilityassessment.VulnerabilityAssessment@0
+  displayName: 'Run Vulnerability Assessment'
+
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results'
+  inputs:
+    testResultsFiles: '**/*-results.xml'
+    testRunTitle: 'Python $(python.version)'
+
+- task: PublishCodeCoverageResults@1
+  displayName: 'Publish code coverage'
+  inputs:
+    codeCoverageTool: Cobertura
+    summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
+    reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
+
+- task: ms.vss-governance-buildtask.governance-build-task-component-detection.ComponentGovernanceComponentDetection@0
+  displayName: 'Component Detection'
+
+- task: securedevelopmentteam.vss-secure-development-tools.build-task-report.SdtReport@1
+  displayName: 'Create Security Analysis Report'
+  inputs:
+    CredScan: true
+    PoliCheck: true
+
+- task: securedevelopmentteam.vss-secure-development-tools.build-task-publishsecurityanalysislogs.PublishSecurityAnalysisLogs@2
+  displayName: 'Publish Security Analysis Logs'
+  inputs:
+    AllTools: false
+    AntiMalware: false
+    APIScan: false
+    BinSkim: false
+    CodesignValidation: false
+    FortifySCA: false
+    FxCop: false
+    ModernCop: false
+    MSRD: false
+    RoslynAnalyzers: false
+    SDLNativeRules: false
+    Semmle: false
+    TSLint: false
+    WebScout: false
+
+- task: securedevelopmentteam.vss-secure-development-tools.build-task-postanalysis.PostAnalysis@1
+  displayName: 'Post Analysis'
+  inputs:
+    CredScan: true

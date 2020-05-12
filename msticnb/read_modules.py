@@ -11,6 +11,7 @@ import inspect
 from operator import itemgetter
 from pathlib import Path
 from typing import Iterable, Tuple, Dict, List, Union
+from warnings import warn
 
 from . import nb
 from .class_doc import get_class_doc
@@ -26,9 +27,7 @@ nblts: NBContainer = NBContainer()
 nb_index: Dict[str, Notebooklet] = {}
 
 
-def discover_modules(
-    data_provider: str = "azsent", nb_path: Union[str, Iterable[str]] = None
-) -> NBContainer:
+def discover_modules(nb_path: Union[str, Iterable[str]] = None) -> NBContainer:
     """
     Discover notebooks modules.
 
@@ -42,21 +41,24 @@ def discover_modules(
     NBContainer
         Container of notebooklets. This is structured
         as a tree mirroring the source folder names.
+
     """
+    del nb_path  # TODO enable arbitrary paths
+
     pkg_folder = Path(__file__).parent
-    dp_pkg_folder = pkg_folder / "nb" / data_provider
+    dp_pkg_folder = pkg_folder / "nb"
     _import_from_folder(dp_pkg_folder, pkg_folder)
 
-    common_pkg_folder = pkg_folder / "nb/common"
-    _import_from_folder(common_pkg_folder, pkg_folder)
+    # common_pkg_folder = pkg_folder / "nb/common"
+    # _import_from_folder(common_pkg_folder, pkg_folder)
 
-    if not nb_path:
-        return nblts
-    if isinstance(nb_path, str):
-        _import_from_folder(Path(nb_path))
-    elif isinstance(nb_path, list):
-        for path_item in nb_path:
-            _import_from_folder(Path(path_item))
+    # if not nb_path:
+    #     return nblts
+    # if isinstance(nb_path, str):
+    #     _import_from_folder(Path(nb_path))
+    # elif isinstance(nb_path, list):
+    #     for path_item in nb_path:
+    #         _import_from_folder(Path(path_item))
     return nblts
 
 
@@ -67,7 +69,6 @@ def _import_from_folder(nb_folder: Path, parent_folder: Path):
     folders = [f for f in nb_folder.glob("./**") if f.is_dir() and not f == nb_folder]
     for folder in folders:
         rel_folder_parts = folder.relative_to(nb_folder).parts
-        full_rel_path_paths = folder.relative_to(parent_folder).parts
         # skip hidden folder paths with . or _ prefix
         if any([f for f in rel_folder_parts if f.startswith(".") or f.startswith("_")]):
             continue
@@ -78,7 +79,7 @@ def _import_from_folder(nb_folder: Path, parent_folder: Path):
         cur_container = _get_container(rel_folder_parts)
         for cls_name, nb_class in nb_classes.items():
             setattr(cur_container, cls_name, nb_class)
-            cls_index = ".".join(list(full_rel_path_paths) + [cls_name])
+            cls_index = "nblts." + ".".join(list(rel_folder_parts) + [cls_name])
             nb_index[cls_index] = nb_class
 
 
@@ -93,6 +94,7 @@ def _find_cls_modules(folder):
             try:
                 imp_module = importlib.import_module(mod_name, package=nb.__package__)
             except ImportError as err:
+                warn(f"Import failed for {item}.\n" + str(err))
                 print_debug("import failed", item, err)
                 continue
             mod_classes = inspect.getmembers(imp_module, inspect.isclass)
@@ -131,6 +133,9 @@ def find(keywords: str, full_match=True) -> List[Tuple[str, Notebooklet]]:
     keywords : str
         Space or comma-separated words to search for.
         Terms can be regular expressions.
+    full_match : bool
+        If True only return full matches, default is True.
+        If False it will return partial matches.
 
     Returns
     -------

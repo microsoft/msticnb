@@ -3,13 +3,15 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""host_summary - handles reading noebooklets modules."""
+"""Notebooklet for Host Summary."""
 from functools import lru_cache
-from typing import Any, Optional, Iterable
+from typing import Any, Optional, Iterable, Union
 
 import attr
 import pandas as pd
 from azure.common.exceptions import CloudError
+from bokeh.models import LayoutDOM
+from bokeh.plotting.figure import Figure
 from msticpy.nbtools import nbdisplay
 from msticpy.nbtools import entities
 from msticpy.common.utility import md
@@ -30,6 +32,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-few-public-methods
 @attr.s(auto_attribs=True)
 class HostSummaryResult(NotebookletResult):
     """
@@ -45,6 +48,8 @@ class HostSummaryResult(NotebookletResult):
     related_alerts : pd.DataFrame
         Pandas DataFrame of any alerts recorded for the host
         within the query time span.
+    alert_timeline:
+        Bokeh time plot of alerts recorded for host.
     related_bookmarks: pd.DataFrame
         Pandas DataFrame of any investigation bookmarks
         relating to the host.
@@ -53,9 +58,11 @@ class HostSummaryResult(NotebookletResult):
 
     host_entity: entities.Host = None
     related_alerts: pd.DataFrame = None
+    alert_timeline: Union[LayoutDOM, Figure] = None
     related_bookmarks: pd.DataFrame = None
 
 
+# pylint: disable=too-few-public-methods
 class HostSummary(Notebooklet):
     """
 
@@ -93,7 +100,8 @@ class HostSummary(Notebooklet):
         req_providers=["azure_sentinel"],
     )
 
-    @set_text(
+    # pylint: disable=too-many-branches
+    @set_text(  # noqa MC0001
         title="Host Entity Summary",
         hd_level=1,
         text="Data and plots are store in the result class returned by this function",
@@ -116,13 +124,23 @@ class HostSummary(Notebooklet):
         data : Optional[pd.DataFrame], optional
             Not used, by default None
         timespan : TimeSpan
-            Timespan for queries
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
         options : Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
             Options prefixed with "+" will be added to the default options.
             To see the list of available options type `help(cls)` where
             "cls" is the notebooklet class or an instance of this class.
+
+        Other Parameters
+        ----------------
+        start : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
+        end : Union[datetime, datelike-string]
+            Alternative to specifying timespan parameter.
 
         Returns
         -------
@@ -144,9 +162,12 @@ class HostSummary(Notebooklet):
         if not timespan:
             raise MsticnbMissingParameterError("timespan.")
 
+        # pylint: disable=attribute-defined-outside-init
         self._last_result = HostSummaryResult(description=self.metadata.description)
 
-        host_name, host_names = verify_host_name(self.query_provider, timespan, value)
+        host_name, host_names = verify_host_name(
+            self.query_provider, self.timespan, value
+        )
         if host_names:
             md(f"Could not obtain unique host name from {value}. Aborting.")
             return self._last_result
@@ -186,17 +207,19 @@ class HostSummary(Notebooklet):
         _show_host_entity(host_entity)
         if "alerts" in self.options:
             related_alerts = _get_related_alerts(
-                self.query_provider, timespan, host_name
+                self.query_provider, self.timespan, host_name
             )
-            _show_alert_timeline(related_alerts)
+            if len(related_alerts) > 0:
+                alert_timeline = _show_alert_timeline(related_alerts)
         if "bookmarks" in self.options:
             related_bookmarks = _get_related_bookmarks(
-                self.query_provider, timespan, host_name
+                self.query_provider, self.timespan, host_name
             )
 
         self._last_result.host_entity = host_entity
         self._last_result.related_alerts = related_alerts
         self._last_result.related_bookmarks = related_bookmarks
+        self._last_result.alert_timeline = alert_timeline
 
         return self._last_result
 
@@ -298,17 +321,22 @@ def _get_related_alerts(qry_prov, timespan, host_name):
 @set_text(
     title="Timeline of related alerts",
     text="""
-Each marker on the timeline indicates one or more alerts related to the host
-"""
+Each marker on the timeline indicates one or more alerts related to the host.
+""",
 )
 def _show_alert_timeline(related_alerts):
     if len(related_alerts) > 1:
-        nbdisplay.display_timeline(
+        alert_plot = nbdisplay.display_timeline(
             data=related_alerts,
             title="Related Alerts",
             source_columns=["AlertName", "TimeGenerated"],
             height=200,
         )
+        return alert_plot
+    elif len(related_alerts) == 1:
+        md("A single alert cannot be plotted on a timeline.")
+    else:
+        md("No alerts available to be plotted.")
 
 
 @lru_cache()

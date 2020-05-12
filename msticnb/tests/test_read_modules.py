@@ -6,7 +6,7 @@
 """read_modules test class."""
 import unittest
 
-from ..read_modules import discover_modules, Notebooklet, find
+from ..read_modules import discover_modules, Notebooklet, find, nblts
 
 
 class TestReadModules(unittest.TestCase):
@@ -15,9 +15,10 @@ class TestReadModules(unittest.TestCase):
     def test_read_modules(self):
         """Test method."""
         nbklts = discover_modules()
-        self.assertTrue(len(nbklts) > 1)
+        self.assertGreaterEqual(len(list(nbklts.iter_classes())), 3)
 
-        match, m_count = nbklts.host.HostSummary.match_terms("host, linux, azure")
+        # pylint: disable=no-member
+        match, m_count = nblts.azsent.host.HostSummary.match_terms("host, linux, azure")
         self.assertTrue(match)
         self.assertEqual(m_count, 3)
 

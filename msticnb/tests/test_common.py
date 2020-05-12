@@ -63,6 +63,7 @@ class TestCommon(unittest.TestCase):
 
         end_str = str(end)
 
+        # pylint: disable=too-few-public-methods
         class _TestTime:
             start = None
             end = None
@@ -90,7 +91,6 @@ class TestCommon(unittest.TestCase):
 
     def test_print_methods(self):
         """Test method."""
-
         set_opt("verbose", True)
         f_stream = io.StringIO()
         with redirect_stdout(f_stream):
@@ -119,7 +119,7 @@ class TestCommon(unittest.TestCase):
 
     def test_add_result_decorator(self):
         """Test method."""
-
+        # pylint: disable=too-few-public-methods
         class _TestClass:
             prop1 = None
             prop2 = None
