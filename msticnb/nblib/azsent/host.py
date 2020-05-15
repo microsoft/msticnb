@@ -5,7 +5,7 @@
 # --------------------------------------------------------------------------
 """host_network_summary notebooklet."""
 from functools import lru_cache
-from typing import Optional, Tuple, Dict
+from typing import Dict
 
 import pandas as pd
 from msticpy.data import QueryProvider
@@ -103,9 +103,7 @@ def get_aznet_topology(
 
 
 @lru_cache()
-def verify_host_name(
-    qry_prov: QueryProvider, timespan: TimeSpan, host_name: str
-) -> Tuple[Optional[Tuple(str,str)], Optional[Dict[str:str]]]:
+def verify_host_name(qry_prov: QueryProvider, timespan: TimeSpan, host_name: str):
     """
     Verify unique hostname by checking Win and Linux logs.
 
@@ -128,36 +126,29 @@ def verify_host_name(
         If no matching host then both are None.
 
     """
-    
     host_names: Dict = {}
     # Check for Windows hosts matching host_name
     if "SecurityEvent" in qry_prov.schema_tables:
-        sec_event_host = """
+        sec_event_host = f"""
             SecurityEvent
-            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end})
-            | where Computer has {host_name}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
+            | where Computer has "{host_name}"
             | distinct Computer
              """
-        win_hosts_df = qry_prov.exec_query(
-            sec_event_host.format(
-                start=timespan.start, end=timespan.end, host=host_name
-            )
-        )
+        win_hosts_df = qry_prov.exec_query(sec_event_host)
         if win_hosts_df is not None and not win_hosts_df.empty:
             for host in win_hosts_df["Computer"].to_list():
                 host_names.update({host: "Windows"})
 
     # Check for Linux hosts matching host_name
     if "Syslog" in qry_prov.schema_tables:
-        syslog_host = """
+        syslog_host = f"""
             Syslog
-            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end})
-            | where Computer has {host_name}
+            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
+            | where Computer has "{host_name}"
             | distinct Computer
             """
-        lx_hosts_df = qry_prov.exec_query(
-            syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
-        )
+        lx_hosts_df = qry_prov.exec_query(syslog_host)
         if lx_hosts_df is not None and not lx_hosts_df.empty:
             for host in lx_hosts_df["Computer"].to_list():
                 host_names.update({host: "Linux"})

@@ -165,6 +165,11 @@ class HostSummary(Notebooklet):
         # pylint: disable=attribute-defined-outside-init
         self._last_result = HostSummaryResult(description=self.metadata.description)
 
+        host_entity = None
+        related_alerts = None
+        related_bookmarks = None
+        alert_timeline = None
+
         host_name, host_names = verify_host_name(
             self.query_provider, self.timespan, value
         )

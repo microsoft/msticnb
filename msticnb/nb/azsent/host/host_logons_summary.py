@@ -4,7 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """logons_summary - provides overview of host logon events."""
-from typing import Any, Optional, Iterable, Tuple, Dict
+from typing import Any, Optional, Iterable, Dict
 import re
 from math import pi
 
@@ -15,7 +15,6 @@ from bokeh.io import output_notebook
 from bokeh.palettes import viridis
 from bokeh.transform import cumsum
 from IPython.display import display
-from msticpy.data import QueryProvider
 from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 from msticpy.nbtools import timeline
@@ -23,36 +22,38 @@ from msticpy.nbtools import timeline
 from ....common import (
     TimeSpan,
     print_status,
+    MsticnbDataProviderError,
+    MsticnbMissingParameterError,
     print_data_wait,
     set_text,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
-##from ....nblib.azsent.host import verify_host_name
+
+from ....nblib.azsent.host import verify_host_name
 
 from ...._version import VERSION
+
+pd.options.mode.chained_assignment = None
 
 __version__ = VERSION
 __author__ = "Pete Bryan"
 
 
-class NotebookletException(Exception):
-    pass
-
-
 @attr.s(auto_attribs=True)  # pylint: disable=too-few-public-methods
 class HostLogonsSummaryResults(NotebookletResult):
-
     """
     Host Logons Summary Results.
 
     Attributes
     ----------
     logon_sessions: pd.DataFrame
-        A Dataframe summarizing all sucessfull and failed logon attempts observed during the specified time period.
+        A Dataframe summarizing all sucessfull and failed logon attempts observed during the
+        specified time period.
 
     logon_map: FoliumMap
-        A map showing remote logon attempt source locations. Red points represent failed logons, green successful.
-    
+        A map showing remote logon attempt source locations. Red points represent failed logons,
+        green successful.
+
     plots: Dict
         A collection of Bokeh plot figures showing various aspects of observed logons.
         Keys are a descriptive name of the plot and values are the plot figures.
@@ -63,16 +64,16 @@ class HostLogonsSummaryResults(NotebookletResult):
     logon_matrix: pd.DataFrame = None
     logon_map: FoliumMap = None
     timeline: figure = None
+    failed_success: pd.DataFrame = None
     plots: Dict = None
 
 
 class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
-
     """
     Host Logons Summary Notebooket class.
 
     Queries and displays information about logons to a host including:
-    
+
     - Summary of sucessfull logons
     - Visualizations of logon event times
     - Geolocation of remote logon sources
@@ -84,6 +85,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
     - map: Display a map of logon attempt locations.
     - timeline: Display a timeline of logon atttempts
     - charts: Display a range of charts depicting different elements of logon events.
+    - failed_success: Displays a DataFrame of all users with both successful and failed logons.
 
     """
 
@@ -91,7 +93,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         name=__qualname__,  # type: ignore  # noqa
         mod_name=__name__,
         description="Host Logons summary",
-        default_options=["map", "timeline", "charts"],
+        default_options=["map", "timeline", "charts", "failed_success"],
         keywords=["host", "computer", "logons", "windows", "linux"],
         entity_types=["host"],
         req_providers=["azure_sentinel"],
@@ -133,8 +135,11 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
         Raises
         ------
-        NotebookletException
+        MsticnbMissingParameterError
             If required parameters are missing
+
+        MsticnbDataProviderError
+            If data is not avaliable
 
         """
         super().run(
@@ -142,32 +147,26 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         )
 
         # Check we have at either a dataset or a host_name and timespan
-        if not value and not timespan and not data:
-            raise NotebookletException(
-                "Either data, or a hostname and timespan is required."
-            )
-
-        # Add description to results for context
-        self._last_result = HostLogonsSummaryResults(
-            description=self.metadata.description
-        )
+        if value is None and timespan is None and data is None:
+            raise MsticnbMissingParameterError("data, or a hostname and timespan.")
 
         # If data is not provided use host_name and timespan to get data
-        if not data:
+        if data is None:
             print_data_wait(f"{value}")
-            host_name, host_names = _verify_host_name(
+            host_name, host_names = verify_host_name(
                 self.query_provider, timespan, value
             )
             if host_names:
-                print_status(f"Could not obtain unique host name from {value}. Aborting.")
+                print_status(
+                    f"Could not obtain unique host name from {value}. Aborting."
+                )
                 return self._last_result
             if not host_name:
                 print_status(
-                f"Could not find event records for host {value}. "
-                + "Results may be unreliable.")
+                    f"Could not find event records for host {value}. "
+                    + "Results may be unreliable."
+                )
                 return self._last_result
-            print(host_names)
-            print(host_name)
             host_type = host_name[1] or None
             host_name = host_name[0] or value
 
@@ -188,16 +187,21 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             # If data is provided do some required formatting
             data = _format_raw_data(data)
 
+        # Add description to results for context
+        self._last_result = HostLogonsSummaryResults(
+            description=self.metadata.description
+        )
+
         # Check we have data
         if not isinstance(data, pd.DataFrame) or data.empty:
-            raise NotebookletException("No valid data avaliable")
+            raise MsticnbDataProviderError("No valid data avaliable")
 
         # Conduct analysis and get visualizations
         print_status(f"Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
         if "timeline" in self.options:
             tl_plot = _gen_timeline(data)
-            self._last_result.timeline = tl_plot        
+            self._last_result.timeline = tl_plot
         if "map" in self.options:
             logon_map = _map_logons(data)
             self._last_result.logon_map = logon_map
@@ -207,6 +211,9 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             stack_bar = _process_stack_bar(data)
             charts = {"User Pie Chart": pie, "Process Bar Chart": stack_bar}
             self._last_result.plots = charts
+        if "failed_success" in self.options:
+            failed_success_df = _failed_success_user(data)
+            self._last_result.failed_success = failed_success_df
 
         self._last_result.logon_sessions = logon_sessions_df
         self._last_result.logon_matrix = logon_matrix
@@ -215,78 +222,35 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         # pylint: enable=too-many-locals, too-many-branches
 
 
-# Todo Test then remove
-def _verify_host_name(
-    qry_prov: QueryProvider, timespan: TimeSpan, host_name: str
-) -> Tuple[Any, bool]:
-    """Verify a host name is valid and get the host type (Linux or Windows)."""
-    host_names: Dict = {}
-    # Check for Windows hosts matching host_name
-    if "SecurityEvent" in qry_prov.schema_tables:
-        sec_event_host = f"""
-            SecurityEvent
-            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
-            | where Computer has "{host_name}"
-            | distinct Computer
-             """
-        win_hosts_df = qry_prov.exec_query(sec_event_host)
-        if win_hosts_df is not None and not win_hosts_df.empty:
-            for host in win_hosts_df["Computer"].to_list():
-                host_names.update({host: "Windows"})
-
-    # Check for Linux hosts matching host_name
-    if "Syslog" in qry_prov.schema_tables:
-        syslog_host = f"""
-            Syslog
-            | where TimeGenerated between (datetime({timespan.start})..datetime({timespan.end}))
-            | where Computer has "{host_name}"
-            | distinct Computer
-            """
-        lx_hosts_df = qry_prov.exec_query(syslog_host)
-        if lx_hosts_df is not None and not lx_hosts_df.empty:
-            for host in lx_hosts_df["Computer"].to_list():
-                host_names.update({host: "Linux"})
-
-    # If we have more than one host let the user decide
-    if len(host_names.keys()) > 1:
-        print(
-            f"Multiple matches for '{host_name}'.",
-            "Please select a host and re-run.",
-            "\n".join(host_names.keys()),
-        )
-        return None, host_names
-
-    if host_names:
-        unique_host = next(iter(host_names))
-        print(f"Unique host found: {unique_host}")
-        return (unique_host, host_names[unique_host]), None
-
-    print(f"Host not found: {host_name}")
-    return None, None
-
-
 @set_text(
     title="Timeline of logon events",
     text="""
 A breakdown of logon attempts over time, split by the logon attempt result.
-"""
+""",
 )
 def _gen_timeline(data: pd.DataFrame):
-    tl = timeline.display_timeline(
-                data[data["LogonResult"] != "Unknown"],
-                group_by="LogonResult",
-                source_columns=["Account", "LogonProcessName", "SourceIP"]
-            )
-    return tl
+    time_line = timeline.display_timeline(
+        data[data["LogonResult"] != "Unknown"],
+        group_by="LogonResult",
+        source_columns=[
+            "Account",
+            "LogonProcessName",
+            "SourceIP",
+            "LogonTypeName",
+            "LogonResult",
+        ],
+    )
+    return time_line
+
 
 @set_text(
     title="Map of logon locations",
     text="""
 Red markers show locations of failed signins, green shows sucessful logons.
-"""
+""",
 )
 def _map_logons(data: pd.DataFrame) -> FoliumMap:
-    """Produces a map of source IP logon locations."""
+    """Produce a map of source IP logon locations."""
     # Seperate out failed and sucessful logons and clean the data
     remote_logons = data[data["LogonResult"] == "Success"]
     failed_logons = data[data["LogonResult"] == "Failure"]
@@ -310,11 +274,12 @@ def _map_logons(data: pd.DataFrame) -> FoliumMap:
     display(folium_map)
     return folium_map
 
+
 @set_text(
     title="User name prevalence",
     text="""
 Breakdown of logon attempts obsevered (failed and successful) by user name.
-"""
+""",
 )
 def _users_pie(data: pd.DataFrame) -> figure:
     """Produce pie chart based on observence of user names in data."""
@@ -360,21 +325,22 @@ def _users_pie(data: pd.DataFrame) -> figure:
 
     return viz
 
+
 @set_text(
     title="Logon sucess ratio by process",
     text="""
 Ratio of failed to sucessful logons by process. Red is failure, green is successful.
-"""
+""",
 )
 def _process_stack_bar(data: pd.DataFrame) -> figure:
     """Produce stacked bar chart showing logon result by process."""
-    proc_list = data["LogonProcessName"].unique()
+    proc_list = data["LogonTypeName"].unique()
     s_data = []
     f_data = []
     procs = []
     for process in proc_list:
         procs.append(process)
-        proc_events = data[data["LogonProcessName"] == process][
+        proc_events = data[data["LogonTypeName"] == process][
             "LogonResult"
         ].value_counts()
         try:
@@ -388,7 +354,7 @@ def _process_stack_bar(data: pd.DataFrame) -> figure:
             f_count = 0
         # Convert counts to a percentage to get a more useful output
         if (s_count + f_count) > 0:
-            s_per = s_count / (f_count + s_count)
+            s_per = (s_count / (f_count + s_count)) * 100
             f_per = 100 - s_per
             s_data.append(s_per)
             f_data.append(f_per)
@@ -403,7 +369,7 @@ def _process_stack_bar(data: pd.DataFrame) -> figure:
     viz = figure(
         x_range=processes,
         plot_height=350,
-        title="Logon Result % by Process",
+        title="Logon Result % by Logon Type",
         toolbar_location=None,
         tools="hover",
         tooltips="@processes $name: @$name%",
@@ -431,19 +397,23 @@ def _process_stack_bar(data: pd.DataFrame) -> figure:
 
     return viz
 
+
 @set_text(
     title="Logon Matrix",
     text="""
-A breakdown of logons by account, process, and result.
-"""
+A breakdown of logons by account, logon type, and result.
+""",
 )
 def _logon_matrix(data: pd.DataFrame) -> pd.DataFrame:
     """Produce DataFrame showing logons grouped by user and process."""
     logon_by_type = (
-        data[data["Account"] != ""][["Account", "LogonProcessName", "LogonResult"]]
-        .groupby(["Account", "LogonProcessName"])
+        data[(data["Account"] != "") & (data["LogonResult"] != "Unknown")][
+            ["Account", "LogonTypeName", "LogonResult", "TimeGenerated"]
+        ]
+        .groupby(["Account", "LogonTypeName", "LogonResult"])
         .count()
         .unstack()
+        .sort_values(by=[("TimeGenerated", "Success")])
         .rename(columns={"EventID": "LogonCount"})
         .fillna(0)
         .style.background_gradient(cmap="viridis", low=0.5, high=0)
@@ -451,6 +421,24 @@ def _logon_matrix(data: pd.DataFrame) -> pd.DataFrame:
     )
     display(logon_by_type)
     return logon_by_type
+
+
+@set_text(
+    title="Accounts with failed and successful logons",
+    text="""Accounts that have at least one successful and one failed logon within the
+        timeframe of the notebooklet""",
+)
+def _failed_success_user(data: pd.DataFrame) -> pd.DataFrame:
+    failed_logons = data[(data["LogonResult"] == "Failure") & (data["Account"] != "")]
+    host_logons = data[(data["LogonResult"] == "Success") & (data["Account"] != "")]
+    combined = host_logons[
+        host_logons["Account"].isin(failed_logons["Account"].drop_duplicates())
+    ]
+    if not combined.empty:
+        display(combined)
+    else:
+        print("No accounts with both a successful and failed logon on.")
+    return combined
 
 
 def _win_remote_ip(row: pd.Series) -> str:
@@ -474,6 +462,7 @@ def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
             data["LogonResult"] = data.apply(_event_id_to_result, axis=1)
             data["SourceIP"] = data.apply(_win_remote_ip, axis=1)
     return data
+
 
 def _get_logon_result_lx(row: pd.Series) -> str:
     """Identify if a Linux syslog event is for a sucessful or failed logon."""

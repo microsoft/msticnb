@@ -27,7 +27,7 @@ class SingletonDecorator:
     Singleton decorator class.
 
     Notes
-    -------
+    -----
     Using this decorator on a class enforces the following
     behavior:
     - First instantiation of class will work as normal
@@ -191,7 +191,7 @@ class DataProviders:
     @staticmethod
     def _get_provider_kwargs(prefix, **kwargs):
         return {
-            name.replace(f"{prefix}.", ""): arg
+            name.replace(f"{prefix}_", ""): arg
             for name, arg in kwargs.items()
             if name.startswith(prefix)
         }
