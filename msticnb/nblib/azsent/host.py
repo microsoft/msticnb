@@ -12,7 +12,7 @@ from msticpy.data import QueryProvider
 from msticpy.nbtools import entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 
-from ...common import TimeSpan, print_data_wait
+from ...common import TimeSpan, nb_data_wait
 
 from ..._version import VERSION
 
@@ -44,7 +44,7 @@ def get_heartbeat(
     """
     host_entity = entities.Host(HostName=host_name)
     if "Heartbeat" in qry_prov.schema_tables:
-        print_data_wait("Heartbeat")
+        nb_data_wait("Heartbeat")
         host_hb_df = None
         if host_name:
             host_hb_df = qry_prov.Network.get_heartbeat_for_host(host_name=host_name)
@@ -81,7 +81,7 @@ def get_aznet_topology(
 
     """
     if "AzureNetworkAnalytics_CL" in qry_prov.schema_tables:
-        print_data_wait("AzureNetworkAnalytics")
+        nb_data_wait("AzureNetworkAnalytics")
         if host_name:
             az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
         elif host_ip:
@@ -137,7 +137,7 @@ def verify_host_name(
             | where Computer contains "{host}"
             | distinct Computer
              """
-        print_data_wait("SecurityEvent")
+        nb_data_wait("SecurityEvent")
         win_hosts_df = qry_prov.exec_query(
             sec_event_host.format(
                 start=timespan.start, end=timespan.end, host=host_name
@@ -153,7 +153,7 @@ def verify_host_name(
             | where Computer contains "{host}"
             | distinct Computer
             """
-        print_data_wait("Syslog")
+        nb_data_wait("Syslog")
         lx_hosts_df = qry_prov.exec_query(
             syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
         )

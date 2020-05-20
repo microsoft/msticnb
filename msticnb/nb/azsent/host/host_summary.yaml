@@ -1,0 +1,23 @@
+metadata:
+  description: Host summary
+  default_options:
+    - heartbeat
+    - azure_net
+    - alerts
+    - bookmarks
+    - azure_api
+  keywords:
+    - host
+    - computer
+    - heartbeat
+    - windows
+    - linux
+  entity_types:
+    - host
+  req_providers:
+    - LogAnalytics|LocalData
+output:
+  title: Host Summary
+  description:
+    cells:
+

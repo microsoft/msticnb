@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import inspect
 import re
 from typing import Optional, Any, Iterable, List, Set, Tuple, Dict
-
+import warnings
 
 import attr
 from attr import Factory
@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from .common import TimeSpan, MsticnbDataProviderError
 from .data_providers import DataProviders
-from .options import get_opt
+from .options import get_opt, set_opt
 
 from ._version import VERSION
 
@@ -201,6 +201,8 @@ class Notebooklet(ABC):
         self._set_tqdm_notebook(get_opt("verbose"))
         self._last_result: Any = None
         self.timespan = TimeSpan(period="1d")
+        self._inst_default_silent: Optional[bool] = kwargs.get("silent")
+        self._current_run_silent: Optional[bool] = None
 
         # pylint: disable=no-member
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
@@ -211,12 +213,18 @@ class Notebooklet(ABC):
                 "Please create an instance of msticnb.",
             )
         self.query_provider = self.data_providers.query_provider
-        missing_provs = set(self.metadata.req_providers) - set(
-            self.data_providers.providers
+        missing_provs, unknown_provs = self.data_providers.has_required_providers(
+            self.metadata.req_providers
         )
         if missing_provs:
             raise MsticnbDataProviderError(
-                f"Required data provider(s) {missing_provs} not found."
+                f"Required data provider(s) {', '.join(missing_provs)} not loaded.",
+                f"Class {self.__class__.__name__}",
+            )
+        if unknown_provs:
+            warnings.warn(
+                f"Unknown provider(s) {', '.join(unknown_provs)} in req_providers list."
+                + f"Class {self.__class__.__name__}"
             )
 
     @abstractmethod
@@ -267,6 +275,8 @@ class Notebooklet(ABC):
             TimeSpan
 
         """
+        self._current_run_silent = kwargs.get("silent")
+        set_opt("temp_silent", self.silent)
         if not options:
             self.options = self.metadata.default_options
         else:
@@ -281,7 +291,9 @@ class Notebooklet(ABC):
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
         if timespan:
-            self.timespan = timespan
+            self.timespan = TimeSpan(timespan=timespan)
+        else:
+            self.timespan = TimeSpan(start=kwargs.get("start"), end=kwargs.get("end"))
         return NotebookletResult()
 
     def get_provider(self, provider_name: str):
@@ -310,6 +322,36 @@ class Notebooklet(ABC):
                 "Please check that you have specified the required providers",
             )
         return self.data_providers.providers.get(provider_name)
+
+    @property
+    def silent(self) -> bool:
+        """
+        Get the current instance setting for silent running.
+
+        Returns
+        -------
+        bool
+            Silent running is enabled.
+
+        """
+        if self._current_run_silent is not None:
+            return self._current_run_silent
+        if self._inst_default_silent is not None:
+            return self._inst_default_silent
+        return get_opt("silent")
+
+    @silent.setter
+    def silent(self, value: bool):
+        """
+        Set the current instance setting for silent running.
+
+        Parameters
+        ----------
+        value : bool
+            True to enable silent, False to disable.
+
+        """
+        self._inst_default_silent = value
 
     @property
     def result(self) -> Optional[NotebookletResult]:

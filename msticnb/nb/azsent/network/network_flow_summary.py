@@ -17,14 +17,14 @@ from msticpy.nbtools import nbwidgets, nbdisplay
 from msticpy.nbtools import entities, foliummap
 from msticpy.sectools.ip_utils import get_whois_df, get_whois_info, get_ip_type
 from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
-from msticpy.common.utility import md, md_warn
 
 from ....common import (
     TimeSpan,
     MsticnbMissingParameterError,
-    print_data_wait,
-    print_status,
+    nb_data_wait,
     set_text,
+    nb_markdown,
+    nb_warn,
 )
 from ....data_providers import DataProviders
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
@@ -66,6 +66,8 @@ class NetworkFlowResult(NotebookletResult):
     ti_results : pd.DataFrame
         Threat Intelligence results for selected IP Addreses.
     geo_map : foliummap.FoliumMap
+        Folium map showing locations of all IP Addresses.
+    geo_map_selected : foliummap.FoliumMap
         Folium map showing locations of selected IP Addresses.
 
     """
@@ -129,7 +131,7 @@ class NetworkFlowSummary(Notebooklet):
         other_options=["resolve_host", "geo_map"],
         keywords=["host", "computer", "network", "flow"],
         entity_types=["host", "ip_address"],
-        req_providers=["azure_sentinel"],
+        req_providers=["AzureSentinel", "geolitelookup", "tilookup"],
     )
 
     def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
@@ -148,7 +150,8 @@ class NetworkFlowSummary(Notebooklet):
         self.asn_selector: Optional[nbwidgets.SelectSubset] = None
         self.flow_index_data = pd.DataFrame()
 
-    @set_text(
+    # pylint: disable=too-many-branches
+    @set_text(  # noqa: MC0001
         title="Host Network Summary",
         hd_level=1,
         text="Data and plots are store in the result class returned by this function",
@@ -241,23 +244,31 @@ class NetworkFlowSummary(Notebooklet):
         if "flow_summary" in self.options:
             flow_index = _extract_flow_ips(flow_df)
             result.flow_index = _get_flow_index_display(flow_index)
+            if not self.silent:
+                display(result.flow_index)
             result.flow_summary = _get_flow_summary(flow_index)
+            if not self.silent:
+                display(result.flow_summary)
             result.flow_index_data = flow_index
         if "geo_map" in self.options:
             result.geo_map = _display_geo_map_all(
                 flow_index=flow_index,
-                ip_locator=self.data_providers.geolite_lookup,
+                ip_locator=self.data_providers["geolitelookup"],
                 host_entity=result.host_entity,
             )
+            if not self.silent:
+                display(result.geo_map)
 
-        md("Select ASNs to examine using select_asns()")
-        md(
+        nb_markdown("Select ASNs to examine using select_asns()")
+        nb_markdown(
             "Lookup threat intel for IPs from selected ASNs using"
             + " lookup_ti_for_asn_ips()"
         )
-        md("Display Geolocation of threats with show_selected_asn_map()")
-        md("For usage type 'help(NetworkFlowSummary.function_name)'")
+        nb_markdown("Display Geolocation of threats with show_selected_asn_map()")
+        nb_markdown("For usage type 'help(NetworkFlowSummary.function_name)'")
 
+        # pylint: disable=attribute-defined-outside-init
+        # (defined in parent class)
         self._last_result = result
         return self._last_result
 
@@ -296,7 +307,7 @@ class NetworkFlowSummary(Notebooklet):
         ti_results = _lookup_ip_ti(
             flows_df=self._last_result,
             selected_ips=selected_ips,
-            ti_lookup=self.data_providers.ti_lookup,
+            ti_lookup=self.data_providers["tilookup"],
         )
         self._last_result.ti_results = ti_results
 
@@ -322,13 +333,16 @@ class NetworkFlowSummary(Notebooklet):
                 "\nThen call 'show_selected_asn_map()'",
             )
             return None
-        return _display_geo_map(
+        geo_map = _display_geo_map(
             flow_index=self._last_result.flow_index_data,
-            ip_locator=self.data_providers.geolite_lookup,
+            ip_locator=self.data_providers["geolitelookup"],
             host_entity=self._last_result.host_entity,
             ti_results=self._last_result.ti_results,
             select_asn=self.asn_selector,
         )
+        if self.silent:
+            display(geo_map)
+        return geo_map
 
 
 # %%
@@ -366,7 +380,7 @@ def _get_host_details(qry_prov, host_entity):
 # %%
 # Get network flows
 def _get_az_net_flows(qry_prov, timespan, ip_addr, hostname):
-    print_data_wait("AzureNetworkAnalytics")
+    nb_data_wait("AzureNetworkAnalytics")
     if ip_addr:
         flow_df = qry_prov.Network.list_azure_network_flows_by_ip(
             timespan, ip_address_list=ip_addr
@@ -500,7 +514,6 @@ def _get_flow_index_display(flow_summary_df):
         .reset_index()
         .style.bar(subset=["TotalAllowedFlows"], color="#d65f5f")
     )
-    display(flow_index_df)
     return flow_index_df
 
 
@@ -517,9 +530,9 @@ def _get_flow_summary(flow_index):
     )
 
     num_ips = len(flows_df["source"].unique()) + len(flows_df["dest"].unique())
-    print_status(f"Found {num_ips} unique IP Addresses.")
+    nb_markdown(f"Found {num_ips} unique IP Addresses.")
 
-    print_data_wait("Whois")
+    nb_data_wait("Whois")
     flows_df = get_whois_df(
         flows_df,
         ip_column="dest",
@@ -549,7 +562,6 @@ def _get_flow_summary(flow_index):
         )
         .reset_index()
     )
-    display(flow_sum_df)
     return flow_sum_df
 
 
@@ -615,7 +627,7 @@ def _get_ips_from_selected_asn(flow_sum_df, select_asn):
         )
     )
     selected_ips = dest_ips | src_ips
-    md(f"{len(selected_ips)} unique IPs in selected ASNs")
+    nb_markdown(f"{len(selected_ips)} unique IPs in selected ASNs")
     return selected_ips
 
 
@@ -633,21 +645,21 @@ def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
         return severity.apply(lambda x: TISeverity.parse(x) >= threshold)
 
     # Add the IoCType to save cost of inferring each item
-    print_data_wait("Threat Intelligence")
+    nb_data_wait("Threat Intelligence")
     selected_ip_dict = {ip: "ipv4" for ip in selected_ips}
     ti_results = ti_lookup.lookup_iocs(data=selected_ip_dict)
 
-    md(f"{len(ti_results)} TI results received.")
+    nb_markdown(f"{len(ti_results)} TI results received.")
 
     ti_results_pos = ti_results[ti_check_ser_sev(ti_results["Severity"], 1)]
-    print(f"{len(ti_results_pos)} positive results found.")
+    nb_markdown(f"{len(ti_results_pos)} positive results found.")
 
     if not ti_results_pos.empty:
         src_pos = flows_df.merge(ti_results_pos, left_on="source", right_on="Ioc")
         dest_pos = flows_df.merge(ti_results_pos, left_on="dest", right_on="Ioc")
         ti_ip_results = pd.concat([src_pos, dest_pos])
-        md_warn("Positive Threat Intel Results found for the following flows")
-        md(
+        nb_warn("Positive Threat Intel Results found for the following flows")
+        nb_markdown(
             "Please examine these IP flows using the IP Explorer notebook.",
             "bold, large",
         )
@@ -686,7 +698,7 @@ Location marker key:
 def _display_geo_map_all(flow_index, ip_locator, host_entity):
     folium_map = foliummap.FoliumMap(zoom_start=4)
     if flow_index is None or flow_index.empty:
-        print("No network flow data available.")
+        nb_markdown("No network flow data available.")
         return None
 
     # Get the flow records for all flows not in the TI results
@@ -695,7 +707,7 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
     if selected_out.empty:
         ips_out = []
     else:
-        print_data_wait("IP Geolocation")
+        nb_data_wait("IP Geolocation")
         ips_out = list(
             selected_out.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "dest"), axis=1
@@ -706,7 +718,7 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
     if selected_in.empty:
         ips_in = []
     else:
-        print_data_wait("IP Geolocation")
+        nb_data_wait("IP Geolocation")
         ips_in = list(
             selected_in.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1
@@ -722,10 +734,10 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
     icon_props = {"color": "purple"}
     folium_map.add_ip_cluster(ip_entities=ips_in, **icon_props)
     folium_map.center_map()
-    display(folium_map)
     return folium_map
 
 
+# pylint: disable=too-many-branches
 @set_text(
     title="Map of geographic location of selected IPs communicating with host",
     text="""
@@ -745,7 +757,7 @@ Location marker key:
 def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn):
     folium_map = foliummap.FoliumMap(zoom_start=4)
     if flow_index is None or flow_index.empty:
-        print("No network flow data available.")
+        nb_markdown("No network flow data available.")
         return None
 
     # Get the flow records for all flows not in the TI results
@@ -758,7 +770,7 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     if selected_out.empty:
         ips_out = []
     else:
-        print_data_wait("IP Geolocation")
+        nb_data_wait("IP Geolocation")
         ips_out = list(
             selected_out.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "dest"), axis=1
@@ -768,7 +780,7 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     if selected_in.empty:
         ips_in = []
     else:
-        print_data_wait("IP Geolocation")
+        nb_data_wait("IP Geolocation")
         ips_in = list(
             selected_in.apply(
                 lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1
@@ -790,5 +802,5 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
         icon_props = {"color": "red"}
         folium_map.add_ip_cluster(ip_entities=ips_threats, **icon_props)
     folium_map.center_map()
-    display(folium_map)
+
     return folium_map

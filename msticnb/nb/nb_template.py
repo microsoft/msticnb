@@ -38,7 +38,6 @@ from typing import Any, Optional, Iterable, Union
 import attr
 from bokeh.plotting.figure import Figure
 import pandas as pd
-from msticpy.common.utility import md
 from msticpy.nbtools import nbdisplay
 
 # Note - when moved to the final location (e.g.
@@ -48,9 +47,10 @@ from msticpy.nbtools import nbdisplay
 from ..common import (
     TimeSpan,
     MsticnbMissingParameterError,
-    print_data_wait,
-    print_status,
+    nb_data_wait,
+    nb_print,
     set_text,
+    nb_markdown,
 )
 
 # change the ".." to "...."
@@ -249,9 +249,9 @@ class TemplateNB(Notebooklet):
             return None
         # Print a status message - this will not be displayed if
         # the user has set the global "verbose" option to False.
-        print_status("We maybe about to wait some time")
+        nb_print("We maybe about to wait some time")
 
-        md("Print some message that always displays", "blue, bold")
+        nb_markdown("Print some message that always displays", "blue, bold")
         return _do_additional_thing(
             evt_df=self._last_result.all_events,  # type: ignore
             event_ids=event_ids,
@@ -266,11 +266,11 @@ class TemplateNB(Notebooklet):
 # %%
 # Get Windows Security Events
 def _get_all_events(qry_prov, host_name, timespan):
-    print_data_wait("SecurityEvent")
+    nb_data_wait("SecurityEvent")
 
     # Tell the user that you're fetching data
     # (displays if nb.set_opt("verbose", True))
-    print_data_wait("SecurityEvent")
+    nb_data_wait("SecurityEvent")
     all_events_df = qry_prov.WindowsSecurity.list_host_events(
         timespan,
         host_name=host_name,
@@ -319,5 +319,5 @@ def _get_metadata(qry_prov, host_name, timespan):
 # %%
 # Extract event details from events
 def _do_additional_thing(evt_df, event_ids):
-    print_status("Doing something time-consuming...")
+    nb_print("Doing something time-consuming...")
     return evt_df[evt_df["EventID"].isin(event_ids)]
