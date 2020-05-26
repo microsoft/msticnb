@@ -26,6 +26,8 @@ _OPTION_DEFN = {
     "verbose": (True, "Show progress messages."),
     "debug": (False, "Turn on debug output."),
     "show_sample_results": (False, "Display sample of results as they are produced."),
+    "silent": (False, "Execute notebooklets with no output"),
+    "silent_temp": (False, "Execute notebooklets with no output"),
 }
 
 
@@ -67,6 +69,8 @@ def get_opt(option: str) -> Any:
 
     """
     if option in _OPT_DICT:
+        if option == "silent":
+            return _OPT_DICT["silent"] or _OPT_DICT["silent_temp"]
         return _OPT_DICT[option]
     raise KeyError(f"Unknown option {option}.")
 

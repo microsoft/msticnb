@@ -14,6 +14,7 @@ from markdown import markdown
 import pandas as pd
 
 from ..common import MsticnbDataProviderError
+from ..data_providers import init
 
 from ..read_modules import Notebooklet, nblts
 from ..nb.azsent.host.host_summary import HostSummaryResult
@@ -23,11 +24,19 @@ from ..nb.azsent.host.host_summary import HostSummaryResult
 class TestNotebooklet(unittest.TestCase):
     """Unit test class."""
 
-    def test_notebooklet(self):
+    def test_notebooklet_create(self):
         """Test method."""
+        # Should run because required providers are loaded
+        init(query_provider="LocalData", providers=["tilookup", "geolitelookup"])
         for _, nblt in nblts.iter_classes():
-            # TODO -need test dataprovider
-            with self.assertRaises(MsticnbDataProviderError):
+            new_nblt = nblt()
+            self.assertIsInstance(new_nblt, Notebooklet)
+            self.assertIsNone(new_nblt.result)
+
+        # Should raise exception because Network Summary needs geoiplite
+        init(query_provider="LocalData", providers=["tilookup"])
+        with self.assertRaises(MsticnbDataProviderError):
+            for _, nblt in nblts.iter_classes():
                 new_nblt = nblt()
                 self.assertIsInstance(new_nblt, Notebooklet)
                 self.assertIsNone(new_nblt.result)

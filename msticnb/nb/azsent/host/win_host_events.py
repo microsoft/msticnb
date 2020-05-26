@@ -16,15 +16,14 @@ from bokeh.models import LayoutDOM
 from IPython.display import display
 import numpy as np
 import pandas as pd
-from msticpy.common.utility import md
 from msticpy.nbtools import nbdisplay
 
 from ....common import (
     TimeSpan,
     MsticnbMissingParameterError,
-    print_data_wait,
-    print_status,
+    nb_data_wait,
     set_text,
+    nb_markdown,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
 
@@ -34,6 +33,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-few-public-methods
 @attr.s(auto_attribs=True)
 class WinHostEventsResult(NotebookletResult):
     """
@@ -107,7 +107,7 @@ class WinHostEvents(Notebooklet):
         other_options=["expand_events"],
         keywords=["host", "computer", "events", "windows", "account"],
         entity_types=["host"],
-        req_providers=["azure_sentinel"],
+        req_providers=["AzureSentinel"],
     )
 
     @set_text(
@@ -195,7 +195,7 @@ class WinHostEvents(Notebooklet):
         if "expand_events" in self.options:
             result.expanded_events = _parse_eventdata(all_events_df)
 
-        md("To unpack eventdata from selected events use expand_events()")
+        nb_markdown("To unpack eventdata from selected events use expand_events()")
         self._last_result = result  # pylint: disable=attribute-defined-outside-init
         return self._last_result
 
@@ -241,7 +241,7 @@ class WinHostEvents(Notebooklet):
 # %%
 # Get Windows Security Events
 def _get_win_security_events(qry_prov, host_name, timespan):
-    print_data_wait("SecurityEvent")
+    nb_data_wait("SecurityEvent")
 
     all_events_df = qry_prov.WindowsSecurity.list_host_events(
         timespan,
@@ -355,7 +355,7 @@ def _parse_eventdata(event_data, event_ids: Optional[Union[int, Iterable[int]]] 
         src_event_data = event_data.copy()
 
     # Parse event properties into a dictionary
-    print_status("Parsing event data...")
+    nb_markdown("Parsing event data...")
     src_event_data["EventProperties"] = src_event_data.apply(
         _parse_event_data_row, axis=1
     )
