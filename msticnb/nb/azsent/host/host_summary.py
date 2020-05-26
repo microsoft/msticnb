@@ -21,6 +21,7 @@ from ....common import (
     MsticnbMissingParameterError,
     nb_data_wait,
     set_text,
+    nb_print,
     nb_markdown,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
@@ -104,7 +105,7 @@ class HostSummary(Notebooklet):
     @set_text(  # noqa MC0001
         title="Host Entity Summary",
         hd_level=1,
-        text="Data and plots are store in the result class returned by this function",
+        text="Data and plots are stored in the result class returned by this function",
     )
     def run(
         self,
@@ -294,7 +295,7 @@ host and any Azure VM information available.
     md=True,
 )
 def _show_host_entity(host_entity):
-    print(host_entity)
+    nb_print(host_entity)
 
 
 # %%
