@@ -13,12 +13,14 @@ from ..common import (
     TimeSpan,
     MsticnbMissingParameterError,
     add_result,
-    print_data_wait,
-    print_debug,
-    print_status,
+    nb_data_wait,
+    nb_debug,
+    nb_print,
 )
 from .. import options
 from ..options import get_opt, set_opt
+
+# pylint: disable=too-many-statements
 
 
 class TestCommon(unittest.TestCase):
@@ -61,8 +63,16 @@ class TestCommon(unittest.TestCase):
         tspan = TimeSpan(period=period)
         self.assertEqual(period, tspan.period)
 
-        end_str = str(end)
+        # Timespan object as a parameter
+        tspan2 = TimeSpan(timespan=tspan)
+        self.assertEqual(tspan2, tspan)
 
+        tspan2 = TimeSpan(timespan=(tspan.start, tspan.end))
+        self.assertEqual(tspan2, tspan)
+        tspan2 = TimeSpan(timespan=(str(tspan.start), str(tspan.end)))
+        self.assertEqual(tspan2, tspan)
+
+        end_str = str(end)
         # pylint: disable=too-few-public-methods
         class _TestTime:
             start = None
@@ -94,22 +104,22 @@ class TestCommon(unittest.TestCase):
         set_opt("verbose", True)
         f_stream = io.StringIO()
         with redirect_stdout(f_stream):
-            print_status("status")
-            print_data_wait("table1")
+            nb_print("status")
+            nb_data_wait("table1")
         self.assertIn("status", str(f_stream.getvalue()))
         self.assertIn("Getting data from table1", str(f_stream.getvalue()))
 
         set_opt("verbose", False)
         f_stream = io.StringIO()
         with redirect_stdout(f_stream):
-            print_status("status")
+            nb_print("status")
         self.assertNotIn("status", str(f_stream.getvalue()))
         self.assertNotIn("Getting data from table1", str(f_stream.getvalue()))
 
         set_opt("debug", True)
         f_stream = io.StringIO()
         with redirect_stdout(f_stream):
-            print_debug("debug", "debugmssg", "val", 1, "result", True)
+            nb_debug("debug", "debugmssg", "val", 1, "result", True)
         self.assertIn("debug", str(f_stream.getvalue()))
         self.assertIn("debugmssg", str(f_stream.getvalue()))
         self.assertIn("val", str(f_stream.getvalue()))

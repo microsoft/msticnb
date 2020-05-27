@@ -7,4 +7,5 @@ Markdown>=3.2.1
 msticpy>=0.4.0
 numpy>=1.17.3
 pandas>=0.25.3
+python-dateutil>=2.8.1
 tqdm>=4.41.1

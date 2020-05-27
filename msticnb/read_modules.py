@@ -15,7 +15,7 @@ from warnings import warn
 
 from . import nb
 from .class_doc import get_class_doc
-from .common import NBContainer, MsticnbError, print_debug
+from .common import NBContainer, MsticnbError, nb_debug
 from .notebooklet import Notebooklet
 
 from ._version import VERSION
@@ -43,14 +43,14 @@ def discover_modules(nb_path: Union[str, Iterable[str]] = None) -> NBContainer:
         as a tree mirroring the source folder names.
 
     """
-    del nb_path  # TODO enable arbitrary paths
+    del nb_path
 
-    pkg_folder = Path(__file__).parent
-    dp_pkg_folder = pkg_folder / "nb"
-    _import_from_folder(dp_pkg_folder, pkg_folder)
+    pkg_folder = Path(__file__).parent / "nb"
+    _import_from_folder(pkg_folder)
 
+    # Need to enable arbitrary paths for notebooklets
     # common_pkg_folder = pkg_folder / "nb/common"
-    # _import_from_folder(common_pkg_folder, pkg_folder)
+    # _import_from_folder(common_pkg_folder)
 
     # if not nb_path:
     #     return nblts
@@ -62,7 +62,7 @@ def discover_modules(nb_path: Union[str, Iterable[str]] = None) -> NBContainer:
     return nblts
 
 
-def _import_from_folder(nb_folder: Path, parent_folder: Path):
+def _import_from_folder(nb_folder: Path):
     if not nb_folder.is_dir():
         raise MsticnbError(f"Notebooklet folder {nb_folder} not found.")
 
@@ -89,18 +89,18 @@ def _find_cls_modules(folder):
         if item.name.startswith("_"):
             continue
         if item.is_file():
-            print_debug("module to import", item)
+            nb_debug("module to import", item)
             mod_name = "." + ".".join(list(folder.parts[-2:]) + [item.stem])
             try:
                 imp_module = importlib.import_module(mod_name, package=nb.__package__)
             except ImportError as err:
                 warn(f"Import failed for {item}.\n" + str(err))
-                print_debug("import failed", item, err)
+                nb_debug("import failed", item, err)
                 continue
             mod_classes = inspect.getmembers(imp_module, inspect.isclass)
             for cls_name, mod_class in mod_classes:
                 if issubclass(mod_class, Notebooklet) and not mod_class == Notebooklet:
-                    print_debug("imported", cls_name)
+                    nb_debug("imported", cls_name)
                     mod_class.module_path = item
                     # set the function to return documentation
                     setattr(

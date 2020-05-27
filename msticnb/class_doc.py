@@ -63,7 +63,7 @@ def _get_main_class_doc_md(doc_cls) -> str:
         cls_doc_lines.extend(_get_closure_vars(func))
 
     cls_doc_lines.append("\n---\n")
-    cls_doc_lines.append(f"# Results Class\n")
+    cls_doc_lines.append("# Results Class\n")
     for cls_name, cls in inspect.getmembers(
         inspect.getmodule(doc_cls), inspect.isclass
     ):
@@ -72,10 +72,10 @@ def _get_main_class_doc_md(doc_cls) -> str:
             cls_doc_lines.append(_get_result_doc(cls))
             break
     cls_doc_lines.append("\n---\n")
-    cls_doc_lines.append(f"# Methods")
-    cls_doc_lines.append(f"## Instance Methods")
+    cls_doc_lines.append("# Methods")
+    cls_doc_lines.append("## Instance Methods")
     cls_doc_lines.append(_get_class_methods_doc(doc_cls))
-    cls_doc_lines.append(f"## Other Methods")
+    cls_doc_lines.append("## Other Methods")
     cls_doc_lines.append(_get_class_func_doc(doc_cls))
     return "\n".join(cls_doc_lines)
 

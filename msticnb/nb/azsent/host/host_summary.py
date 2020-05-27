@@ -19,9 +19,10 @@ from msticpy.common.utility import md
 from ....common import (
     TimeSpan,
     MsticnbMissingParameterError,
-    print_data_wait,
-    print_status,
+    nb_data_wait,
     set_text,
+    nb_print,
+    nb_markdown,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
@@ -97,14 +98,14 @@ class HostSummary(Notebooklet):
         default_options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
         keywords=["host", "computer", "heartbeat", "windows", "linux"],
         entity_types=["host"],
-        req_providers=["azure_sentinel"],
+        req_providers=["LogAnalytics|LocalData"],
     )
 
     # pylint: disable=too-many-branches
     @set_text(  # noqa MC0001
         title="Host Entity Summary",
         hd_level=1,
-        text="Data and plots are store in the result class returned by this function",
+        text="Data and plots are stored in the result class returned by this function",
     )
     def run(
         self,
@@ -177,7 +178,7 @@ class HostSummary(Notebooklet):
             md(f"Could not obtain unique host name from {value}. Aborting.")
             return self._last_result
         if not host_name:
-            md(
+            nb_markdown(
                 f"Could not find event records for host {value}. "
                 + "Results may be unreliable.",
                 "orange",
@@ -196,11 +197,11 @@ class HostSummary(Notebooklet):
         # and the resource is an Azure host get resource details from Azure API
         if (
             "azure_api" in self.options
-            and "azure_api" in self.data_providers.providers
+            and "azuredata" in self.data_providers.providers
             and host_entity.Environment == "Azure"
         ):
             azure_api = _azure_api_details(
-                self.data_providers.providers["azure_api"], host_entity
+                self.data_providers["azuredata"], host_entity
             )
             if azure_api:
                 host_entity.AzureDetails["ResourceDetails"] = azure_api[
@@ -209,7 +210,8 @@ class HostSummary(Notebooklet):
                 host_entity.AzureDetails["SubscriptionDetails"] = azure_api[
                     "sub_details"
                 ]
-        _show_host_entity(host_entity)
+        if not self.silent:
+            _show_host_entity(host_entity)
         if "alerts" in self.options:
             related_alerts = _get_related_alerts(
                 self.query_provider, self.timespan, host_name
@@ -298,7 +300,7 @@ host and any Azure VM information available.
     md=True,
 )
 def _show_host_entity(host_entity):
-    print(host_entity)
+    nb_print(host_entity)
 
 
 # %%
@@ -315,11 +317,11 @@ def _get_related_alerts(qry_prov, timespan, host_name):
             .groupby("AlertName")
             .TimeGenerated.agg("count")
         )
-        print_status(
+        nb_markdown(
             f"Found {len(related_alerts)} related alerts ({len(host_alert_items)}) types"
         )
     else:
-        print_status("No related alerts found.")
+        nb_markdown("No related alerts found.")
     return related_alerts
 
 
@@ -338,21 +340,22 @@ def _show_alert_timeline(related_alerts):
             height=200,
         )
         return alert_plot
-    elif len(related_alerts) == 1:
-        md("A single alert cannot be plotted on a timeline.")
+    if len(related_alerts) == 1:
+        nb_markdown("A single alert cannot be plotted on a timeline.")
     else:
-        md("No alerts available to be plotted.")
+        nb_markdown("No alerts available to be plotted.")
+    return None
 
 
 @lru_cache()
 def _get_related_bookmarks(qry_prov, timespan, host_name):
-    print_data_wait("Bookmarks")
+    nb_data_wait("Bookmarks")
     host_bkmks = qry_prov.AzureSentinel.list_bookmarks_for_entity(
         timespan, entity_id=f"'{host_name}'"
     )
 
     if not host_bkmks.empty:
-        print_status(f"{len(host_bkmks)} investigation bookmarks found for this host.")
+        nb_markdown(f"{len(host_bkmks)} investigation bookmarks found for this host.")
     else:
-        print_status("No bookmarks found.")
+        nb_markdown("No bookmarks found.")
     return host_bkmks

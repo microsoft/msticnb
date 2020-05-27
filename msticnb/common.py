@@ -13,6 +13,8 @@ from IPython.display import display, HTML
 from markdown import markdown
 import pandas as pd
 
+from msticpy.common import utility as mp_utils
+
 from .options import get_opt
 
 from ._version import VERSION
@@ -28,6 +30,7 @@ class TimeSpan:
     # pylint: enable=too-many-branches
     def __init__(
         self,
+        timespan: Optional[Union["TimeSpan", Tuple[Any, Any]]] = None,
         start: Optional[Union[datetime, str]] = None,
         end: Optional[Union[datetime, str]] = None,
         period: Optional[Union[timedelta, str]] = None,
@@ -38,6 +41,9 @@ class TimeSpan:
 
         Parameters
         ----------
+        timespan : Union(TimeSpan, Tuple(Any, Any)), optional
+            Another TimeSpan object or a tuple of datetimes
+            or datetime strings, by default None
         start : Optional[Union[datetime, str]], optional
             datetime of the start of the time period, by default None
         end : Optional[Union[datetime, str]], optional
@@ -54,12 +60,9 @@ class TimeSpan:
             If neither `start` nor `period` are specified.
 
         """
-        if not start and hasattr(time_selector, "start"):
-            start = getattr(time_selector, "start", None)
-        if not end and hasattr(time_selector, "end"):
-            end = getattr(time_selector, "end", None)
-        if not period and hasattr(time_selector, "period"):
-            period = getattr(time_selector, "period", None)
+        start, end, period = self._process_args(
+            timespan, time_selector, start, end, period
+        )
 
         if not start and not period:
             raise MsticnbMissingParameterError(
@@ -79,6 +82,29 @@ class TimeSpan:
             self.end = datetime.utcnow()
         if self.start is None and self.period:
             self.start = self.end - self.period
+
+    def __eq__(self, value):
+        """Return True if the timespans are equal."""
+        if not isinstance(value, TimeSpan):
+            return False
+        return self.start == value.start and self.end == value.end
+
+    @staticmethod
+    def _process_args(timespan, time_selector, start, end, period):
+        if timespan and isinstance(timespan, TimeSpan):
+            start = timespan.start
+            end = timespan.end
+            period = timespan.period
+        elif timespan and isinstance(timespan, tuple):
+            start = timespan[0]
+            end = timespan[1]
+        if not start and hasattr(time_selector, "start"):
+            start = getattr(time_selector, "start", None)
+        if not end and hasattr(time_selector, "end"):
+            end = getattr(time_selector, "end", None)
+        if not period and hasattr(time_selector, "period"):
+            period = getattr(time_selector, "period", None)
+        return start, end, period
 
     @staticmethod
     def _parse_time(time_val, prop_name):
@@ -123,7 +149,26 @@ class NBContainer:
 
     def __repr__(self):
         """Return list of attributes."""
-        return "\n".join(self.__dict__.keys())
+        obj_list = []
+        for key, val in self.__dict__.items():
+            if isinstance(val, NBContainer):
+                obj_list.append(f"{key} [{repr(val)}]")
+            else:
+                obj_list.append(repr(val))
+        return ", ".join(obj_list)
+
+    def __str__(self):
+        """Print a string represenation of the object."""
+        obj_str = ""
+        for key, val in self.__dict__.items():
+            if isinstance(val, NBContainer):
+                obj_str += f"{key}\n"
+                for line in str(val).split("\n"):
+                    if line.strip():
+                        obj_str += f"  {line}\n"
+            else:
+                obj_str += val.__name__ + " (Notebooklet)\n"
+        return obj_str
 
     def iter_classes(self) -> Iterable[Tuple[str, Any]]:
         """Iterate through all notebooklet classes."""
@@ -134,7 +179,7 @@ class NBContainer:
                 yield key, val
 
 
-def print_status(mssg: Any):
+def nb_print(mssg: Any):
     """
     Print a status message.
 
@@ -144,11 +189,11 @@ def print_status(mssg: Any):
         The item/message to show
 
     """
-    if get_opt("verbose"):
+    if get_opt("verbose") and not get_opt("silent"):
         print(mssg)
 
 
-def print_data_wait(source: str):
+def nb_data_wait(source: str):
     """
     Print Getting data message.
 
@@ -158,15 +203,33 @@ def print_data_wait(source: str):
         The data source.
 
     """
-    print_status(f"Getting data from {source}...")
+    nb_print(f"Getting data from {source}...")
 
 
-def print_debug(*args):
+def nb_debug(*args):
     """Print debug args."""
     if get_opt("debug"):
         for arg in args:
             print(arg, end="--")
         print()
+
+
+def nb_markdown(*args, **kwargs):
+    """Display Markdown/HTML text."""
+    if not get_opt("silent"):
+        mp_utils.md(*args, **kwargs)
+
+
+def nb_warn(*args, **kwargs):
+    """Display Markdown/HTML warning text."""
+    if not get_opt("silent"):
+        mp_utils.md_warn(*args, **kwargs)
+
+
+def nb_display(*args, **kwargs):
+    """Ipython display function wrapper."""
+    if not get_opt("silent"):
+        display(*args, **kwargs)
 
 
 # pylint: disable=invalid-name
@@ -200,15 +263,16 @@ def set_text(
     def text_wrapper(func):
         @functools.wraps(func)
         def print_text(*args, **kwargs):
-            if title:
-                h_level = max(min(hd_level, 4), 1)
-                display(HTML(f"<h{h_level}>{title}</h{h_level}>"))
-            if text:
-                if md:
-                    display(HTML(markdown(text=text)))
-                else:
-                    fmt_text = text.replace("\n", "<br>")
-                    display(HTML(f"{fmt_text}"))
+            if not get_opt("silent"):
+                if title:
+                    h_level = max(min(hd_level, 4), 1)
+                    display(HTML(f"<h{h_level}>{title}</h{h_level}>"))
+                if text:
+                    if md:
+                        display(HTML(markdown(text=text)))
+                    else:
+                        fmt_text = text.replace("\n", "<br>")
+                        display(HTML(f"{fmt_text}"))
             return func(*args, **kwargs)
 
         return print_text

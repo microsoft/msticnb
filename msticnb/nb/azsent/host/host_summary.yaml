@@ -1,0 +1,34 @@
+metadata:
+  description: Host summary
+  default_options:
+    - heartbeat: Query Heartbeat table for host information.
+    - azure_net
+    - alerts
+    - bookmarks
+    - azure_api
+  keywords:
+    - host
+    - computer
+    - heartbeat
+    - windows
+    - linux
+  entity_types:
+    - host
+  req_providers:
+    - LogAnalytics|LocalData
+output:
+  title: Host Summary
+  description:
+  cells:
+    run_cell:
+      title: Host Entity Summary
+      description:
+        This shows a summary data for a host.
+        It shows host properties obtained from OMS Heartbeat and Azure API.
+
+        It also lists Azure Sentinel alerts and bookmakrs related to to
+        the host.
+
+        Data and plots are stored in the result class returned by this function.
+
+
