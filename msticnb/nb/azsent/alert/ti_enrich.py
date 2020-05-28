@@ -21,8 +21,8 @@ from ....common import (
     TimeSpan,
     MsticnbMissingParameterError,
     MsticnbDataProviderError,
-    print_data_wait,
-    print_status,
+    nb_data_wait,
+    nb_print,
     set_text,
 )
 
@@ -80,7 +80,7 @@ class EnrichAlerts(Notebooklet):
         other_options=["secondary"],
         keywords=["alert", "enrich", "TI", "windows"],
         entity_types=["alert"],
-        req_providers=["azure_sentinel", "ti_lookup"],
+        req_providers=["LogAnalytics|LocalData", "tilookup"],
     )
 
     @set_text(
@@ -141,7 +141,7 @@ class EnrichAlerts(Notebooklet):
 
         # If data is not provided, query Sentinel to get it.
         if data is None:
-            print_status("Collecting alerts")
+            nb_print("Collecting alerts")
             if value is not None:
                 data = _get_all_alerts(self.query_provider, timespan, value)
             else:
@@ -155,8 +155,8 @@ class EnrichAlerts(Notebooklet):
         )
 
         # Establish TI providers
-        if "ti_lookup" in self.data_providers.providers:
-            ti_prov = self.data_providers.providers["ti_lookup"]
+        if "tilookup" in self.data_providers.providers:
+            ti_prov = self.data_providers.providers["tilookup"]
         else:
             raise MsticnbDataProviderError("No TI providers avaliable")
 
@@ -238,9 +238,9 @@ def _alert_picker(data, ti_prov, secondary):
                     ip_map.add_ip_cluster(ip_ents, color="red")
                     display(ip_map)
             else:
-                print("No IoCs")
+                nb_print("No IoCs")
         else:
-            print("No IoCs")
+            nb_print("No IoCs")
 
     alert_select = AlertSelector(
         alerts=data,
@@ -261,13 +261,17 @@ def _alert_picker(data, ti_prov, secondary):
 # %%
 # Get Alerts
 def _get_all_alerts(qry_prov, timespan, filter_item=None):
-    print_data_wait("Alerts")
+    nb_data_wait("Alerts")
     if filter_item is not None:
         alerts_df = qry_prov.SecurityAlert.list_alerts(
-            timespan, add_query_items=f'| where Entities contains "{filter_item}"'
+            start=timespan.start,
+            end=timespan.end,
+            add_query_items=f'| where Entities contains "{filter_item}"',
         )
     else:
-        alerts_df = qry_prov.SecurityAlert.list_alerts(timespan)
+        alerts_df = qry_prov.SecurityAlert.list_alerts(
+            start=timespan.start, end=timespan.end
+        )
     return alerts_df
 
 

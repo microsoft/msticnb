@@ -12,7 +12,7 @@ import attr
 import pandas as pd
 from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
-from bokeh.palettes import viridis
+from bokeh.palettes import viridis  # pylint: disable=no-name-in-module
 from bokeh.transform import cumsum
 from IPython.display import display
 from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
@@ -21,10 +21,10 @@ from msticpy.nbtools import timeline
 
 from ....common import (
     TimeSpan,
-    print_status,
+    nb_print,
     MsticnbDataProviderError,
     MsticnbMissingParameterError,
-    print_data_wait,
+    nb_data_wait,
     set_text,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
@@ -96,10 +96,10 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         default_options=["map", "timeline", "charts", "failed_success"],
         keywords=["host", "computer", "logons", "windows", "linux"],
         entity_types=["host"],
-        req_providers=["azure_sentinel"],
+        req_providers=["LogAnalytics|LocalData"],
     )
 
-    @set_text(
+    @set_text(  # noqa:MC0001
         title="Host Logons Summary",
         hd_level=1,
         text="Data and plots are stored in the result class returned by this function",
@@ -152,17 +152,15 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
         # If data is not provided use host_name and timespan to get data
         if data is None:
-            print_data_wait(f"{value}")
+            nb_data_wait(f"{value}")
             host_name, host_names = verify_host_name(
-                self.query_provider, timespan, value
+                qry_prov=self.query_provider, timespan=timespan, host_name=value
             )
             if host_names:
-                print_status(
-                    f"Could not obtain unique host name from {value}. Aborting."
-                )
+                nb_print(f"Could not obtain unique host name from {value}. Aborting.")
                 return self._last_result
             if not host_name:
-                print_status(
+                nb_print(
                     f"Could not find event records for host {value}. "
                     + "Results may be unreliable."
                 )
@@ -197,7 +195,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             raise MsticnbDataProviderError("No valid data avaliable")
 
         # Conduct analysis and get visualizations
-        print_status(f"Performing analytics and generating visualizations")
+        nb_print(f"Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
         if "timeline" in self.options:
             tl_plot = _gen_timeline(data)
@@ -437,7 +435,7 @@ def _failed_success_user(data: pd.DataFrame) -> pd.DataFrame:
     if not combined.empty:
         display(combined)
     else:
-        print("No accounts with both a successful and failed logon on.")
+        nb_print("No accounts with both a successful and failed logon on.")
     return combined
 
 
