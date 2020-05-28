@@ -6,7 +6,7 @@
 """Common definitions and classes."""
 from datetime import datetime, timedelta
 import functools
-from typing import Union, Optional, Iterable, Tuple, Any, List
+from typing import Union, Optional, Iterable, Tuple, Any, List, Dict
 
 from dateutil.parser import ParserError  # type: ignore
 from IPython.display import display, HTML
@@ -232,12 +232,14 @@ def nb_display(*args, **kwargs):
         display(*args, **kwargs)
 
 
-# pylint: disable=invalid-name
-def set_text(
+# pylint: disable=invalid-name, unused-argument
+def set_text(  # noqa: MC0001
     title: Optional[str] = None,
     hd_level: int = 2,
     text: Optional[str] = None,
     md: bool = False,
+    docs: Dict[str, Any] = None,
+    key: str = None,
 ):
     """
     Decorate function to print title/text before execution.
@@ -252,6 +254,10 @@ def set_text(
         Text to print, by default None
     md : bool, optional
         Treat `text` as markdown, by default False
+    docs : Dict[str, Any]
+        Dictionary of cell documentation indexed by `key`
+    key : str
+        Item to use from `docs` dictionary.
 
     Returns
     -------
@@ -263,16 +269,36 @@ def set_text(
     def text_wrapper(func):
         @functools.wraps(func)
         def print_text(*args, **kwargs):
-            if not get_opt("silent"):
-                if title:
+            # "silent" can be global option or in the func kwargs
+            # The latter is only applicable for the NB run() method.
+            if "silent" in kwargs:
+                run_silent = kwargs.get("silent")
+            else:
+                run_silent = get_opt("silent")
+            if not run_silent:
+                out_title = title
+                out_text = text
+                other_items = {}
+                if docs and key:
+                    out_title = docs.get(key, {}).get("title")
+                    out_text = docs.get(key, {}).get("text")
+                    other_items = {
+                        hdr: str(text)
+                        for hdr, text in docs.get(key, {}).items()
+                        if hdr not in ("title", "text", "doc", "hd_level", "md")
+                    }
+                if out_title:
                     h_level = max(min(hd_level, 4), 1)
-                    display(HTML(f"<h{h_level}>{title}</h{h_level}>"))
-                if text:
+                    display(HTML(f"<h{h_level}>{out_title}</h{h_level}>"))
+                if out_text:
                     if md:
-                        display(HTML(markdown(text=text)))
+                        display(HTML(markdown(text=out_text)))
                     else:
-                        fmt_text = text.replace("\n", "<br>")
-                        display(HTML(f"{fmt_text}"))
+                        display(HTML(out_text.replace("\n", "<br>")))
+                if other_items:
+                    for sec_title, content in other_items.items():
+                        display(HTML(f"<br><b>{sec_title}</b><br>"))
+                        display(HTML(content.replace("\n", "<br>")))
             return func(*args, **kwargs)
 
         return print_text
@@ -280,7 +306,7 @@ def set_text(
     return text_wrapper
 
 
-# pylint: disable=invalid-name
+# pylint: enable=invalid-name, unused-argument
 
 
 def add_result(result: Any, attr_name: Union[str, List[str]]):

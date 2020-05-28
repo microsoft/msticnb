@@ -57,10 +57,10 @@ def _get_main_class_doc_md(doc_cls) -> str:
 
     cls_doc_lines.append("# Display Sections")
     for _, func in inspect.getmembers(doc_cls, inspect.isfunction):
-        cls_doc_lines.extend(_get_closure_vars(func))
+        cls_doc_lines.extend(_get_closure_vars(func, doc_cls))
 
     for _, func in inspect.getmembers(inspect.getmodule(doc_cls), inspect.isfunction):
-        cls_doc_lines.extend(_get_closure_vars(func))
+        cls_doc_lines.extend(_get_closure_vars(func, doc_cls))
 
     cls_doc_lines.append("\n---\n")
     cls_doc_lines.append("# Results Class\n")
@@ -80,17 +80,38 @@ def _get_main_class_doc_md(doc_cls) -> str:
     return "\n".join(cls_doc_lines)
 
 
-def _get_closure_vars(func) -> List[str]:
+def _get_closure_vars(func, doc_cls) -> List[str]:
     """Return title and text from function args."""
     cls_doc_lines = []
     closure_args = inspect.getclosurevars(func).nonlocals
-    title = closure_args.get("title")
-    hd_level = closure_args.get("hd_level", 2) + 1
-    text = closure_args.get("text")
+
+    # If the function is using the metadata docs and key
+    # try to fetch that from the class module
+    docs = closure_args.get("docs")
+    key = closure_args.get("key")
+    other_items = None
+    if docs and key and isinstance(doc_cls, Notebooklet):
+        cell_docs = getattr(doc_cls.__module__, "_CELL_DOCS", None)
+        if cell_docs:
+            title = cell_docs.get(key, {}).get("title")
+            text = cell_docs.get(key, {}).get("text")
+            other_items = {
+                hdr: str(text)
+                for hdr, text in docs.get(key, {}).items()
+                if hdr not in ("title", "text", "hd_level", "md")
+            }
+    else:
+        # Otherwise use inline parameters
+        title = closure_args.get("title")
+        hd_level = closure_args.get("hd_level", 2) + 1
+        text = closure_args.get("text")
     if title:
         cls_doc_lines.append(("#" * hd_level) + f" {title}\n")
         if text:
             cls_doc_lines.append(text)
+    if other_items:
+        for name, content in other_items.items():
+            cls_doc_lines.append(f"**{name}**\n{content}")
     return cls_doc_lines
 
 
