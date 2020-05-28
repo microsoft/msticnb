@@ -15,6 +15,7 @@ from msticpy.sectools.ip_utils import convert_to_ip_entities
 
 from ...common import nb_data_wait
 
+
 from ..._version import VERSION
 
 __version__ = VERSION
@@ -141,6 +142,7 @@ def verify_host_name(
             | distinct Computer
              """
         nb_data_wait("SecurityEvent")
+
         win_hosts_df = qry_prov.exec_query(sec_event_host)
         if win_hosts_df is not None and not win_hosts_df.empty:
             for host in win_hosts_df["Computer"].to_list():
@@ -155,7 +157,9 @@ def verify_host_name(
             | distinct Computer
             """
         nb_data_wait("Syslog")
+
         lx_hosts_df = qry_prov.exec_query(syslog_host)
+
         if lx_hosts_df is not None and not lx_hosts_df.empty:
             for host in lx_hosts_df["Computer"].to_list():
                 host_names.update({host: "Linux"})
