@@ -119,3 +119,24 @@ steps:
   displayName: 'Post Analysis'
   inputs:
     CredScan: true
+
+dependsOn: Phase_1
+pool:
+  name: Hosted VS2017
+steps:
+- task: UsePythonVersion@0
+  displayName: 'Use Python >= 3.6'
+  inputs:
+    versionSpec: '>= 3.6'
+
+- script: 'pip install --upgrade setuptools wheel'
+  displayName: 'Install setuptools'
+
+- script: 'python setup.py sdist bdist_wheel'
+  displayName: 'Build sdist and wheel'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: msticpy'
+  inputs:
+    PathtoPublish: dist
+    ArtifactName: msticpy
