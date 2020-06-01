@@ -1,7 +1,7 @@
 #Multi-configuration and multi-agent job options are not exported to YAML. Configure these options using documentation guidance: https://docs.microsoft.com/vsts/pipelines/process/phases
 
 stages:
-- stage: PreReqs
+- stage: PythonTests
   jobs:
   - job: InstallPackage
     pool:
@@ -126,8 +126,8 @@ stages:
 
 - stage: GenericTests
   dependsOn:
-  - PythonTesting
-  condition: succeeded('PythonTesting')
+  - PythonTests
+  condition: succeeded('PythonTests')
   jobs:
   - job: PipelineTests
     pool:
