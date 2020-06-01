@@ -129,3 +129,15 @@ steps:
   displayName: 'Post Analysis'
   inputs:
     CredScan: true
+
+- script: 'pip install --upgrade setuptools wheel'
+  displayName: 'Install setuptools'
+
+- script: 'python setup.py sdist bdist_wheel'
+  displayName: 'Build sdist and wheel'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: msticnb'
+  inputs:
+    PathtoPublish: dist
+    ArtifactName: msticnb
