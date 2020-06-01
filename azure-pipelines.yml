@@ -179,7 +179,10 @@ stages:
       inputs:
         CredScan: true
 
-- stage: Create Python Package
+- stage: CreatePythonPackage
+  dependsOn:
+  - PublishTests
+  condition: succeeded('PublishTests')
   pool:
     image: windows-latest
   variables:
