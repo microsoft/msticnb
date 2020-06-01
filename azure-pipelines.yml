@@ -3,7 +3,7 @@
 stages:
 - stage: PythonTests
   jobs:
-  - job: InstallPackage
+  - job: InstallAndTestPackage
     pool:
       image: ubuntu-latest
     variables:
@@ -25,7 +25,8 @@ stages:
         export MSTICPY_TEST_NOSKIP=1
         pytest msticnb/tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
         REM --cov-report=html
-        continueOnError: true
+      continueOnError: true
+      condition: succeededOrFailed()
       displayName: pytest
     - script: |
         python3 -m pip install --upgrade black
