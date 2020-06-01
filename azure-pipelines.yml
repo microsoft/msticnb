@@ -5,7 +5,7 @@ stages:
   jobs:
   - job: InstallAndTestPackage
     pool:
-      image: ubuntu-latest
+      image: windows-latest
     variables:
       python.version: '3.6'
     steps:
@@ -28,6 +28,8 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
       displayName: pytest
+      env:
+        MSTICPY_CONFIG: $(token)
     - script: |
         python3 -m pip install --upgrade black
         black -t py36 --check --exclude venv . 
@@ -76,6 +78,8 @@ stages:
       inputs:
         toolMajorVersion: V2
         debugMode: false
+      continueOnError: true
+      condition: succeededOrFailed()
     - task: dependency-check-build-task@5
       displayName: 'OWASP Dependency Check'
       inputs:
