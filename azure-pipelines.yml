@@ -17,20 +17,6 @@ stages:
         python3 -m pip install --upgrade pip wheel
         python3 -m pip install -e .
       displayName: 'Install package and dependencies'
-  - job: Pytest
-    dependsOn:
-    - InstallPackage
-    condition: succeeded('InstallPackage')
-    pool:
-      image: ubuntu-latest
-    variables:
-      python.version: '3.6'
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.6'
-        addToPath: true
-        architecture: 'x64'
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
         python3 -m pip install --upgrade pytest
@@ -40,100 +26,30 @@ stages:
         pytest msticnb/tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
         REM --cov-report=html
       displayName: pytest
-  - job: Black
-    dependsOn:
-    - InstallPackage
-    condition: succeeded('InstallPackage')
-    pool:
-      image: windows-latest
-    variables:
-      python.version: '3.6'
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.6'
-        addToPath: true
-        architecture: 'x64'
     - script: |
         python3 -m pip install --upgrade black
         black -t py36 --check --exclude venv . 
       displayName: Black
       continueOnError: true
       condition: succeededOrFailed()
-  - job: Pylint
-    dependsOn:
-    - InstallPackage
-    condition: succeeded('InstallPackage')
-    pool:
-      image: windows-latest
-    variables:
-      python.version: '3.6'
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.6'
-        addToPath: true
-        architecture: 'x64'
     - script: |
         python3 -m pip install --upgrade pylint
         pylint msticnb --disable=bad-continuation 
       displayName: Pylint
       continueOnError: true
       condition: succeededOrFailed()
-  - job: Bandit
-    dependsOn:
-    - InstallPackage
-    condition: succeeded('InstallPackage')
-    pool:
-      image: windows-latest
-    variables:
-      python.version: '3.6'
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.6'
-        addToPath: true
-        architecture: 'x64'
     - script: |
         python3 -m pip install --upgrade bandit
         bandit -x tests -r -s B303,B404,B603,B607 msticnb'
       displayName: bandit
       continueOnError: true
       condition: succeededOrFailed()
-  - job: Flake8
-    dependsOn:
-    - InstallPackage
-    condition: succeeded('InstallPackage')
-    pool:
-      image: windows-latest
-    variables:
-      python.version: '3.6'
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.6'
-        addToPath: true
-        architecture: 'x64'
     - script: |
         python3 -m pip install --upgrade flake8 
         flake8 --max-line-length=90 --exclude=tests* . --ignore=E501,W503
       displayName: flake8
       continueOnError: true
       condition: succeededOrFailed()
-  - job: Prospector
-    dependsOn:
-    - InstallPackage
-    condition: succeeded('InstallPackage')
-    pool:
-      image: windows-latest
-    variables:
-      python.version: '3.6'
-    steps:
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.6'
-        addToPath: true
-        architecture: 'x64'
     - script: |
         #setx MYPYPATH "C:/hostedtoolcache/windows/Python/3.6.8/x64/Lib/site-packages"
         python3 -m pip install prospector[with_everything]
@@ -152,7 +68,6 @@ stages:
       image: windows-latest
     variables:
       python.version: '3.6'
-
     steps:
     - task: CredScan@2
       displayName: 'Run CredScan'
