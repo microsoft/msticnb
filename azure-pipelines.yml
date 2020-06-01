@@ -25,6 +25,7 @@ stages:
         export MSTICPY_TEST_NOSKIP=1
         pytest msticnb/tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
         REM --cov-report=html
+        continueOnError: true
       displayName: pytest
     - script: |
         python3 -m pip install --upgrade black
