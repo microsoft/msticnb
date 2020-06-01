@@ -18,6 +18,9 @@ stages:
         python3 -m pip install -e .
       displayName: 'Install package and dependencies'
   - job: Pytest
+    dependsOn:
+    - InstallPackage
+    condition: succeeded('InstallPackage')
     pool:
       image: ubuntu-latest
     variables:
@@ -38,6 +41,9 @@ stages:
         REM --cov-report=html
       displayName: pytest
   - job: Black
+    dependsOn:
+    - InstallPackage
+    condition: succeeded('InstallPackage')
     pool:
       image: windows-latest
     variables:
@@ -55,6 +61,9 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Pylint
+    dependsOn:
+    - InstallPackage
+    condition: succeeded('InstallPackage')
     pool:
       image: windows-latest
     variables:
@@ -72,6 +81,9 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Bandit
+    dependsOn:
+    - InstallPackage
+    condition: succeeded('InstallPackage')
     pool:
       image: windows-latest
     variables:
@@ -89,6 +101,9 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Flake8
+    dependsOn:
+    - InstallPackage
+    condition: succeeded('InstallPackage')
     pool:
       image: windows-latest
     variables:
@@ -106,6 +121,9 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Prospector
+    dependsOn:
+    - InstallPackage
+    condition: succeeded('InstallPackage')
     pool:
       image: windows-latest
     variables:
