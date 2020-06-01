@@ -5,7 +5,7 @@ stages:
   jobs:
   - job: InstallPackage
     pool:
-      image: windows-latest
+      image: ubuntu-latest
     variables:
       python.version: '3.6'
     steps:
@@ -14,15 +14,9 @@ stages:
       inputs:
         versionSpec: '$(python.version)'
     - script: |
-        python3 -m pip install --upgrade pip, wheel
-        pip install -e .
+        python3 -m pip install --upgrade pip wheel
+        python3 -m pip install -e .
       displayName: 'Install package and dependencies'
-
-- stage: PythonTesting
-  dependsOn:
-    - PreReqs
-  condition: succeeded('PreReqs')
-  jobs:
   - job: Pytest
     pool:
       image: ubuntu-latest
