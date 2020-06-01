@@ -2,12 +2,12 @@
 
 stages:
 - stage: PreReqs
-  pool:
-    image: windows-latest
-  variables:
-    python.version: '3.6'
   jobs:
   - job: InstallPackage
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - task: UsePythonVersion@0
       displayName: 'Use Python $(python.version)'
@@ -22,12 +22,12 @@ stages:
   dependsOn:
     - PreReqs
   condition: succeeded('PreReqs')
-  pool:
-    image: windows-latest
-  variables:
-    python.version: '3.6'
   jobs:
   - job: Pytest
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
@@ -39,6 +39,10 @@ stages:
         REM --cov-report=html
       displayName: pytest
   - job: Black
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - script: |
         pip install --upgrade black
@@ -47,6 +51,10 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Pylint
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - script: |
         pip install --upgrade pylint
@@ -55,6 +63,10 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Bandit
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - script: |
         pip install --upgrade bandit
@@ -63,6 +75,10 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Flake8
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - script: |
         pip install --upgrade flake8 
@@ -71,6 +87,10 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
   - job: Prospector
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - script: |
         setx MYPYPATH "C:/hostedtoolcache/windows/Python/3.6.8/x64/Lib/site-packages"
@@ -84,12 +104,12 @@ stages:
   dependsOn:
   - PythonTesting
   condition: succeeded('PythonTesting')
-  pool:
-    image: windows-latest
-  variables:
-    python.version: '3.6'
   jobs:
   - job: PipelineTests
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
 
     steps:
     - task: CredScan@2
@@ -134,12 +154,12 @@ stages:
   dependsOn:
   - GenericTests
   condition: succeeded('GenericTests')
-  pool:
-      image: windows-latest
-  variables:
-    python.version: '3.6'
   jobs:
   - job: PublishTestResults
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - task: PublishTestResults@2
       displayName: 'Publish Test Results'
@@ -183,12 +203,12 @@ stages:
   dependsOn:
   - PublishTests
   condition: succeeded('PublishTests')
-  pool:
-    image: windows-latest
-  variables:
-    python.version: '3.6'
   jobs:
   - job: CreateDistPackage
+    pool:
+      image: windows-latest
+    variables:
+      python.version: '3.6'
     steps:
     - script: 'pip install --upgrade setuptools wheel'
       displayName: 'Install setuptools'
