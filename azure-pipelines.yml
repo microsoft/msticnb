@@ -22,8 +22,8 @@ stages:
       displayName: 'Install package and dependencies'
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
-        export MSTICPYCONFIG=$MSTICPYCONFIG/msticnb/tests/testdata/msticpyconfig-test.yaml
         printenv MSTICPYCONFIG
+        cat $MSTICPYCONFIG
         python3 -m pip install --upgrade pytest
         python3 -m pip install --upgrade pytest-cov
 
@@ -34,7 +34,7 @@ stages:
       condition: succeededOrFailed()
       displayName: pytest
       env:
-        MSTICPYCONFIG: $(Build.SourcesDirectory)
+        MSTICPYCONFIG: $(Build.SourcesDirectory)/msticnb/tests/testdata/msticpyconfig-test.yaml
         MAXMIND_AUTH: $(maxmind_auth)
         IPSTACK_AUTH: $(ipstack_auth)
     - script: |
@@ -62,12 +62,14 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        #setx MYPYPATH "C:/hostedtoolcache/windows/Python/3.6.8/x64/Lib/site-packages"
+        export MYPYPATH=$tools_dir/Python/3.6.8/x64/Lib/site-packages
         python3 -m pip install prospector[with_everything]
         prospector --ignore-paths tests --with-tool mypy
       displayName: prospector
       continueOnError: true
       condition: succeededOrFailed()
+      env:
+        tools_dir: ${AGENT_TOOLSDIRECTORY}
 
 - stage: GenericTests
   dependsOn:
