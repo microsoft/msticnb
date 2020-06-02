@@ -61,7 +61,7 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        export MYPYPATH=$tools_dir/Python/3.6.8/x64/Lib/site-packages
+        #export MYPYPATH=$tools_dir/Python/3.6.10/x64/Lib/site-packages
         python3 -m pip install prospector[with_everything]
         prospector --ignore-paths tests --with-tool mypy
       displayName: prospector
