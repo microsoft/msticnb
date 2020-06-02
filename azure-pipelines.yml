@@ -32,7 +32,7 @@ stages:
       condition: succeededOrFailed()
       displayName: pytest
       env:
-        MSTICPY_CONFIG: $(Build.SourcesDirectory)/msticnb/tests/testdata/msticpyconfig-test.yaml
+        MSTICPYCONFIG: $(Build.SourcesDirectory)/msticnb/tests/testdata/msticpyconfig-test.yaml
         MAXMIND_AUTH: $(maxmind_auth)
         IPSTACK_AUTH: $(ipstack_auth)
     - script: |
