@@ -32,7 +32,7 @@ stages:
       condition: succeededOrFailed()
       displayName: pytest
       env:
-        MSTICPY_CONFIG: $(Build.SourcesDirectory)/msticnb/tests/msticpyconfig-test.yaml
+        MSTICPY_CONFIG: $(Build.SourcesDirectory)/msticnb/tests/testdata/msticpyconfig-test.yaml
         MAXMIND_AUTH: $(maxmind_auth)
         IPSTACK_AUTH: $(ipstack_auth)
     - script: |
@@ -133,7 +133,7 @@ stages:
   jobs:
   - job: PublishTestResults
     pool:
-      image: windows-latest
+      vmImage: windows-latest
     variables:
       python.version: '3.6'
     steps:
