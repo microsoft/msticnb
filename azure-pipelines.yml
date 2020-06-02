@@ -22,6 +22,8 @@ stages:
       displayName: 'Install package and dependencies'
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
+        export MSTICPYCONFIG=$MSTICPYCONFIG/msticnb/tests/testdata/msticpyconfig-test.yaml
+        printenv MSTICPYCONFIG
         python3 -m pip install --upgrade pytest
         python3 -m pip install --upgrade pytest-cov
 
@@ -32,7 +34,7 @@ stages:
       condition: succeededOrFailed()
       displayName: pytest
       env:
-        MSTICPYCONFIG: $(Build.SourcesDirectory)/msticnb/tests/testdata/msticpyconfig-test.yaml
+        MSTICPYCONFIG: $(Build.SourcesDirectory)
         MAXMIND_AUTH: $(maxmind_auth)
         IPSTACK_AUTH: $(ipstack_auth)
     - script: |
