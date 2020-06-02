@@ -5,7 +5,7 @@ stages:
   jobs:
   - job: InstallAndTestPackage
     pool:
-      image: windows-latest
+      vmImage: ubuntu-latest
     variables:
       python.version: '3.6'
     steps:
@@ -29,7 +29,9 @@ stages:
       condition: succeededOrFailed()
       displayName: pytest
       env:
-        MSTICPY_CONFIG: $(token)
+        MSTICPY_CONFIG: $(Build.SourcesDirectory)/msticnb/tests/msticpyconfig-test.yaml
+        MAXMIND_AUTH: $(maxmind_auth)
+        IPSTACK_AUTH: $(ipstack_auth)
     - script: |
         python3 -m pip install --upgrade black
         black -t py36 --check --exclude venv . 
@@ -69,7 +71,7 @@ stages:
   jobs:
   - job: PipelineTests
     pool:
-      image: windows-latest
+      vmImage: windows-latest
     variables:
       python.version: '3.6'
     steps:
@@ -169,7 +171,7 @@ stages:
   jobs:
   - job: CreateDistPackage
     pool:
-      image: windows-latest
+      vmImage: windows-latest
     variables:
       python.version: '3.6'
     steps:
