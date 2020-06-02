@@ -114,14 +114,16 @@ class NBMetaData:
     # pylint: enable=not-an-iterable
 
 
-def read_module_metadata(module: str) -> Tuple[NBMetaData, Dict[str, Any]]:
+def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetaData, Dict[str, Any]]:
     """
     Read notebooklet metadata from yaml file.
 
     Parameters
     ----------
-    module : str
+    mod_path : str
         The fully-qualified (dotted) module name
+    module_name : str
+        The full module name.
 
     Returns
     -------
@@ -130,21 +132,21 @@ def read_module_metadata(module: str) -> Tuple[NBMetaData, Dict[str, Any]]:
         and the documentation dictionary
 
     """
-    md_dict = _read_metadata_file(module)
+    md_dict = _read_metadata_file(mod_path)
     if not md_dict:
         return NBMetaData(), {}
     metadata_vals = md_dict.get("metadata", {})
-    metadata_vals["mod_name"] = module
+
+    metadata_vals["mod_name"] = module_name
     metadata = NBMetaData(**metadata_vals)
     output = md_dict.get("output", {})
     return metadata, output
 
 
-def _read_metadata_file(module):
-    cls_mod_path = module.replace(".", "/")
-    md_path = Path(cls_mod_path + ".yaml")
+def _read_metadata_file(mod_path):
+    md_path = Path(mod_path.replace(".py", ".yaml"))
     if not md_path.is_file():
-        md_path = Path(cls_mod_path + ".yml")
+        md_path = Path(mod_path.replace(".py", ".yml"))
     if md_path.is_file():
         with open(md_path, "r") as _md_file:
             return yaml.safe_load(_md_file)

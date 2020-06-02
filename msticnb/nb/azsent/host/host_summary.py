@@ -26,7 +26,7 @@ from ....common import (
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
-from ....nb_metadata import read_module_metadata
+from ....nb_metadata import read_mod_metadata
 from ...._version import VERSION
 
 __version__ = VERSION
@@ -35,7 +35,7 @@ __author__ = "Ian Hellen"
 
 _CLS_METADATA: NBMetaData
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_module_metadata(__name__)
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -119,7 +119,7 @@ class HostSummary(Notebooklet):
         ----------------
         start : Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
-        end : Union[datetime, datelike-string]
+  mod_path Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
 
         Returns
@@ -184,6 +184,9 @@ class HostSummary(Notebooklet):
                 host_entity.AzureDetails["SubscriptionDetails"] = azure_api[
                     "sub_details"
                 ]
+
+        self._last_result.host_entity = host_entity
+
         if not self.silent:
             _show_host_entity(host_entity)
         if "alerts" in self.options:
@@ -191,16 +194,13 @@ class HostSummary(Notebooklet):
                 self.query_provider, self.timespan, host_name
             )
             if len(related_alerts) > 0:
-                alert_timeline = _show_alert_timeline(related_alerts)
+                self._last_result.alert_timeline = _show_alert_timeline(related_alerts)
+            self._last_result.related_alerts = related_alerts
+
         if "bookmarks" in self.options:
-            related_bookmarks = _get_related_bookmarks(
+            self._last_result.related_bookmarks = _get_related_bookmarks(
                 self.query_provider, self.timespan, host_name
             )
-
-        self._last_result.host_entity = host_entity
-        self._last_result.related_alerts = related_alerts
-        self._last_result.related_bookmarks = related_bookmarks
-        self._last_result.alert_timeline = alert_timeline
 
         return self._last_result
 

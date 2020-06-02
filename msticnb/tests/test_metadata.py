@@ -7,7 +7,7 @@
 import unittest
 
 from .. import init
-from ..nb_metadata import NBMetaData, read_module_metadata
+from ..nb_metadata import NBMetaData, read_mod_metadata
 from ..nb.azsent.host import host_summary
 
 
@@ -16,7 +16,7 @@ class TestMetadata(unittest.TestCase):
 
     def test_read_metadata(self):
         """Tests reading metadata yaml file."""
-        nb_md, docs = read_module_metadata(host_summary.__name__)
+        nb_md, docs = read_mod_metadata(host_summary.__file__, host_summary.__name__)
         self.assertIsInstance(nb_md, NBMetaData)
         self.assertIsInstance(docs, dict)
 

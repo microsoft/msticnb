@@ -6,7 +6,7 @@
 """Notebooklet for Windows Security Events."""
 import pkgutil
 import os
-from typing import Any, Optional, Iterable, Union
+from typing import Any, Optional, Iterable, Union, Dict
 from defusedxml import ElementTree
 from defusedxml.ElementTree import ParseError
 
@@ -26,11 +26,17 @@ from ....common import (
     nb_markdown,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....nb_metadata import read_mod_metadata
 
 from ...._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
+
+
+_CLS_METADATA: NBMetaData
+_CELL_DOCS: Dict[str, Any]
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -84,37 +90,11 @@ class WinHostEvents(Notebooklet):
     Process (4688) and Account Logon (4624, 4625) are not included
     in the event types processed by this module.
 
-    Default Options
-    ---------------
-    - event_pivot: Display a summary of all event types.
-    - acct_events: Display a summary and timeline of account
-      management events.
-
-    Other Options
-    -------------
-    - expand_events: parses the XML EventData column into separate
-      DataFrame columns. This can be very expensive with a large
-      event set. We recommend using the expand_events() method to
-      select a specific subset of events to process.
-
     """
 
-    metadata = NBMetaData(
-        name=__qualname__,  # type: ignore  # noqa
-        mod_name=__name__,
-        description="Window security events summary",
-        default_options=["event_pivot", "acct_events"],
-        other_options=["expand_events"],
-        keywords=["host", "computer", "events", "windows", "account"],
-        entity_types=["host"],
-        req_providers=["AzureSentinel"],
-    )
+    metadata = _CLS_METADATA
 
-    @set_text(
-        title="Host Security Events Summary",
-        hd_level=1,
-        text="Data and plots are store in the result class returned by this function",
-    )
+    @set_text(docs=_CELL_DOCS, key="run")
     def run(
         self,
         value: Any = None,
@@ -271,12 +251,7 @@ def _get_win_security_events(qry_prov, host_name, timespan):
     return all_events_df, event_pivot_df
 
 
-@set_text(
-    title="Summary of Security Events on host",
-    text="""
-Yellow highlights indicate account with highest event count.
-""",
-)
+@set_text(docs=_CELL_DOCS, key="display_event_pivot")
 def _display_event_pivot(event_pivot):
     display(
         event_pivot.style.applymap(lambda x: "color: white" if x == 0 else "")
@@ -335,17 +310,7 @@ def _expand_event_properties(input_df):
     )
 
 
-@set_text(
-    title="Parsing eventdata into columns",
-    hd_level=3,
-    text="""
-This may take some time to complete for large numbers of events.
-
-Since event types have different schema, some of the columns will
-not be populated for certain Event IDs and will show as `NaN`.
-""",
-    md=True,
-)
+@set_text(docs=_CELL_DOCS, key="parse_eventdata")
 def _parse_eventdata(event_data, event_ids: Optional[Union[int, Iterable[int]]] = None):
     if event_ids:
         if isinstance(event_ids, int):
@@ -406,12 +371,7 @@ def _create_acct_event_pivot(account_event_data):
     return event_pivot_df
 
 
-@set_text(
-    title="Summary of Account Management Events on host",
-    text="""
-Yellow highlights indicate account with highest event count.
-""",
-)
+@set_text(docs=_CELL_DOCS, key="display_acct_event_pivot")
 def _display_acct_event_pivot(event_pivot_df):
     display(
         event_pivot_df.style.applymap(lambda x: "color: white" if x == 0 else "")
@@ -426,7 +386,7 @@ def _display_acct_event_pivot(event_pivot_df):
     )
 
 
-@set_text(title="Timeline of Account Management Events on host")
+@set_text(docs=_CELL_DOCS, key="display_acct_mgmt_timeline")
 def _display_acct_mgmt_timeline(acct_event_data):
     # Plot events on a timeline
     return nbdisplay.display_timeline(

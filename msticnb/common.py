@@ -70,24 +70,69 @@ class TimeSpan:
                 "At least one of 'start' or 'period' must be specified.",
             )
 
-        self.period = None
+        self._period = None
         if period:
-            self.period = self._parse_timedelta(period)
+            self._period = self._parse_timedelta(period)
 
-        self.end = self._parse_time(end, "end")
-        self.start = self._parse_time(start, "start")
-        if self.start and self.period:
-            self.end = self.start + self.period
-        if self.end is None:
-            self.end = datetime.utcnow()
-        if self.start is None and self.period:
-            self.start = self.end - self.period
+        self._end = self._parse_time(end, "end")
+        self._start = self._parse_time(start, "start")
+        if self._start and self._period:
+            self._end = self._start + self._period
+        if self._end is None:
+            self._end = datetime.utcnow()
+        if self._start is None and self._period:
+            self._start = self._end - self._period
 
     def __eq__(self, value):
         """Return True if the timespans are equal."""
         if not isinstance(value, TimeSpan):
             return False
         return self.start == value.start and self.end == value.end
+
+    def __hash__(self):
+        """Return the hash of the timespan."""
+        return hash((self.start, self.end))
+
+    @property
+    def start(self) -> datetime:
+        """
+        Return the start of the timeperiod.
+
+        Returns
+        -------
+        datetime
+            Start datetime.
+
+        """
+        return self._start
+
+    @property
+    def end(self) -> datetime:
+        """
+        Return the end of the timeperiod.
+
+        Returns
+        -------
+        datetime
+            End datetime.
+
+        """
+        return self._end
+
+    @property
+    def period(self) -> timedelta:
+        """
+        Return the period of the timeperiod.
+
+        Returns
+        -------
+        timedelta
+            Period timedelta.
+
+        """
+        if not self._period:
+            self._period = self.start - self.end
+        return self._period
 
     @staticmethod
     def _process_args(timespan, time_selector, start, end, period):

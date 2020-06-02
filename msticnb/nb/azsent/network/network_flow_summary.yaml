@@ -1,0 +1,105 @@
+metadata:
+  name: NetworkFlowSummary
+  description: Network Flow Summary for a host or IP Address
+  default_options:
+    - plot_flows: Create plots of flows by protocol and direction.
+    - plot_flow_values: Plot flow county by protocol.
+    - flow_summary:
+        Create a summarization of all flows and all flows
+        grouped by ASN.
+  other_options:
+    - resolve_host: Try to resolve the host name before other operations.
+    - geo_map:
+        Plot a map of all IP address locations in communication
+        with the host (see the method below for plotting selected IPs only).
+  keywords:
+    - host
+    - computer
+    - network
+    - flow
+  entity_types:
+    - host
+    - ip_address
+  req_providers:
+    - AzureSentinel|LocalData
+    - geolitelookup
+    - tilookup
+output:
+  run:
+    title: Host Network Summary
+    h_level: 1
+    text:
+      This shows a summary of network flows for this endpoint.
+
+      Data and plots are stored in the result class returned by this function.
+  plot_flows_by_protocol:
+    title: Timeline of network flows by protocol type.
+  plot_flows_by_direction:
+    title: Timeline of network flows by direction.
+    text: I = inbound, O = outbound.
+  plot_flow_values:
+    title: Timeline of network flows quantity.
+    text:
+      Each protocol is plotted as a separate colored series.
+      The vertical axis indicates the number for flows recorded for
+      that time slot.
+    md: True
+  get_flow_index:
+    title: Flow Index.
+    text:
+      List of flows grouped by source, dest, protocol and direction.
+  get_flow_summary:
+    title: Flow Summary with ASN details.
+    text:
+      Gets the ASN details from WhoIs.
+
+      The data shows flows grouped by source and destination ASNs.
+      All protocol types and all source IP addresses are grouped into
+      lists for each ASN.
+    md: True
+  select_asn_subset:
+    title: Select the ASNs to process.
+    text:
+      Choose any unusual looking ASNs that you want to examine.
+
+      The remote IPs from each selected ASN will be sent to your selected
+      Threat Intelligence providers to check if there are indications of
+      malicious activity associated with these IPs.
+
+      By default, the most infrequently accessed ASNs are selected.
+    md: True
+  lookup_ip_ti:
+    title: TI Lookup for IP Addresses in selected ASNs.
+    text:
+      The remote IPs from each selected ASN are are searched for
+      your selected Threat Intelligence providers. Check the
+      results to see if there are indications of
+      malicious activity associated with these IPs.
+  display_geo_map:
+    title: Map of geographic location of selected IPs communicating with host
+    text:
+      Numbered circles indicate multiple items - click to expand these.
+
+      Hovering over a location shows brief details, clicking on an IP location
+      shows more detail.
+
+      Location marker key
+      - Blue = outbound
+      - Purple = inbound
+      - Green = Host
+      - Red = Threats
+    md: True
+  display_geo_map_all:
+    title: Map of geographic location of all IPs communicating with host
+    text:
+      Numbered circles indicate multiple items - click to expand these.
+
+      Hovering over a location shows brief details, clicking on an IP location
+      shows more detail.
+
+      Location marker key
+      - Blue = outbound
+      - Purple = inbound
+      - Green = Host
+    md: True
+

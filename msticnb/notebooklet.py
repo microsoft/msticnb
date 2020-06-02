@@ -20,7 +20,7 @@ from IPython.display import display, HTML
 import pandas as pd
 from tqdm import tqdm
 
-from .common import TimeSpan, MsticnbDataProviderError
+from .common import TimeSpan, MsticnbDataProviderError, MsticnbError
 from .data_providers import DataProviders
 from .nb_metadata import NBMetaData
 from .options import get_opt, set_opt
@@ -256,15 +256,21 @@ class Notebooklet(ABC):
             def_options = self.default_options()
             add_options = {opt[1:] for opt in options if opt.startswith("+")}
             sub_options = {opt[1:] for opt in options if opt.startswith("-")}
-
+            std_options = {opt for opt in options if opt[0] not in ("+", "-")}
+            if std_options and (add_options or sub_options):
+                raise MsticnbError(
+                    "Option list must be either a list of options to use",
+                    "or options to add/remove from the default set.",
+                    "You cannot mix these.",
+                )
             invalid_opts = (sub_options | add_options) - set(self.all_options())
             if invalid_opts:
                 print(f"Invalid options {list(invalid_opts)} ignored.")
             if sub_options:
-                def_options = list(set(def_options) - sub_options)
+                self.options = list(set(def_options) - sub_options)
             if add_options:
-                self.options = def_options + list(add_options)
-            else:
+                self.options = list(set(self.options) | add_options)
+            if not add_options and not sub_options:
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
         if timespan:
