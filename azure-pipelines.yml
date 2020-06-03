@@ -27,20 +27,20 @@ stages:
       python.version: '3.6'
     steps:
     # Add an alias for Windows python=>python3
-    - script: doskey python3=python $*
-      condition: eq(variables['imageName'], 'windows-latest')
+    - script: alias python='python3' pip='pip3'
+      condition: eq(in(variables['imageName'], 'ubuntu-latest', 'macos-latest')
     - task: UsePythonVersion@0
       displayName: 'Use Python $(python.version)'
       inputs:
         versionSpec: '$(python.version)'
     - script: |
-        python3 -m pip install --upgrade pip wheel
-        python3 -m pip install -e .
+        pip install --upgrade pip wheel
+        pip install -e .
       displayName: 'Install package and dependencies'
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
-        python3 -m pip install --upgrade pytest
-        python3 -m pip install --upgrade pytest-cov
+        pip install --upgrade pytest
+        pip install --upgrade pytest-cov
         export MSTICPY_TEST_NOSKIP=1
         pytest msticnb/tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
       continueOnError: true
@@ -51,31 +51,31 @@ stages:
         MAXMIND_AUTH: $(maxmind_auth)
         IPSTACK_AUTH: $(ipstack_auth)
     - script: |
-        python3 -m pip install --upgrade black
+        pip install --upgrade black
         black -t py36 --check --exclude venv . 
       displayName: Black
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        python3 -m pip install --upgrade pylint pylint_junit
+        pip install --upgrade pylint pylint_junit
         pylint msticnb --disable=bad-continuation --output-format=pylint_junit.JUnitReporter
       displayName: Pylint
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        python3 -m pip install --upgrade bandit
+        pip install --upgrade bandit
         bandit -x tests -r -s B303,B404,B603,B607 msticnb'
       displayName: bandit
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        python3 -m pip install --upgrade flake8 
+        pip install --upgrade flake8 
         flake8 --max-line-length=90 --exclude=tests* . --ignore=E501,W503
       displayName: flake8
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        python3 -m pip install mypy lxml
+        pip install mypy lxml
         mypy --junit-xml junit/mypy-test-results.xml msticnb
       displayName: mypy
       continueOnError: true
@@ -84,7 +84,7 @@ stages:
         tools_dir: ${AGENT_TOOLSDIRECTORY}
     - script: |
         #export MYPYPATH=$tools_dir/Python/3.6.10/x64/Lib/site-packages
-        python3 -m pip install prospector[with_everything]
+        pip install prospector[with_everything]
         prospector --ignore-paths tests
       displayName: prospector
       continueOnError: true
