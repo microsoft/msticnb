@@ -12,8 +12,17 @@ stages:
     skipComponentGovernanceDetection: true
   jobs:
   - job: InstallAndTestPackage
+    strategy:
+      matrix:
+        linux:
+          imageName: "ubuntu-latest"
+        mac:
+          imageName: "macos-latest"
+        windows:
+          imageName: "windows-latest"
+      maxParallel: 3
     pool:
-      vmImage: ubuntu-latest
+      vmImage: $(imageName)
     variables:
       python.version: '3.6'
     steps:
