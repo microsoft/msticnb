@@ -8,6 +8,9 @@ from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 import io
 import unittest
+import warnings
+
+import pytest
 
 from ..common import (
     TimeSpan,
@@ -17,8 +20,10 @@ from ..common import (
     nb_debug,
     nb_print,
 )
-from .. import options
+from .. import options, init
 from ..options import get_opt, set_opt
+from .nb_test import TstNBSummary
+
 
 # pylint: disable=too-many-statements
 
@@ -73,8 +78,10 @@ class TestCommon(unittest.TestCase):
         self.assertEqual(tspan2, tspan)
 
         end_str = str(end)
+
         # pylint: disable=too-few-public-methods
         class _TestTime:
+
             start = None
             end = None
             period = None
@@ -167,3 +174,57 @@ class TestCommon(unittest.TestCase):
 
         # This will work since bool(10) == True
         set_opt("verbose", 10)
+
+    # TODO - this works in VSCode but not in cmdline pytest.
+    @pytest.mark.skip
+    def test_silent_option(self):
+        """Test operation of 'silent' option."""
+        warnings.filterwarnings(action="ignore", category=UserWarning)
+        init(query_provider="LocalData", providers=[])
+        test_nb = TstNBSummary()
+
+        f_stream = io.StringIO()
+        with redirect_stdout(f_stream):
+            test_nb.run()
+        output = str(f_stream.getvalue())
+        self.assertIn("TestInline", output)
+        self.assertIn("TestYaml", output)
+
+        # Silent option to run
+        f_stream = io.StringIO()
+        with redirect_stdout(f_stream):
+            test_nb.run(silent=True)
+        output = str(f_stream.getvalue())
+        self.assertFalse(output)
+
+        # Silent option to init
+        test_nb = TstNBSummary(silent=True)
+        f_stream = io.StringIO()
+        with redirect_stdout(f_stream):
+            test_nb.run()
+        output = str(f_stream.getvalue())
+        self.assertFalse(output)
+        # But overridable on run
+        f_stream = io.StringIO()
+        with redirect_stdout(f_stream):
+            test_nb.run(silent=False)
+        output = str(f_stream.getvalue())
+        self.assertIn("TestInline", output)
+        self.assertIn("TestYaml", output)
+
+        # Silent option to run
+        f_stream = io.StringIO()
+        set_opt("silent", True)
+        test_nb = TstNBSummary(silent=True)
+        f_stream = io.StringIO()
+        with redirect_stdout(f_stream):
+            test_nb.run()
+        output = str(f_stream.getvalue())
+        self.assertFalse(output)
+        # But overridable on run
+        f_stream = io.StringIO()
+        with redirect_stdout(f_stream):
+            test_nb.run(silent=False)
+        output = str(f_stream.getvalue())
+        self.assertIn("TestInline", output)
+        self.assertIn("TestYaml", output)

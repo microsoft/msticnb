@@ -6,7 +6,7 @@
 """Notebooklet for Network Flow Summary."""
 from ipaddress import ip_address
 from itertools import chain
-from typing import Any, Optional, Iterable, Tuple
+from typing import Any, Optional, Iterable, Tuple, Dict
 
 import attr
 from bokeh.plotting.figure import Figure
@@ -29,11 +29,17 @@ from ....common import (
 from ....data_providers import DataProviders
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology
+from ....nb_metadata import read_mod_metadata
 
 from ...._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
+
+
+_CLS_METADATA: NBMetaData
+_CELL_DOCS: Dict[str, Any]
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
@@ -98,19 +104,6 @@ class NetworkFlowSummary(Notebooklet):
     - Display flow summary by ASN
     - Display results on map
 
-    Default Options
-    ---------------
-    - plot_flows: Create plots of flows by protocol and direction.
-    - plot_flow_values: Plot flow county by protocol.
-    - flow_summary: Create a summarization of all flows and all flows
-      grouped by ASN.
-
-    Other Options
-    -------------
-    - resolve_host: Try to resolve the host name before other operations.
-    - geo_map: Plot a map of all IP address locations in communication
-      with the host (see the method below for plotting selected IPs only).
-
     Methods
     -------
     - run: main method for notebooklet.
@@ -123,16 +116,8 @@ class NetworkFlowSummary(Notebooklet):
 
     """
 
-    metadata = NBMetaData(
-        name=__qualname__,  # type: ignore  # noqa
-        mod_name=__name__,
-        description="Network flow summary",
-        default_options=["plot_flows", "plot_flow_values", "flow_summary"],
-        other_options=["resolve_host", "geo_map"],
-        keywords=["host", "computer", "network", "flow"],
-        entity_types=["host", "ip_address"],
-        req_providers=["AzureSentinel", "geolitelookup", "tilookup"],
-    )
+    # assign metadata from YAML to class variable
+    metadata = _CLS_METADATA
 
     def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
@@ -151,11 +136,7 @@ class NetworkFlowSummary(Notebooklet):
         self.flow_index_data = pd.DataFrame()
 
     # pylint: disable=too-many-branches
-    @set_text(  # noqa: MC0001
-        title="Host Network Summary",
-        hd_level=1,
-        text="Data and plots are store in the result class returned by this function",
-    )
+    @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(
         self,
         value: Any = None,
@@ -243,7 +224,7 @@ class NetworkFlowSummary(Notebooklet):
             result.plot_flow_values = _plot_flow_values(flow_df)
         if "flow_summary" in self.options:
             flow_index = _extract_flow_ips(flow_df)
-            result.flow_index = _get_flow_index_display(flow_index)
+            result.flow_index = _get_flow_index(flow_index)
             if not self.silent:
                 display(result.flow_index)
             result.flow_summary = _get_flow_summary(flow_index)
@@ -398,7 +379,7 @@ def _get_az_net_flows(qry_prov, timespan, ip_addr, hostname):
 
 # %%
 # Plot flows
-@set_text(title="Timeline of network flows by protocol type.")
+@set_text(docs=_CELL_DOCS, key="plot_flows_by_protocol")
 def _plot_flows_by_protocol(flow_df):
     return nbdisplay.display_timeline(
         data=flow_df,
@@ -412,9 +393,7 @@ def _plot_flows_by_protocol(flow_df):
     )
 
 
-@set_text(
-    title="Timeline of network flows by direction.", text="I = inbound, O = outbound."
-)
+@set_text(docs=_CELL_DOCS, key="plot_flows_by_direction")
 def _plot_flows_by_direction(flow_df):
     return nbdisplay.display_timeline(
         data=flow_df,
@@ -430,14 +409,7 @@ def _plot_flows_by_direction(flow_df):
 
 # %%
 # Plot flow values
-@set_text(
-    title="Timeline of network flows quantity.",
-    text="""
-Each protocol is plotted as a separate colored series.
-The vertical axis indicates the number for flows recorded for
-that time slot.
-""",
-)
+@set_text(docs=_CELL_DOCS, key="plot_flow_values")
 def _plot_flow_values(flow_df, related_alert=None):
     return nbdisplay.display_timeline_values(
         data=flow_df,
@@ -493,18 +465,8 @@ def _extract_flow_ips(flow_df):
     return flow_index
 
 
-@set_text(
-    title="Select the ASNs to process.",
-    hd_level=3,
-    text="""
-Choose any unusual looking ASNs that you want to examine.
-
-The remote IPs from each selected ASN will be sent to your selected
-Threat Intelligence providers to check if there are indications of
-malicious activity associated with these IPs.
-""",
-)
-def _get_flow_index_display(flow_summary_df):
+@set_text(docs=_CELL_DOCS, key="get_flow_index")
+def _get_flow_index(flow_summary_df):
     flow_index_df = (
         flow_summary_df[
             ["source", "dest", "L7Protocol", "FlowDirection", "TotalAllowedFlows"]
@@ -519,6 +481,7 @@ def _get_flow_index_display(flow_summary_df):
 
 # %%
 # Flow Summary and Whois lookup
+@set_text(docs=_CELL_DOCS, key="get_flow_summary")
 def _get_flow_summary(flow_index):
     flows_df = (
         flow_index[
@@ -578,18 +541,7 @@ def _get_source_host_asns(host_entity):
     return host_asns
 
 
-@set_text(
-    title="Select the ASNs to process.",
-    text="""
-Choose any unusual looking ASNs that you want to examine.
-
-The remote IPs from each selected ASN will be sent to your selected
-Threat Intelligence providers to check if there are indications of
-malicious activity associated with these IPs.
-
-By default, the most infrequently accessed ASNs are selected.
-""",
-)
+@set_text(docs=_CELL_DOCS, key="select_asn_subset")
 def _select_asn_subset(flow_sum_df, host_entity):
     our_host_asns = _get_source_host_asns(host_entity)
     all_asns = list(flow_sum_df["DestASN"].unique()) + list(
@@ -631,14 +583,7 @@ def _get_ips_from_selected_asn(flow_sum_df, select_asn):
     return selected_ips
 
 
-@set_text(
-    title="TI Lookup for selected ASNs.",
-    text="""
-The remote IPs from each selected ASN are looked up by your selected
-Threat Intelligence providers to check if there are indications of
-malicious activity associated with these IPs.
-""",
-)
+@set_text(docs=_CELL_DOCS, key="lookup_ip_ti")
 def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
     def ti_check_ser_sev(severity, threshold):
         threshold = TISeverity.parse(threshold)
@@ -680,21 +625,7 @@ def _format_ip_entity(ip_loc, row, ip_col):
     return ip_entity
 
 
-@set_text(
-    title="Map of geographic location of IPs communicating with host",
-    text="""
-Numbered circles indicate multiple items - click to expand these.
-
-Hovering over a location shows brief details, clicking on an IP location
-shows more detail.
-
-Location marker key:
-- Blue = outbound
-- Purple = inbound
-- Green = Host
-""",
-    md=True,
-)
+@set_text(docs=_CELL_DOCS, key="display_geo_map_all")
 def _display_geo_map_all(flow_index, ip_locator, host_entity):
     folium_map = foliummap.FoliumMap(zoom_start=4)
     if flow_index is None or flow_index.empty:
@@ -738,22 +669,7 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
 
 
 # pylint: disable=too-many-branches
-@set_text(
-    title="Map of geographic location of selected IPs communicating with host",
-    text="""
-Numbered circles indicate multiple items - click to expand these.
-
-Hovering over a location shows brief details, clicking on an IP location
-shows more detail.
-
-Location marker key:
-- Blue = outbound
-- Purple = inbound
-- Green = Host
-- Red = Threats
-""",
-    md=True,
-)
+@set_text(docs=_CELL_DOCS, key="display_geo_map")
 def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn):
     folium_map = foliummap.FoliumMap(zoom_start=4)
     if flow_index is None or flow_index.empty:

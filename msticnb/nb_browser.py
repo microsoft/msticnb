@@ -14,7 +14,7 @@ from IPython import get_ipython
 from IPython.display import display
 import ipywidgets as widgets
 
-from . import nblts, nb_index
+from .read_modules import nblts, nb_index
 from .common import MsticnbError
 
 from ._version import VERSION

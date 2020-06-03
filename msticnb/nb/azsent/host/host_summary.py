@@ -5,7 +5,7 @@
 # --------------------------------------------------------------------------
 """Notebooklet for Host Summary."""
 from functools import lru_cache
-from typing import Any, Optional, Iterable, Union
+from typing import Any, Optional, Iterable, Union, Dict
 
 import attr
 import pandas as pd
@@ -26,11 +26,16 @@ from ....common import (
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
-
+from ....nb_metadata import read_mod_metadata
 from ...._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
+
+
+_CLS_METADATA: NBMetaData
+_CELL_DOCS: Dict[str, Any]
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -66,7 +71,6 @@ class HostSummaryResult(NotebookletResult):
 # pylint: disable=too-few-public-methods
 class HostSummary(Notebooklet):
     """
-
     HostSummary Notebooklet class.
 
     Queries and displays information about a host including:
@@ -76,37 +80,12 @@ class HostSummary(Notebooklet):
     - Related hunting/investigation bookmarks
     - Azure subscription/resource data.
 
-    Default Options
-    ---------------
-    - heartbeat: Query Heartbeat table for host information.
-    - azure_net: Query AzureNetworkAnalytics table for host
-      network topology information.
-    - azure_api: Query Azure API for VM information.
-    - alerts: Query any alerts for the host.
-    - bookmarks: Query any bookmarks for the host.
-
-    Other Options
-    -------------
-    - None
-
     """
 
-    metadata = NBMetaData(
-        name=__qualname__,  # type: ignore  # noqa
-        mod_name=__name__,
-        description="Host summary",
-        default_options=["heartbeat", "azure_net", "alerts", "bookmarks", "azure_api"],
-        keywords=["host", "computer", "heartbeat", "windows", "linux"],
-        entity_types=["host"],
-        req_providers=["LogAnalytics|LocalData"],
-    )
+    metadata = _CLS_METADATA
 
     # pylint: disable=too-many-branches
-    @set_text(  # noqa MC0001
-        title="Host Entity Summary",
-        hd_level=1,
-        text="Data and plots are stored in the result class returned by this function",
-    )
+    @set_text(docs=_CELL_DOCS, key="run")  # noqa MC0001
     def run(
         self,
         value: Any = None,
@@ -140,7 +119,7 @@ class HostSummary(Notebooklet):
         ----------------
         start : Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
-        end : Union[datetime, datelike-string]
+  mod_path Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
 
         Returns
@@ -205,6 +184,9 @@ class HostSummary(Notebooklet):
                 host_entity.AzureDetails["SubscriptionDetails"] = azure_api[
                     "sub_details"
                 ]
+
+        self._last_result.host_entity = host_entity
+
         if not self.silent:
             _show_host_entity(host_entity)
         if "alerts" in self.options:
@@ -212,16 +194,13 @@ class HostSummary(Notebooklet):
                 self.query_provider, self.timespan, host_name
             )
             if len(related_alerts) > 0:
-                alert_timeline = _show_alert_timeline(related_alerts)
+                self._last_result.alert_timeline = _show_alert_timeline(related_alerts)
+            self._last_result.related_alerts = related_alerts
+
         if "bookmarks" in self.options:
-            related_bookmarks = _get_related_bookmarks(
+            self._last_result.related_bookmarks = _get_related_bookmarks(
                 self.query_provider, self.timespan, host_name
             )
-
-        self._last_result.host_entity = host_entity
-        self._last_result.related_alerts = related_alerts
-        self._last_result.related_bookmarks = related_bookmarks
-        self._last_result.alert_timeline = alert_timeline
 
         return self._last_result
 
@@ -282,18 +261,7 @@ def _azure_api_details(az_cli, host_record):
 
 # %%
 # Get IP Information from Heartbeat
-@set_text(
-    title="Host Entity details",
-    text="""
-These are the host entity details gathered from Heartbeat
-and, if applicable, AzureNetworkAnalytics and Azure management
-API.
-
-The data shows OS information, IP Addresses assigned the
-host and any Azure VM information available.
-""",
-    md=True,
-)
+@set_text(docs=_CELL_DOCS, key="show_host_entity")
 def _show_host_entity(host_entity):
     nb_print(host_entity)
 
@@ -320,12 +288,7 @@ def _get_related_alerts(qry_prov, timespan, host_name):
     return related_alerts
 
 
-@set_text(
-    title="Timeline of related alerts",
-    text="""
-Each marker on the timeline indicates one or more alerts related to the host.
-""",
-)
+@set_text(docs=_CELL_DOCS, key="show_alert_timeline")
 def _show_alert_timeline(related_alerts):
     if len(related_alerts) > 1:
         alert_plot = nbdisplay.display_timeline(

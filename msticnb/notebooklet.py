@@ -7,7 +7,7 @@
 from abc import ABC, abstractmethod
 import inspect
 import re
-from typing import Optional, Any, Iterable, List, Set, Tuple, Dict
+from typing import Optional, Any, Iterable, List, Tuple, Dict
 import warnings
 
 import attr
@@ -20,8 +20,9 @@ from IPython.display import display, HTML
 import pandas as pd
 from tqdm import tqdm
 
-from .common import TimeSpan, MsticnbDataProviderError
+from .common import TimeSpan, MsticnbDataProviderError, MsticnbError
 from .data_providers import DataProviders
+from .nb_metadata import NBMetaData
 from .options import get_opt, set_opt
 
 from ._version import VERSION
@@ -61,7 +62,7 @@ class NotebookletResult:
         if isinstance(obj, pd.DataFrame):
             return f"DataFrame: {len(obj)} rows"
         if isinstance(obj, Figure):
-            return f"Bokeh plot"
+            return "Bokeh plot"
         return str(obj)
 
     # pylint: disable=unsubscriptable-object, no-member
@@ -134,42 +135,6 @@ class NotebookletResult:
         return [name for name, val in attr.asdict(self.__class__) if val]
 
 
-@attr.s(auto_attribs=True)
-class NBMetaData:
-    """Notebooklet metadata class."""
-
-    name: str
-    mod_name: str = ""
-    description: str = ""
-    default_options: List[str] = Factory(list)
-    other_options: List[str] = Factory(list)
-    entity_types: List[str] = Factory(list)
-    keywords: List[str] = Factory(list)
-    req_providers: List[str] = Factory(list)
-
-    # pylint: disable=not-an-iterable
-    @property
-    def search_terms(self) -> Set[str]:
-        """Return set of search terms for the object."""
-        return set(
-            [self.name]
-            + [obj.casefold() for obj in self.entity_types]  # type: ignore
-            + [key.casefold() for key in self.keywords]  # type: ignore
-            + [opt.casefold() for opt in self.all_options]  # type: ignore
-        )
-
-    # pylint: enable=not-an-iterable
-
-    def __str__(self):
-        """Return string representation of object."""
-        return "\n".join([f"{name}: {val}" for name, val in attr.asdict(self).items()])
-
-    @property
-    def all_options(self):
-        """Return combination of default and other options."""
-        return sorted(list(set(self.default_options + self.other_options)))
-
-
 class Notebooklet(ABC):
     """Base class for Notebooklets."""
 
@@ -197,12 +162,20 @@ class Notebooklet(ABC):
 
         """
         self._kwargs = kwargs
-        self.options: List[str] = self.metadata.default_options
+        self.options: List[str] = self.default_options()
         self._set_tqdm_notebook(get_opt("verbose"))
         self._last_result: Any = None
         self.timespan = TimeSpan(period="1d")
         self._inst_default_silent: Optional[bool] = kwargs.get("silent")
         self._current_run_silent: Optional[bool] = None
+        set_opt("temp_silent", self.silent)
+
+        if self.metadata:
+            # Append the options documentation to the class docstring
+            options_doc = self.metadata.options_doc
+            if options_doc is not None:
+                curr_doc = self.__class__.__doc__ or ""
+                self.__class__.__doc__ = curr_doc + options_doc
 
         # pylint: disable=no-member
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
@@ -278,21 +251,31 @@ class Notebooklet(ABC):
         self._current_run_silent = kwargs.get("silent")
         set_opt("temp_silent", self.silent)
         if not options:
-            self.options = self.metadata.default_options
+            self.options = self.default_options()
         else:
-            def_options = self.metadata.default_options
+            def_options = self.default_options()
             add_options = {opt[1:] for opt in options if opt.startswith("+")}
             sub_options = {opt[1:] for opt in options if opt.startswith("-")}
+            std_options = {opt for opt in options if opt[0] not in ("+", "-")}
+            if std_options and (add_options or sub_options):
+                raise MsticnbError(
+                    "Option list must be either a list of options to use",
+                    "or options to add/remove from the default set.",
+                    "You cannot mix these.",
+                )
+            invalid_opts = (sub_options | add_options) - set(self.all_options())
+            if invalid_opts:
+                print(f"Invalid options {list(invalid_opts)} ignored.")
             if sub_options:
-                def_options = list(set(def_options) - sub_options)
+                self.options = list(set(def_options) - sub_options)
             if add_options:
-                self.options = def_options + list(add_options)
-            else:
+                self.options = list(set(self.options) | add_options)
+            if not add_options and not sub_options:
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
         if timespan:
             self.timespan = TimeSpan(timespan=timespan)
-        else:
+        elif "start" in kwargs and "end" in kwargs:
             self.timespan = TimeSpan(start=kwargs.get("start"), end=kwargs.get("end"))
         return NotebookletResult()
 
@@ -324,13 +307,13 @@ class Notebooklet(ABC):
         return self.data_providers.providers.get(provider_name)
 
     @property
-    def silent(self) -> bool:
+    def silent(self) -> Optional[bool]:
         """
         Get the current instance setting for silent running.
 
         Returns
         -------
-        bool
+        Optional[bool]
             Silent running is enabled.
 
         """
@@ -338,7 +321,7 @@ class Notebooklet(ABC):
             return self._current_run_silent
         if self._inst_default_silent is not None:
             return self._inst_default_silent
-        return get_opt("silent")
+        return None
 
     @silent.setter
     def silent(self, value: bool):
@@ -404,7 +387,8 @@ class Notebooklet(ABC):
             Supported options.
 
         """
-        return cls.metadata.all_options
+        opts = cls.metadata.get_options("all")
+        return [opt[0] for opt in opts]
 
     @classmethod
     def default_options(cls) -> List[str]:
@@ -417,7 +401,21 @@ class Notebooklet(ABC):
             Supported options.
 
         """
-        return cls.metadata.default_options
+        opts = cls.metadata.get_options("default")
+        return [opt[0] for opt in opts]
+
+    @classmethod
+    def list_options(cls) -> str:
+        """
+        Return default options for Notebooklet run function.
+
+        Returns
+        -------
+        List[str]
+            Supported options.
+
+        """
+        return cls.metadata.options_doc
 
     @classmethod
     def keywords(cls) -> List[str]:
