@@ -47,8 +47,8 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        python3 -m pip install --upgrade pylint
-        pylint msticnb --disable=bad-continuation 
+        python3 -m pip install --upgrade pylint pylint_junit
+        pylint msticnb --disable=bad-continuation --output-format=pylint_junit.JUnitReporter
       displayName: Pylint
       continueOnError: true
       condition: succeededOrFailed()
@@ -65,15 +65,33 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
+        python3 -m pip install mypy lxml
+        mypy --junit-xml junit/mypy-test-results.xml msticnb
+      displayName: mypy
+      continueOnError: true
+      condition: succeededOrFailed()
+      env:
+        tools_dir: ${AGENT_TOOLSDIRECTORY}
+    - script: |
         #export MYPYPATH=$tools_dir/Python/3.6.10/x64/Lib/site-packages
         python3 -m pip install prospector[with_everything]
-        prospector --ignore-paths tests --with-tool mypy
+        prospector --ignore-paths tests
       displayName: prospector
       continueOnError: true
       condition: succeededOrFailed()
       env:
         tools_dir: ${AGENT_TOOLSDIRECTORY}
-
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFiles: '**/*-results.xml'
+        testRunTitle: 'Python $(python.version)'
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish code coverage'
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
+        reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
 - stage: GenericTests
   dependsOn:
   - PythonTests
@@ -82,7 +100,8 @@ stages:
     # This is run explicity so does not need to be auto-injected
     skipComponentGovernanceDetection: true
   jobs:
-  - job: PipelineTests
+  - job: PipelineAndSecurityTests
+    # Credscan and OWASP tools must be run on Windows
     pool:
       vmImage: windows-latest
     variables:
@@ -130,31 +149,11 @@ stages:
         TreatStaleSignatureAs: 'Error'
       continueOnError: true
       condition: succeededOrFailed()
-- stage: PublishTests
-  dependsOn:
-  - GenericTests
-  condition: succeeded('GenericTests')
-  variables:
-    # This is run explicity so does not need to be auto-injected
-    skipComponentGovernanceDetection: true
-  jobs:
-  - job: PublishTestResults
-    pool:
-      vmImage: windows-latest
-    variables:
-      python.version: '3.6'
-    steps:
     - task: PublishTestResults@2
       displayName: 'Publish Test Results'
       inputs:
         testResultsFiles: '**/*-results.xml'
         testRunTitle: 'Python $(python.version)'
-    - task: PublishCodeCoverageResults@1
-      displayName: 'Publish code coverage'
-      inputs:
-        codeCoverageTool: Cobertura
-        summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
-        reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
     - task: securedevelopmentteam.vss-secure-development-tools.build-task-report.SdtReport@1
       displayName: 'Create Security Analysis Report'
       inputs:
@@ -183,12 +182,12 @@ stages:
         CredScan: true
 
 - stage: CreatePythonPackage
-  dependsOn:
-  - PublishTests
   variables:
     # This is run explicity so does not need to be auto-injected
     skipComponentGovernanceDetection: true
-  condition: succeeded('PublishTests')
+  dependsOn:
+  - PipelineAndSecurityTests
+  condition: succeeded('PipelineAndSecurityTests')
   jobs:
   - job: CreateDistPackage
     pool:
@@ -200,7 +199,6 @@ stages:
       displayName: 'Install setuptools'
     - script: 'python setup.py sdist bdist_wheel'
       displayName: 'Build sdist and wheel'
-
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Artifact: msticnb'
       inputs:
