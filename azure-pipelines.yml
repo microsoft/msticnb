@@ -28,7 +28,7 @@ stages:
     steps:
     # Add an alias for Windows python=>python3
     - script: alias python='python3' pip='pip3'
-      condition: eq(in(variables['imageName'], 'ubuntu-latest', 'macos-latest'))
+      condition: in(variables['imageName'], 'ubuntu-latest', 'macos-latest')
     - task: UsePythonVersion@0
       displayName: 'Use Python $(python.version)'
       inputs:
