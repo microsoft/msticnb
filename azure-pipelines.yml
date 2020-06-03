@@ -6,6 +6,7 @@ pr:
 - master
 stages:
 - stage: PythonTests
+  displayName: Python tests and linting tools
   variables:
     # This is run explicity so does not need to be auto-injected
     skipComponentGovernanceDetection: true
@@ -92,7 +93,9 @@ stages:
         codeCoverageTool: Cobertura
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
         reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
-- stage: GenericTests
+- stage: PipelineTests
+  # Pipeline
+  displayName: Azure pipeline, security and component governance tools
   dependsOn:
   - PythonTests
   condition: succeeded('PythonTests')
@@ -100,8 +103,8 @@ stages:
     # This is run explicity so does not need to be auto-injected
     skipComponentGovernanceDetection: true
   jobs:
-  - job: PipelineAndSecurityTests
-    # Credscan and OWASP tools must be run on Windows
+  - job: SecurityTests1
+    # Credscan must be run on Windows
     pool:
       vmImage: windows-latest
     variables:
@@ -114,13 +117,6 @@ stages:
         debugMode: false
       continueOnError: true
       condition: succeededOrFailed()
-    - task: dependency-check-build-task@5
-      displayName: 'OWASP Dependency Check'
-      inputs:
-        projectName: msticpy
-        scanPath: '$(Build.SourcesDirectory)'
-        format: 'JUNIT'
-        suppressionPath: '$(Build.SourcesDirectory)'
     - task: AutoApplicability@1
       inputs:
         ExternalRelease: true
@@ -149,11 +145,6 @@ stages:
         TreatStaleSignatureAs: 'Error'
       continueOnError: true
       condition: succeededOrFailed()
-    - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      inputs:
-        testResultsFiles: '**/*-results.xml'
-        testRunTitle: 'Python $(python.version)'
     - task: securedevelopmentteam.vss-secure-development-tools.build-task-report.SdtReport@1
       displayName: 'Create Security Analysis Report'
       inputs:
@@ -180,14 +171,33 @@ stages:
       displayName: 'Post Analysis'
       inputs:
         CredScan: true
-
+  - job: SecurityTests2
+    # OWASP tool must be run on Windows
+    pool:
+      vmImage: windows-latest
+    variables:
+      python.version: '3.6'
+    steps:
+    - task: dependency-check-build-task@5
+      displayName: 'OWASP Dependency Check'
+      inputs:
+        projectName: msticpy
+        scanPath: '$(Build.SourcesDirectory)'
+        format: 'JUNIT'
+        suppressionPath: '$(Build.SourcesDirectory)'
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFiles: '**/*-results.xml'
+        testRunTitle: 'Python $(python.version)'
 - stage: CreatePythonPackage
+  displayName: Create msticpnb distribution package and publish msticnb artifact
   variables:
     # This is run explicity so does not need to be auto-injected
     skipComponentGovernanceDetection: true
   dependsOn:
-  - PipelineAndSecurityTests
-  condition: succeeded('PipelineAndSecurityTests')
+  - PipelineTests
+  condition: succeeded('PipelineTests')
   jobs:
   - job: CreateDistPackage
     pool:
