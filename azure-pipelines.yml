@@ -18,14 +18,17 @@ stages:
           imageName: "ubuntu-latest"
         mac:
           imageName: "macos-latest"
-        #windows:
-        #  imageName: "windows-latest"
+        windows:
+         imageName: "windows-latest"
       maxParallel: 3
     pool:
       vmImage: $(imageName)
     variables:
       python.version: '3.6'
     steps:
+    # Add an alias for Windows python=>python3
+    - script: doskey python3=python $*
+      condition: eq(variables["imageName"], "windows-latest")
     - task: UsePythonVersion@0
       displayName: 'Use Python $(python.version)'
       inputs:
