@@ -32,6 +32,8 @@ class TstSummaryResult(NotebookletResult):
     host_entity: entities.Host = None
     related_alerts: pd.DataFrame = None
     related_bookmarks: pd.DataFrame = None
+    default_property: pd.DataFrame = None
+    optional_property: pd.DataFrame = None
 
 
 # pylint: disable=too-few-public-methods
@@ -56,7 +58,9 @@ class TstNBSummary(Notebooklet):
         )
 
         # pylint: disable=attribute-defined-outside-init
-        self._last_result = TstSummaryResult(description=self.metadata.description)
+        self._last_result = TstSummaryResult()
+        self._last_result.description = self.metadata.description
+        self._last_result.timespan = timespan
 
         host_entity = entities.Host(HostName="testhost")
         _test_inline_text(host_entity)
@@ -64,6 +68,11 @@ class TstNBSummary(Notebooklet):
         self._last_result.host_entity = host_entity
         self._last_result.related_alerts = pd.DataFrame()
         self._last_result.related_bookmarks = pd.DataFrame()
+
+        if "default_opt" in self.options:
+            self._last_result.default_property = pd.DataFrame()
+        if "optional_opt" in self.options:
+            self._last_result.optional_property = pd.DataFrame()
         return self._last_result
 
 

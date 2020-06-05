@@ -119,7 +119,7 @@ class HostSummary(Notebooklet):
         ----------------
         start : Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
-  mod_path Union[datetime, datelike-string]
+        end : Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
 
         Returns
@@ -143,13 +143,16 @@ class HostSummary(Notebooklet):
             raise MsticnbMissingParameterError("timespan.")
 
         # pylint: disable=attribute-defined-outside-init
-        self._last_result = HostSummaryResult(description=self.metadata.description)
+        result = HostSummaryResult()
+        result.description = self.metadata.description
+        result.timespan = timespan
 
         host_name, host_names = verify_host_name(
             self.query_provider, self.timespan, value
         )
         if host_names:
             md(f"Could not obtain unique host name from {value}. Aborting.")
+            self._last_result = result
             return self._last_result
         if not host_name:
             nb_markdown(
@@ -185,7 +188,7 @@ class HostSummary(Notebooklet):
                     "sub_details"
                 ]
 
-        self._last_result.host_entity = host_entity
+        result.host_entity = host_entity
 
         if not self.silent:
             _show_host_entity(host_entity)
@@ -194,14 +197,15 @@ class HostSummary(Notebooklet):
                 self.query_provider, self.timespan, host_name
             )
             if len(related_alerts) > 0:
-                self._last_result.alert_timeline = _show_alert_timeline(related_alerts)
-            self._last_result.related_alerts = related_alerts
+                result.alert_timeline = _show_alert_timeline(related_alerts)
+            result.related_alerts = related_alerts
 
         if "bookmarks" in self.options:
-            self._last_result.related_bookmarks = _get_related_bookmarks(
+            result.related_bookmarks = _get_related_bookmarks(
                 self.query_provider, self.timespan, host_name
             )
 
+        self._last_result = result
         return self._last_result
 
 

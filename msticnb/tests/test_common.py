@@ -5,21 +5,11 @@
 # --------------------------------------------------------------------------
 """common test class."""
 from contextlib import redirect_stdout
-from datetime import datetime, timedelta
 import io
 import unittest
 import warnings
 
-import pytest
-
-from ..common import (
-    TimeSpan,
-    MsticnbMissingParameterError,
-    add_result,
-    nb_data_wait,
-    nb_debug,
-    nb_print,
-)
+from ..common import add_result, nb_data_wait, nb_debug, nb_print
 from .. import options, init
 from ..options import get_opt, set_opt
 from .nb_test import TstNBSummary
@@ -30,81 +20,6 @@ from .nb_test import TstNBSummary
 
 class TestCommon(unittest.TestCase):
     """Unit test class."""
-
-    def test_timespan(self):
-        """Test method."""
-        end = datetime.utcnow()
-        period = timedelta(days=1)
-        start = end - period
-        tspan = TimeSpan(start=start, end=end)
-        self.assertEqual(start, tspan.start)
-        self.assertEqual(end, tspan.end)
-
-        tspan = TimeSpan(end=end, period=period)
-        self.assertEqual(start, tspan.start)
-        self.assertEqual(end, tspan.end)
-
-        tspan = TimeSpan(end=end, period="1D")
-        self.assertEqual(start, tspan.start)
-        self.assertEqual(end, tspan.end)
-
-        tspan = TimeSpan(end=str(end), period="1D")
-        self.assertEqual(start, tspan.start)
-        self.assertEqual(end, tspan.end)
-
-        tspan = TimeSpan(start=str(start), end=str(end))
-        self.assertEqual(start, tspan.start)
-        self.assertEqual(end, tspan.end)
-
-        tspan = TimeSpan(start=str(start), period="1D")
-        self.assertEqual(start, tspan.start)
-        self.assertEqual(end, tspan.end)
-
-        # end is set to utcnow()
-        tspan = TimeSpan(start=start)
-        self.assertEqual(start, tspan.start)
-
-        # end is set to utcnow()
-        tspan = TimeSpan(period=period)
-        self.assertEqual(period, tspan.period)
-
-        # Timespan object as a parameter
-        tspan2 = TimeSpan(timespan=tspan)
-        self.assertEqual(tspan2, tspan)
-
-        tspan2 = TimeSpan(timespan=(tspan.start, tspan.end))
-        self.assertEqual(tspan2, tspan)
-        tspan2 = TimeSpan(timespan=(str(tspan.start), str(tspan.end)))
-        self.assertEqual(tspan2, tspan)
-
-        end_str = str(end)
-
-        # pylint: disable=too-few-public-methods
-        class _TestTime:
-
-            start = None
-            end = None
-            period = None
-
-        test_t = _TestTime()
-        test_t.start = start
-        test_t.end = end_str
-        test_t.period = "1D"
-
-        tspan = TimeSpan(time_selector=test_t)
-        self.assertEqual(start, tspan.start)
-        self.assertEqual(end, tspan.end)
-
-        with self.assertRaises(MsticnbMissingParameterError):
-            TimeSpan()
-        with self.assertRaises(ValueError):
-            TimeSpan(start="foo", period=period)
-        with self.assertRaises(MsticnbMissingParameterError):
-            TimeSpan(start=None, end=None)
-        with self.assertRaises(ValueError):
-            TimeSpan(period="some length")
-        with self.assertRaises(ValueError):
-            TimeSpan(period=1)
 
     def test_print_methods(self):
         """Test method."""
@@ -175,56 +90,44 @@ class TestCommon(unittest.TestCase):
         # This will work since bool(10) == True
         set_opt("verbose", 10)
 
-    # TODO - this works in VSCode but not in cmdline pytest.
-    @pytest.mark.skip
+    @staticmethod
+    def _capture_nb_run_output(test_nb, **kwargs):
+        f_stream = io.StringIO()
+        with redirect_stdout(f_stream):
+            test_nb.run(**kwargs)
+        return str(f_stream.getvalue())
+
     def test_silent_option(self):
         """Test operation of 'silent' option."""
         warnings.filterwarnings(action="ignore", category=UserWarning)
         init(query_provider="LocalData", providers=[])
         test_nb = TstNBSummary()
 
-        f_stream = io.StringIO()
-        with redirect_stdout(f_stream):
-            test_nb.run()
-        output = str(f_stream.getvalue())
-        self.assertIn("TestInline", output)
-        self.assertIn("TestYaml", output)
+        output = self._capture_nb_run_output(test_nb)
+        self.assertTrue(output)
 
         # Silent option to run
-        f_stream = io.StringIO()
-        with redirect_stdout(f_stream):
-            test_nb.run(silent=True)
-        output = str(f_stream.getvalue())
+        output = self._capture_nb_run_output(test_nb, silent=True)
         self.assertFalse(output)
+        self.assertTrue(get_opt("silent"))
 
         # Silent option to init
         test_nb = TstNBSummary(silent=True)
-        f_stream = io.StringIO()
-        with redirect_stdout(f_stream):
-            test_nb.run()
-        output = str(f_stream.getvalue())
+        self.assertTrue(test_nb.silent)
+        output = self._capture_nb_run_output(test_nb)
         self.assertFalse(output)
-        # But overridable on run
-        f_stream = io.StringIO()
-        with redirect_stdout(f_stream):
-            test_nb.run(silent=False)
-        output = str(f_stream.getvalue())
-        self.assertIn("TestInline", output)
-        self.assertIn("TestYaml", output)
 
-        # Silent option to run
-        f_stream = io.StringIO()
-        set_opt("silent", True)
-        test_nb = TstNBSummary(silent=True)
-        f_stream = io.StringIO()
-        with redirect_stdout(f_stream):
-            test_nb.run()
-        output = str(f_stream.getvalue())
-        self.assertFalse(output)
         # But overridable on run
-        f_stream = io.StringIO()
-        with redirect_stdout(f_stream):
-            test_nb.run(silent=False)
-        output = str(f_stream.getvalue())
-        self.assertIn("TestInline", output)
-        self.assertIn("TestYaml", output)
+        output = self._capture_nb_run_output(test_nb, silent=False)
+        self.assertTrue(output)
+        self.assertFalse(get_opt("silent"))
+
+        # Silent global option
+        set_opt("silent", True)
+        test_nb = TstNBSummary()
+        output = self._capture_nb_run_output(test_nb)
+        self.assertFalse(output)
+
+        # But overridable on run
+        output = self._capture_nb_run_output(test_nb, silent=False)
+        self.assertTrue(output)

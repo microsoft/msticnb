@@ -176,6 +176,8 @@ class TemplateNB(Notebooklet):
 
         # Create a result class
         result = TemplateResult()
+        result.description = self.metadata.description
+        result.timespan = timespan
 
         # You might want to always do some tasks irrespective of
         # options sent
@@ -185,13 +187,10 @@ class TemplateNB(Notebooklet):
         result.all_events = all_events_df
 
         if "plot_events" in self.options:
-            _display_event_timeline(acct_event_data=all_events_df)
+            result.plot = _display_event_timeline(acct_event_data=all_events_df)
 
         if "get_metadata" in self.options:
-            my_provider = self.data_providers.providers.get("special_provider")
-            result.additional_info = _get_metadata(
-                qry_prov=my_provider, host_name=value, timespan=timespan
-            )
+            result.additional_info = _get_metadata(host_name=value, timespan=timespan)
 
         # Assign the result to the _last_result attribute
         # so that you can get to it without having to re-run the operation
@@ -284,12 +283,11 @@ def _display_event_timeline(acct_event_data):
 
 
 # This function has no text output associated with it
-def _get_metadata(qry_prov, host_name, timespan):
-
+def _get_metadata(host_name, timespan):
     return {
         "host": host_name,
         "data_items": {"age": 97, "color": "blue", "country_of_origin": "Norway"},
-        "provider": qry_prov,
+        "provider": "whois",
         "time_duration": timespan,
     }
 

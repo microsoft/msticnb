@@ -9,9 +9,10 @@ Notebooklets global options.
 Available options are:
 [name, type (default value), description]
 
-`verbose`: bool (True) - Show progress messages.
-`debug`: bool (False) - Turn on debug output.
-`show_sample_results`: bool (True) - Display sample of results as they are produced.
+- `verbose`: bool (True) - Show progress messages.
+- `debug`: bool (False) - Turn on debug output.
+- `show_sample_results`: bool (True) - Display sample of results as they are produced.
+- `silent`: bool (False) - Execute notebooklets with no output.
 
 """
 from typing import Any, Dict

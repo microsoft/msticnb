@@ -37,6 +37,7 @@ class NotebookletResult:
     """Base result class."""
 
     description: str = "Notebooklet base class"
+    timespan: Optional[TimeSpan] = None
     _attribute_desc: Dict[str, Tuple[str, str]] = Factory(dict)  # type: ignore
 
     def __attrs_post_init__(self):
@@ -132,7 +133,7 @@ class NotebookletResult:
     @property
     def properties(self):
         """Return names of all properties."""
-        return [name for name, val in attr.asdict(self.__class__) if val]
+        return [name for name, val in attr.asdict(self).items() if val is not None]
 
 
 class Notebooklet(ABC):
@@ -263,7 +264,9 @@ class Notebooklet(ABC):
                     "or options to add/remove from the default set.",
                     "You cannot mix these.",
                 )
-            invalid_opts = (sub_options | add_options) - set(self.all_options())
+            invalid_opts = (sub_options | add_options | std_options) - set(
+                self.all_options()
+            )
             if invalid_opts:
                 print(f"Invalid options {list(invalid_opts)} ignored.")
             if sub_options:

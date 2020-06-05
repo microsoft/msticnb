@@ -194,6 +194,9 @@ class NetworkFlowSummary(Notebooklet):
             raise MsticnbMissingParameterError("timespan.")
 
         result = NetworkFlowResult()
+        result.description = self.metadata.description
+        result.timespan = timespan
+
         if isinstance(value, entities.Host):
             host_name = value.HostName
             result.host_entity = value

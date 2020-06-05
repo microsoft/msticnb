@@ -20,7 +20,7 @@ class TestDataProviders(unittest.TestCase):
     """Unit test class."""
 
     def test_init_data_providers(self):
-        """Test method."""
+        """Test creating DataProviders instance."""
         dprov = DataProviders(query_provider="LocalData")
 
         self.assertIsNotNone(dprov)
@@ -33,7 +33,16 @@ class TestDataProviders(unittest.TestCase):
         self.assertIsInstance(dprov.providers["geolitelookup"], GeoLiteLookup)
         self.assertIsInstance(dprov.providers["tilookup"], TILookup)
 
+    def test_new_init_data_providers(self):
+        """Test creating new provider with new provider list."""
+        init(query_provider="LocalData", providers=[])
+        dprov = DataProviders.current()
+        init(query_provider="LocalData", providers=[])
+        dprov2 = DataProviders.current()
+        self.assertIs(dprov2, dprov)
+
         # specify provider
+        dprov = DataProviders(query_provider="LocalData")
         init(query_provider="LocalData", providers=["tilookup"])
         msticnb = sys.modules["msticnb"]
         dprov2 = DataProviders.current()
@@ -49,6 +58,13 @@ class TestDataProviders(unittest.TestCase):
         self.assertNotIn("ipstacklookup", pkg_providers)
 
         self.assertIsInstance(dprov2.providers["tilookup"], TILookup)
+
+    def test_add_sub_data_providers(self):
+        """Test intializing adding and subtracting providers."""
+        dprov = DataProviders(query_provider="LocalData")
+        init(query_provider="LocalData", providers=["tilookup"])
+        msticnb = sys.modules["msticnb"]
+        dprov2 = DataProviders.current()
 
         # Add and remove a provider from defaults
         init(query_provider="LocalData", providers=["+ipstacklookup", "-geolitelookup"])
