@@ -55,7 +55,7 @@ from ..common import (
 
 # change the ".." to "...."
 from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from ..nb_metadata import read_mod_metadata
+from .. import nb_metadata
 
 # change the ".." to "...."
 from .._version import VERSION
@@ -67,7 +67,7 @@ __author__ = "Your name"
 # Read module metadata from YAML
 _CLS_METADATA: NBMetaData
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -120,6 +120,8 @@ class TemplateNB(Notebooklet):
 
     # assign metadata from YAML to class variable
     metadata = _CLS_METADATA
+    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    _cell_docs = _CELL_DOCS
 
     # @set_text decorator will display the title and text every time
     # this method is run.

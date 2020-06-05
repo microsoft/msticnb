@@ -97,17 +97,21 @@ class NBMetaData:
     def options_doc(self) -> str:
         """Return list of options and documentation."""
         opt_list = []
-        opt_list.append("Default Options")
-        opt_list.append("---------------")
+        opt_list.append("")
+        opt_list.append("    Default Options")
+        opt_list.append("    ---------------")
         opt_list.extend(
             [f"    {key}: {value}" for key, value in self.get_options("default")]
         )
         opt_list.append("")
-        opt_list.append("Other Options")
-        opt_list.append("-------------")
-        opt_list.extend(
-            [f"    {key}: {value}" for key, value in self.get_options("other")]
-        )
+        opt_list.append("    Other Options")
+        opt_list.append("    -------------")
+        if self.get_options("other"):
+            opt_list.extend(
+                [f"    {key}: {value}" for key, value in self.get_options("other")]
+            )
+        else:
+            opt_list.append("    None")
         opt_list.append("")
         return "\n".join(opt_list)
 
@@ -151,3 +155,11 @@ def _read_metadata_file(mod_path):
         with open(md_path, "r") as _md_file:
             return yaml.safe_load(_md_file)
     return None
+
+
+def update_class_doc(cls_doc: str, cls_metadata: NBMetaData):
+    """Append the options documentation to the `cls_doc`."""
+    options_doc = cls_metadata.options_doc
+    if options_doc is not None:
+        return cls_doc + options_doc
+    return cls_doc

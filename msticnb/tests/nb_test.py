@@ -12,7 +12,7 @@ from msticpy.nbtools import entities
 
 from ..common import TimeSpan, nb_print, set_text
 from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from ..nb_metadata import read_mod_metadata
+from .. import nb_metadata
 from .._version import VERSION
 
 __version__ = VERSION
@@ -21,7 +21,7 @@ __author__ = "Ian Hellen"
 
 _CLS_METADATA: NBMetaData
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -41,6 +41,8 @@ class TstNBSummary(Notebooklet):
     """Test Notebooklet class."""
 
     metadata = _CLS_METADATA
+    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    _cell_docs = _CELL_DOCS
 
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa MC0001

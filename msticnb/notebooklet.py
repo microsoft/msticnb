@@ -171,13 +171,6 @@ class Notebooklet(ABC):
         self._current_run_silent: Optional[bool] = None
         set_opt("temp_silent", self.silent)
 
-        if self.metadata:
-            # Append the options documentation to the class docstring
-            options_doc = self.metadata.options_doc
-            if options_doc is not None:
-                curr_doc = self.__class__.__doc__ or ""
-                self.__class__.__doc__ = curr_doc + options_doc
-
         # pylint: disable=no-member
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
         # pylint: enable=no-member
