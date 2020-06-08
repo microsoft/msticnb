@@ -42,9 +42,9 @@ from msticpy.nbtools import nbdisplay
 
 # Note - when moved to the final location (e.g.
 # nb/environ/category/mynotebooklet.py)
-# you will need to change the ".." to "...." in these
+# you will need to change the "..." to "...." in these
 # imports because the relative path has changed.
-from ..common import (
+from ...common import (
     TimeSpan,
     MsticnbMissingParameterError,
     nb_data_wait,
@@ -53,19 +53,19 @@ from ..common import (
     nb_markdown,
 )
 
-# change the ".." to "...."
-from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from .. import nb_metadata
+# change the "..." to "...."
+from ...notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from ... import nb_metadata
 
 # change the ".." to "...."
-from .._version import VERSION
+from ..._version import VERSION
 
 __version__ = VERSION
 __author__ = "Your name"
 
 
 # Read module metadata from YAML
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 

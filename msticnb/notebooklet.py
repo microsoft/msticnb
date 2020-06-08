@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from .common import TimeSpan, MsticnbDataProviderError, MsticnbError
 from .data_providers import DataProviders
-from .nb_metadata import NBMetaData
+from .nb_metadata import NBMetadata, read_mod_metadata
 from .options import get_opt, set_opt
 
 from ._version import VERSION
@@ -139,7 +139,7 @@ class NotebookletResult:
 class Notebooklet(ABC):
     """Base class for Notebooklets."""
 
-    metadata: NBMetaData = NBMetaData(
+    metadata: NBMetadata = NBMetadata(
         name="Notebooklet", description="Base class", default_options=[]
     )
     module_path = ""
@@ -519,9 +519,20 @@ class Notebooklet(ABC):
                 mod_text = mod_file.read()
             if mod_text:
                 # replace relative references with absolute paths
-                mod_text = re.sub(r"\.{3,}", "msticnb.", mod_text)
+                mod_text = cls._update_mod_for_import(cls.module_path, mod_text)
                 shell = get_ipython()
                 shell.set_next_input(mod_text)
+
+    @classmethod
+    def _update_mod_for_import(cls, module_path, mod_text):
+        mod_text = re.sub(r"\.{3,}", "msticnb.", mod_text)
+        metadata, docs = read_mod_metadata(module_path, cls.__module__)
+        metadata_repr = repr(metadata)
+        metadata_repr = metadata_repr.replace("NBMetadata", "nb_metadata.NBMetadata")
+        repl_text = "_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)"
+        inline_text = f"_CELL_DOCS = {str(docs)}\n"
+        inline_text = f"{inline_text}\n_CLS_METADATA = {metadata_repr}"
+        return mod_text.replace(repl_text, inline_text)
 
     @classmethod
     def show_help(cls):

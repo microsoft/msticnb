@@ -27,7 +27,7 @@ from ....common import (
     nb_warn,
 )
 from ....data_providers import DataProviders
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology
 from .... import nb_metadata
 
@@ -37,7 +37,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 

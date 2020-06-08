@@ -11,7 +11,7 @@ import pandas as pd
 from msticpy.nbtools import entities
 
 from ..common import TimeSpan, nb_print, set_text
-from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ..notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from .. import nb_metadata
 from .._version import VERSION
 
@@ -19,7 +19,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 

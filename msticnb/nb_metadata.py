@@ -19,7 +19,7 @@ __author__ = "Ian Hellen"
 
 
 @attr.s(auto_attribs=True)
-class NBMetaData:
+class NBMetadata:
     """Notebooklet metadata class."""
 
     name: str = "Unnamed"
@@ -118,7 +118,7 @@ class NBMetaData:
     # pylint: enable=not-an-iterable
 
 
-def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetaData, Dict[str, Any]]:
+def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetadata, Dict[str, Any]]:
     """
     Read notebooklet metadata from yaml file.
 
@@ -131,18 +131,18 @@ def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetaData, Dict[str,
 
     Returns
     -------
-    Tuple[NBMetaData, Dict[str, Any]]
+    Tuple[NBMetadata, Dict[str, Any]]
         A tuple of the metadata class
         and the documentation dictionary
 
     """
     md_dict = _read_metadata_file(mod_path)
     if not md_dict:
-        return NBMetaData(), {}
+        return NBMetadata(), {}
     metadata_vals = md_dict.get("metadata", {})
 
     metadata_vals["mod_name"] = module_name
-    metadata = NBMetaData(**metadata_vals)
+    metadata = NBMetadata(**metadata_vals)
     output = md_dict.get("output", {})
     return metadata, output
 
@@ -157,7 +157,7 @@ def _read_metadata_file(mod_path):
     return None
 
 
-def update_class_doc(cls_doc: str, cls_metadata: NBMetaData):
+def update_class_doc(cls_doc: str, cls_metadata: NBMetadata):
     """Append the options documentation to the `cls_doc`."""
     options_doc = cls_metadata.options_doc
     if options_doc is not None:
