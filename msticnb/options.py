@@ -27,7 +27,7 @@ _OPTION_DEFN = {
     "debug": (False, "Turn on debug output."),
     "show_sample_results": (False, "Display sample of results as they are produced."),
     "silent": (False, "Execute notebooklets with no output"),
-    "silent_temp": (False, "Execute notebooklets with no output"),
+    "temp_silent": (False, "Execute notebooklets with no output"),
 }
 
 
@@ -70,7 +70,9 @@ def get_opt(option: str) -> Any:
     """
     if option in _OPT_DICT:
         if option == "silent":
-            return _OPT_DICT["silent"] or _OPT_DICT["silent_temp"]
+            if _OPT_DICT.get("temp_silent") is not None:
+                return _OPT_DICT.get("temp_silent")
+            return _OPT_DICT.get("silent")
         return _OPT_DICT[option]
     raise KeyError(f"Unknown option {option}.")
 
@@ -95,10 +97,12 @@ def set_opt(option: str, value: Any):
         Option value was not the correct type.
 
     """
-    cur_opt = _OPT_DICT.get(option)
-    if cur_opt is None:
+    if option not in _OPT_DICT:
         raise KeyError(f"Unrecognized option {option}.")
-    if not isinstance(value, type(cur_opt)):
+
+    cur_opt = _OPT_DICT.get(option)
+    # allow temp_silent to be None
+    if option != "temp_silent" and not isinstance(value, type(cur_opt)):
         try:
             value = type(cur_opt)(value)
         except ValueError:

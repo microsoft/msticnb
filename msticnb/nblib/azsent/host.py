@@ -60,6 +60,7 @@ def get_heartbeat(
 
 # %%
 # Get IP Information from Azure Network Topology
+# pylint: disable=too-many-branches
 @lru_cache()
 def get_aznet_topology(
     qry_prov: QueryProvider,

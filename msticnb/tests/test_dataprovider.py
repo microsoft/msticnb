@@ -7,7 +7,7 @@
 import sys
 import unittest
 from msticpy.data import QueryProvider
-from msticpy.sectools.geoip import GeoLiteLookup, IPStackLookup
+from msticpy.sectools.geoip import GeoLiteLookup
 from msticpy.sectools import TILookup
 
 from ..data_providers import DataProviders, init
@@ -34,21 +34,21 @@ class TestDataProviders(unittest.TestCase):
         self.assertIsInstance(dprov.providers["tilookup"], TILookup)
 
         # specify provider
-        init(query_provider="LocalData", providers=["ipstacklookup"])
+        init(query_provider="LocalData", providers=["tilookup"])
         msticnb = sys.modules["msticnb"]
         dprov2 = DataProviders.current()
         pkg_providers = getattr(msticnb, "data_providers")
         self.assertIsNot(dprov2, dprov)
         self.assertIn("LocalData", dprov2.providers)
-        self.assertIn("ipstacklookup", dprov2.providers)
+        self.assertIn("tilookup", dprov2.providers)
         self.assertNotIn("geolitelookup", dprov2.providers)
-        self.assertNotIn("tilookup", dprov2.providers)
+        self.assertNotIn("ipstacklookup", dprov2.providers)
         self.assertIn("LocalData", pkg_providers)
-        self.assertIn("ipstacklookup", pkg_providers)
+        self.assertIn("tilookup", pkg_providers)
         self.assertNotIn("geolitelookup", pkg_providers)
-        self.assertNotIn("tilookup", pkg_providers)
+        self.assertNotIn("ipstacklookup", pkg_providers)
 
-        self.assertIsInstance(dprov2.providers["ipstacklookup"], IPStackLookup)
+        self.assertIsInstance(dprov2.providers["tilookup"], TILookup)
 
         # Add and remove a provider from defaults
         init(query_provider="LocalData", providers=["+ipstacklookup", "-geolitelookup"])

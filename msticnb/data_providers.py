@@ -15,7 +15,7 @@ from msticpy.data.azure_data import AzureData, MsticpyAzureException
 from msticpy.common.wsconfig import WorkspaceConfig
 from msticpy.sectools import TILookup, GeoLiteLookup, IPStackLookup
 
-from .common import MsticnbDataProviderError
+from .common import MsticnbDataProviderError, MsticnbError
 from .options import get_opt
 
 from ._version import VERSION
@@ -160,12 +160,20 @@ class DataProviders:
 
         add_provs = {opt[1:] for opt in providers if opt.startswith("+")}
         sub_provs = {opt[1:] for opt in providers if opt.startswith("-")}
+        std_provs = {opt for opt in providers if opt[0] not in ("+", "-")}
+        if std_provs and (add_provs or sub_provs):
+            raise MsticnbError(
+                "Provider list must be either a list of providers to use",
+                "or providers to add/remove from the default set.",
+                "You cannot mix these.",
+            )
         if sub_provs:
             requested_provs = requested_provs - sub_provs
         if add_provs:
             requested_provs = requested_provs | add_provs
-        else:
+        if not add_provs and not sub_provs:
             requested_provs = set(providers)
+
         return requested_provs
 
     def add_provider(self, provider: str, **kwargs):

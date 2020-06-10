@@ -33,7 +33,7 @@ functions will make it easier from them understand and work with
 the code.
 
 """
-from typing import Any, Optional, Iterable, Union
+from typing import Any, Optional, Iterable, Union, Dict
 
 import attr
 from bokeh.plotting.figure import Figure
@@ -55,12 +55,19 @@ from ..common import (
 
 # change the ".." to "...."
 from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ..nb_metadata import read_mod_metadata
 
 # change the ".." to "...."
 from .._version import VERSION
 
 __version__ = VERSION
 __author__ = "Your name"
+
+
+# Read module metadata from YAML
+_CLS_METADATA: NBMetaData
+_CELL_DOCS: Dict[str, Any]
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -109,38 +116,16 @@ class TemplateNB(Notebooklet):
     Document the options that the Notebooklet takes, if any,
     Use these control which parts of the notebooklet get run.
 
-    Default Options
-    ---------------
-    - all_events: Gets all events about blah
-    - plot_events: Display and summary and timeline of account
-      management events.
-
-    Other Options
-    -------------
-    - get_metadata: fetches additional metadata about
-      the thing.
-
     """
 
-    metadata = NBMetaData(
-        # Note __qualname__ is the name of the current class
-        name=__qualname__,  # type: ignore  # noqa
-        mod_name=__name__,
-        description="My Notebooklet summary",
-        default_options=["all_events", "plot_events"],
-        other_options=["get_metadata"],
-        keywords=["host", "computer", "events", "windows", "account"],
-        entity_types=["host"],
-        req_providers=["azure_sentinel"],
-    )
+    # assign metadata from YAML to class variable
+    metadata = _CLS_METADATA
 
     # @set_text decorator will display the title and text every time
     # this method is run.
-    @set_text(
-        title="Template Events Summary",
-        hd_level=1,
-        text="Data and plots are store in the result class returned by this function",
-    )
+    # The key value refers to an entry in the `output` section of
+    # the notebooklet yaml file.
+    @set_text(docs=_CELL_DOCS, key="run")
     def run(
         self,
         value: Any = None,
@@ -281,23 +266,15 @@ def _get_all_events(qry_prov, host_name, timespan):
 
 
 # You can add title and/or text to individual functions as they run.
-# The text can be markdown (with the md=True parameter).
-@set_text(
-    title="Plot eventdata timeline",
-    hd_level=3,
-    text="""
-This may take some time to complete for large numbers of events.
-
-It will do:
-- Item one
-- Item two
-
-Since some groups will be undefined these can show up as `NaN`.
-""",
-    md=True,
-)
+# You can reference text from sections in your YAML file or specify
+# it inline (see later example)
+@set_text(docs=_CELL_DOCS, key="display_event_timeline")
 def _display_event_timeline(acct_event_data):
     # Plot events on a timeline
+
+    # Note the nbdisplay function is a wrapper around IPython.display()
+    # However, it honors the "silent" option (global or per-notebooklet)
+    # which allows you to suppress output while running.
     return nbdisplay.display_timeline(
         data=acct_event_data,
         group_by="EventID",
@@ -306,6 +283,7 @@ def _display_event_timeline(acct_event_data):
     )
 
 
+# This function has no text output associated with it
 def _get_metadata(qry_prov, host_name, timespan):
 
     return {
@@ -318,6 +296,22 @@ def _get_metadata(qry_prov, host_name, timespan):
 
 # %%
 # Extract event details from events
+# Note using inline text output here - usually better to store this
+# all in the yaml file for maintainability.
+@set_text(
+    title="Do something else",
+    hd_level=3,
+    text="""
+This may take some time to complete for large numbers of events.
+
+It will do:
+- Item one
+- Item two
+""",
+    md=True,
+)
 def _do_additional_thing(evt_df, event_ids):
+    # nb_print is the same as print() except it honors the
+    # 'silent' option.
     nb_print("Doing something time-consuming...")
     return evt_df[evt_df["EventID"].isin(event_ids)]

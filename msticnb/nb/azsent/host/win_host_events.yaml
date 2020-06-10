@@ -1,0 +1,62 @@
+metadata:
+  name: WinHostEvents
+  description: Windows Host Security Events
+  default_options:
+    - event_pivot: Display a summary of all event types.
+    - acct_events: 'Display a summary and timeline of account
+      management events.'
+  other_options:
+    - expand_events: 'parses the XML EventData column into separate
+      DataFrame columns. This can be very expensive with a large
+      event set. We recommend using the expand_events() method to
+      select a specific subset of events to process.'
+  keywords:
+    - host
+    - computer
+    - heartbeat
+    - windows
+    - account
+  entity_types:
+    - host
+  req_providers:
+    - AzureSentinel|LocalData
+output:
+  run:
+    title: Host Security Events Summary
+    h_level: 1
+    text:
+      This shows a summary of security events for the host.
+      These are grouped by EventID and Account.
+
+      Data and plots are stored in the result class returned by this function.
+  display_event_pivot:
+    title: Summary of Security Events on host
+    text:
+      This is a summary of Security events for the host (excluding
+      process creation and account logon - 4688, 4624, 4625).
+
+      Yellow highlights indicate account with highest event count for
+      an EventID.
+    md: True
+  parse_eventdata:
+    title: Parsing eventdata into columns
+    h_level: 3
+    text:
+      This may take some time to complete for large numbers of events.
+
+      Since event types have different schema, some of the columns will
+      not be populated for certain Event IDs and will show as `NaN`.
+    md: True
+  display_acct_event_pivot:
+    title: Summary of Account Management Events on host
+    text:
+      This shows the subset of events related to account management,
+      for example, creation/deletion of accounts, changes to group
+      membership, etc.
+
+      Yellow highlights indicate account with highest event count.
+    md: True
+  display_acct_mgmt_timeline:
+    title: Timeline of Account Management Events on host
+
+

@@ -1,121 +1,225 @@
 #Multi-configuration and multi-agent job options are not exported to YAML. Configure these options using documentation guidance: https://docs.microsoft.com/vsts/pipelines/process/phases
 
-pool:
-  name: Hosted VS2017
-variables:
-  python.version: '3.6'
-
-steps:
-- task: UsePythonVersion@0
-  displayName: 'Use Python $(python.version)'
-  inputs:
-    versionSpec: '$(python.version)'
-
-- script: 'python -m pip install --upgrade pip && pip install -r requirements.txt'
-  displayName: 'Install dependencies'
-
-- script: |
-   echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
-   pip install --upgrade pytest
-   pip install --upgrade pytest-cov
-   pip install -e .
-   set MSTICPY_TEST_NOSKIP=1
-   pytest msticnb/tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
-   REM --cov-report=html
-  displayName: pytest
-
-- script: |
-   pip install --upgrade black
-   black -t py36 --check --exclude venv . 
-  displayName: Black
-  continueOnError: true
-  condition: succeededOrFailed()
-
-- script: |
-   pip install --upgrade pylint
-   pylint msticnb --disable=bad-continuation
-  displayName: pylint
-  continueOnError: true
-  condition: succeededOrFailed()
-
-- script: 'pip install --upgrade bandit && bandit -x tests -r -s B303,B404,B603,B607 msticnb'
-  displayName: bandit
-  continueOnError: true
-  condition: succeededOrFailed()
-
-- script: |
-   pip install --upgrade flake8 
-   flake8 --max-line-length=90 --exclude=tests* . --ignore=E501,W503
-  displayName: flake8
-  continueOnError: true
-  condition: succeededOrFailed()
-
-- script: |
-   setx MYPYPATH "C:/hostedtoolcache/windows/Python/3.6.8/x64/Lib/site-packages"
-   pip install prospector[with_everything]
-   prospector --ignore-paths tests --with-tool mypy
-  displayName: prospector
-  continueOnError: true
-  condition: succeededOrFailed()
-
-- task: securedevelopmentteam.vss-secure-development-tools.build-task-credscan.CredScan@2
-  displayName: 'Run CredScan'
-  inputs:
-    toolMajorVersion: V2
-    debugMode: false
-
-- task: securedevelopmentteam.vss-secure-development-tools.build-task-autoapplicability.AutoApplicability@1
-  displayName: 'Run AutoApplicability'
-
-- task: securedevelopmentteam.vss-secure-development-tools.build-task-policheck.PoliCheck@1
-  displayName: 'Run PoliCheck'
-  inputs:
-    targetType: F
-
-- task: securedevelopmentteam.vss-secure-development-tools.build-task-vulnerabilityassessment.VulnerabilityAssessment@0
-  displayName: 'Run Vulnerability Assessment'
-
-- task: PublishTestResults@2
-  displayName: 'Publish Test Results'
-  inputs:
-    testResultsFiles: '**/*-results.xml'
-    testRunTitle: 'Python $(python.version)'
-
-- task: PublishCodeCoverageResults@1
-  displayName: 'Publish code coverage'
-  inputs:
-    codeCoverageTool: Cobertura
-    summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
-    reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
-
-- task: ms.vss-governance-buildtask.governance-build-task-component-detection.ComponentGovernanceComponentDetection@0
-  displayName: 'Component Detection'
-
-- task: securedevelopmentteam.vss-secure-development-tools.build-task-report.SdtReport@1
-  displayName: 'Create Security Analysis Report'
-  inputs:
-    CredScan: true
-    PoliCheck: true
-
-- task: securedevelopmentteam.vss-secure-development-tools.build-task-publishsecurityanalysislogs.PublishSecurityAnalysisLogs@2
-  displayName: 'Publish Security Analysis Logs'
-  inputs:
-    AllTools: false
-    AntiMalware: false
-    APIScan: false
-    BinSkim: false
-    CodesignValidation: false
-    FortifySCA: false
-    FxCop: false
-    ModernCop: false
-    MSRD: false
-    RoslynAnalyzers: false
-    SDLNativeRules: false
-    Semmle: false
-    TSLint: false
-    WebScout: false
-
-- task: securedevelopmentteam.vss-secure-development-tools.build-task-postanalysis.PostAnalysis@1
-  displayName: 'Post Analysis'
-  inputs:
-    CredScan: true
+trigger:
+- master
+pr:
+- master
+stages:
+- stage: PythonTests
+  displayName: Python tests and linting tools
+  variables:
+    # This is run explicity so does not need to be auto-injected
+    skipComponentGovernanceDetection: true
+  jobs:
+  - job: InstallAndTestPackage
+    strategy:
+      matrix:
+        linux:
+          imageName: "ubuntu-latest"
+        mac:
+          imageName: "macos-latest"
+        windows:
+         imageName: "windows-latest"
+      maxParallel: 3
+    pool:
+      vmImage: $(imageName)
+    variables:
+      python.version: '3.6'
+    steps:
+    # Add an alias for Windows python=>python3
+    - script: alias python='python3' pip='pip3'
+      condition: in(variables['imageName'], 'ubuntu-latest', 'macos-latest')
+    - task: UsePythonVersion@0
+      displayName: 'Use Python $(python.version)'
+      inputs:
+        versionSpec: '$(python.version)'
+    - script: |
+        pip install --upgrade pip wheel
+        pip install -e .
+      displayName: 'Install package and dependencies'
+    - script: |
+        echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
+        pip install --upgrade pytest
+        pip install --upgrade pytest-cov
+        export MSTICPY_TEST_NOSKIP=1
+        pytest msticnb/tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
+      continueOnError: true
+      condition: succeededOrFailed()
+      displayName: pytest
+      env:
+        MSTICPYCONFIG: $(Build.SourcesDirectory)/msticnb/tests/testdata/msticpyconfig-test.yaml
+        MAXMIND_AUTH: $(maxmind_auth)
+        IPSTACK_AUTH: $(ipstack_auth)
+    - script: |
+        pip install --upgrade black
+        black -t py36 --check --exclude venv . 
+      displayName: Black
+      continueOnError: true
+      condition: succeededOrFailed()
+    - script: |
+        pip install --upgrade pylint pylint_junit
+        pylint msticnb --disable=bad-continuation --output-format=pylint_junit.JUnitReporter
+      displayName: Pylint
+      continueOnError: true
+      condition: succeededOrFailed()
+    - script: |
+        pip install --upgrade bandit
+        bandit -x tests -r -s B303,B404,B603,B607 msticnb'
+      displayName: bandit
+      continueOnError: true
+      condition: succeededOrFailed()
+    - script: |
+        pip install --upgrade flake8 
+        flake8 --max-line-length=90 --exclude=tests* . --ignore=E501,W503
+      displayName: flake8
+      continueOnError: true
+      condition: succeededOrFailed()
+    - script: |
+        pip install mypy lxml
+        mypy --junit-xml junit/mypy-test-results.xml msticnb
+      displayName: mypy
+      continueOnError: true
+      condition: succeededOrFailed()
+      env:
+        tools_dir: ${AGENT_TOOLSDIRECTORY}
+    - script: |
+        #export MYPYPATH=$tools_dir/Python/3.6.10/x64/Lib/site-packages
+        pip install prospector[with_everything]
+        prospector --ignore-paths tests
+      displayName: prospector
+      continueOnError: true
+      condition: succeededOrFailed()
+      env:
+        tools_dir: ${AGENT_TOOLSDIRECTORY}
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFiles: '**/*-results.xml'
+        testRunTitle: 'Python $(python.version)'
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish code coverage'
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
+        reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
+- stage: PipelineTests
+  # Pipeline
+  displayName: Azure pipeline, security and component governance tools
+  dependsOn:
+  - PythonTests
+  condition: succeeded('PythonTests')
+  variables:
+    # This is run explicity so does not need to be auto-injected
+    skipComponentGovernanceDetection: true
+  jobs:
+  - job: SecurityTests1
+    # Credscan must be run on Windows
+    pool:
+      vmImage: windows-latest
+    variables:
+      python.version: '3.6'
+    steps:
+    - task: CredScan@2
+      displayName: 'Run CredScan'
+      inputs:
+        toolMajorVersion: V2
+        debugMode: false
+      continueOnError: true
+      condition: succeededOrFailed()
+    - task: AutoApplicability@1
+      inputs:
+        ExternalRelease: true
+      displayName: 'Run AutoApplicability'
+    - task: PoliCheck@1
+      displayName: 'Run PoliCheck'
+      inputs:
+        targetType: F
+    - task: VulnerabilityAssessment@0
+      displayName: 'Run Vulnerability Assessment'
+    - task: ComponentGovernanceComponentDetection@0
+      inputs:
+        scanType: 'Register'
+        verbosity: 'Verbose'
+        alertWarningLevel: 'High'
+      displayName: 'Component Detection'
+    - task: AntiMalware@3
+      inputs:
+        InputType: 'Basic'
+        ScanType: 'CustomScan'
+        FileDirPath: '$(Build.StagingDirectory)'
+        EnableServices: true
+        SupportLogOnError: false
+        TreatSignatureUpdateFailureAs: 'Warning'
+        SignatureFreshness: 'UpToDate'
+        TreatStaleSignatureAs: 'Error'
+      continueOnError: true
+      condition: succeededOrFailed()
+    - task: securedevelopmentteam.vss-secure-development-tools.build-task-report.SdtReport@1
+      displayName: 'Create Security Analysis Report'
+      inputs:
+        CredScan: true
+        PoliCheck: true
+    - task: securedevelopmentteam.vss-secure-development-tools.build-task-publishsecurityanalysislogs.PublishSecurityAnalysisLogs@2
+      displayName: 'Publish Security Analysis Logs'
+      inputs:
+        AllTools: false
+        AntiMalware: true
+        APIScan: false
+        BinSkim: false
+        CodesignValidation: false
+        FortifySCA: false
+        FxCop: false
+        ModernCop: false
+        MSRD: false
+        RoslynAnalyzers: false
+        SDLNativeRules: false
+        Semmle: false
+        TSLint: false
+        WebScout: false
+    - task: securedevelopmentteam.vss-secure-development-tools.build-task-postanalysis.PostAnalysis@1
+      displayName: 'Post Analysis'
+      inputs:
+        CredScan: true
+  - job: SecurityTests2
+    # OWASP tool must be run on Windows
+    pool:
+      vmImage: windows-latest
+    variables:
+      python.version: '3.6'
+    steps:
+    - task: dependency-check-build-task@5
+      displayName: 'OWASP Dependency Check'
+      inputs:
+        projectName: msticpy
+        scanPath: '$(Build.SourcesDirectory)'
+        format: 'JUNIT'
+        suppressionPath: '$(Build.SourcesDirectory)'
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFiles: '**/*-results.xml'
+        testRunTitle: 'Python $(python.version)'
+- stage: CreatePythonPackage
+  displayName: Create msticpnb distribution package and publish msticnb artifact
+  variables:
+    # This is run explicity so does not need to be auto-injected
+    skipComponentGovernanceDetection: true
+  dependsOn:
+  - PipelineTests
+  condition: succeeded('PipelineTests')
+  jobs:
+  - job: CreateDistPackage
+    pool:
+      vmImage: windows-latest
+    variables:
+      python.version: '3.6'
+    steps:
+    - script: 'pip install --upgrade setuptools wheel'
+      displayName: 'Install setuptools'
+    - script: 'python setup.py sdist bdist_wheel'
+      displayName: 'Build sdist and wheel'
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: msticnb'
+      inputs:
+        PathtoPublish: dist
+        ArtifactName: msticnb

@@ -13,6 +13,8 @@ from lxml import etree  # nosec
 from markdown import markdown
 import pandas as pd
 
+from msticpy.sectools import GeoLiteLookup
+from msticpy.sectools.geoip import MsticpyConfigException
 from ..common import MsticnbDataProviderError
 from ..data_providers import init
 
@@ -26,14 +28,24 @@ class TestNotebooklet(unittest.TestCase):
 
     def test_notebooklet_create(self):
         """Test method."""
-        # Should run because required providers are loaded
-        init(query_provider="LocalData", providers=["tilookup", "geolitelookup"])
-        for _, nblt in nblts.iter_classes():
-            new_nblt = nblt()
-            self.assertIsInstance(new_nblt, Notebooklet)
-            self.assertIsNone(new_nblt.result)
+        test_with_geop = True
+        try:
+            geoip = GeoLiteLookup()
+            if not geoip._api_key:
+                test_with_geop = False
+            del geoip
+        except MsticpyConfigException:
+            test_with_geop = False
 
-        # Should raise exception because Network Summary needs geoiplite
+        if test_with_geop:
+            # Should run because required providers are loaded
+            init(query_provider="LocalData", providers=["tilookup", "geolitelookup"])
+            for _, nblt in nblts.iter_classes():
+                new_nblt = nblt()
+                self.assertIsInstance(new_nblt, Notebooklet)
+                self.assertIsNone(new_nblt.result)
+
+        # Should raise exception because Network Summary needs geolitelookup
         init(query_provider="LocalData", providers=["tilookup"])
         with self.assertRaises(MsticnbDataProviderError):
             for _, nblt in nblts.iter_classes():

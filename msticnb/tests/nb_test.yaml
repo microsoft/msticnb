@@ -17,7 +17,6 @@ metadata:
   entity_types:
     - host
   req_providers:
-    - LogAnalytics|LocalData
 output:
   run:
     title: Host Entity Summary
