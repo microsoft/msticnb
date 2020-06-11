@@ -119,7 +119,7 @@ class HostSummary(Notebooklet):
         ----------------
         start : Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
-  mod_path Union[datetime, datelike-string]
+        mod_path Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
 
         Returns
