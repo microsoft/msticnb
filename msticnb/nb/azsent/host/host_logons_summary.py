@@ -28,15 +28,19 @@ from ....common import (
     set_text,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
-
+from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
-
 from ...._version import VERSION
 
 pd.options.mode.chained_assignment = None
 
 __version__ = VERSION
 __author__ = "Pete Bryan"
+
+
+_CLS_METADATA: NBMetaData
+_CELL_DOCS: Dict[str, Any]
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 @attr.s(auto_attribs=True)  # pylint: disable=too-few-public-methods
@@ -80,30 +84,11 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
     - Visualizations of various logon elements depending on host type
     - Data on users with failed and sucessful logons
 
-    Default Options
-    ---------------
-    - map: Display a map of logon attempt locations.
-    - timeline: Display a timeline of logon atttempts
-    - charts: Display a range of charts depicting different elements of logon events.
-    - failed_success: Displays a DataFrame of all users with both successful and failed logons.
-
     """
 
-    metadata = NBMetaData(
-        name=__qualname__,  # type: ignore  # noqa
-        mod_name=__name__,
-        description="Host Logons summary",
-        default_options=["map", "timeline", "charts", "failed_success"],
-        keywords=["host", "computer", "logons", "windows", "linux"],
-        entity_types=["host"],
-        req_providers=["LogAnalytics|LocalData"],
-    )
+    metadata = _CLS_METADATA
 
-    @set_text(  # noqa:MC0001
-        title="Host Logons Summary",
-        hd_level=1,
-        text="Data and plots are stored in the result class returned by this function",
-    )
+    @set_text(docs=_CELL_DOCS, key="run")  # noqa:MC0001
     # pylint: disable=too-many-locals, too-many-branches
     def run(
         self,
@@ -123,7 +108,11 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         data : Optional[pd.DataFrame], optional
             Optionally pass raw data to use for analysis, by default None
         timespan : TimeSpan
-            Timespan for queries
+            Timespan over which operations such as queries will be
+            performed, by default None.
+            This can be a TimeStamp object or another object that
+            has valid `start`, `end`, or `period` attributes.
+            Alternatively you can pass `start` and `end` datetime objects.
         options : Optional[Iterable[str]], optional
             List of options to use, by default None
             A value of None means use default options.
@@ -198,19 +187,20 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         nb_print(f"Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
         if "timeline" in self.options:
-            tl_plot = _gen_timeline(data)
+            tl_plot = _gen_timeline(data, self.silent)
             self._last_result.timeline = tl_plot
+
         if "map" in self.options:
-            logon_map = _map_logons(data)
+            logon_map = _map_logons(data, self.silent)
             self._last_result.logon_map = logon_map
-        logon_matrix = _logon_matrix(data)
+        logon_matrix = _logon_matrix(data, self.silent)
         if "charts" in self.options:
-            pie = _users_pie(data)
-            stack_bar = _process_stack_bar(data)
+            pie = _users_pie(data, self.silent)
+            stack_bar = _process_stack_bar(data, self.silent)
             charts = {"User Pie Chart": pie, "Process Bar Chart": stack_bar}
             self._last_result.plots = charts
         if "failed_success" in self.options:
-            failed_success_df = _failed_success_user(data)
+            failed_success_df = _failed_success_user(data, self.silent)
             self._last_result.failed_success = failed_success_df
 
         self._last_result.logon_sessions = logon_sessions_df
@@ -220,34 +210,38 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         # pylint: enable=too-many-locals, too-many-branches
 
 
-@set_text(
-    title="Timeline of logon events",
-    text="""
-A breakdown of logon attempts over time, split by the logon attempt result.
-""",
-)
-def _gen_timeline(data: pd.DataFrame):
-    time_line = timeline.display_timeline(
-        data[data["LogonResult"] != "Unknown"],
-        group_by="LogonResult",
-        source_columns=[
-            "Account",
-            "LogonProcessName",
-            "SourceIP",
-            "LogonTypeName",
-            "LogonResult",
-        ],
-    )
+@set_text(docs=_CELL_DOCS, key="logons_timeline")
+def _gen_timeline(data: pd.DataFrame, silent: bool):
+    if silent is True:
+        time_line = timeline.display_timeline(
+            data[data["LogonResult"] != "Unknown"],
+            group_by="LogonResult",
+            source_columns=[
+                "Account",
+                "LogonProcessName",
+                "SourceIP",
+                "LogonTypeName",
+                "LogonResult",
+            ],
+            hide=True,
+        )
+    else:
+        time_line = timeline.display_timeline(
+            data[data["LogonResult"] != "Unknown"],
+            group_by="LogonResult",
+            source_columns=[
+                "Account",
+                "LogonProcessName",
+                "SourceIP",
+                "LogonTypeName",
+                "LogonResult",
+            ],
+        )
     return time_line
 
 
-@set_text(
-    title="Map of logon locations",
-    text="""
-Red markers show locations of failed signins, green shows sucessful logons.
-""",
-)
-def _map_logons(data: pd.DataFrame) -> FoliumMap:
+@set_text(docs=_CELL_DOCS, key="show_map")
+def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     """Produce a map of source IP logon locations."""
     # Seperate out failed and sucessful logons and clean the data
     remote_logons = data[data["LogonResult"] == "Success"]
@@ -269,17 +263,13 @@ def _map_logons(data: pd.DataFrame) -> FoliumMap:
     if len(ip_list) > 0:
         icon_props = {"color": "green"}
         folium_map.add_ip_cluster(ip_entities=ip_list, **icon_props)
-    display(folium_map)
+    if silent is not True:
+        display(folium_map)
     return folium_map
 
 
-@set_text(
-    title="User name prevalence",
-    text="""
-Breakdown of logon attempts obsevered (failed and successful) by user name.
-""",
-)
-def _users_pie(data: pd.DataFrame) -> figure:
+@set_text(docs=_CELL_DOCS, key="show_pie")
+def _users_pie(data: pd.DataFrame, silent: bool) -> figure:
     """Produce pie chart based on observence of user names in data."""
     output_notebook()
     user_logons = (
@@ -319,18 +309,15 @@ def _users_pie(data: pd.DataFrame) -> figure:
     viz.axis.axis_label = None
     viz.axis.visible = False
     viz.grid.grid_line_color = None
-    show(viz)
+
+    if silent is not True:
+        show(viz)
 
     return viz
 
-
-@set_text(
-    title="Logon sucess ratio by process",
-    text="""
-Ratio of failed to sucessful logons by process. Red is failure, green is successful.
-""",
-)
-def _process_stack_bar(data: pd.DataFrame) -> figure:
+# pylint: disable=too-many-locals
+@set_text(docs=_CELL_DOCS, key="show_process")
+def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
     """Produce stacked bar chart showing logon result by process."""
     proc_list = data["LogonTypeName"].unique()
     s_data = []
@@ -391,18 +378,16 @@ def _process_stack_bar(data: pd.DataFrame) -> figure:
     viz.outline_line_color = None
     viz.legend.location = "top_left"
     viz.legend.orientation = "horizontal"
-    show(viz)
+
+    if silent is not True:
+        show(viz)
 
     return viz
+# pylint: enable=too-many-locals
 
 
-@set_text(
-    title="Logon Matrix",
-    text="""
-A breakdown of logons by account, logon type, and result.
-""",
-)
-def _logon_matrix(data: pd.DataFrame) -> pd.DataFrame:
+@set_text(docs=_CELL_DOCS, key="logon_matrix")
+def _logon_matrix(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
     """Produce DataFrame showing logons grouped by user and process."""
     logon_by_type = (
         data[(data["Account"] != "") & (data["LogonResult"] != "Unknown")][
@@ -417,25 +402,23 @@ def _logon_matrix(data: pd.DataFrame) -> pd.DataFrame:
         .style.background_gradient(cmap="viridis", low=0.5, high=0)
         .format("{0:0>3.0f}")
     )
-    display(logon_by_type)
+    if silent is not True:
+        display(logon_by_type)
     return logon_by_type
 
 
-@set_text(
-    title="Accounts with failed and successful logons",
-    text="""Accounts that have at least one successful and one failed logon within the
-        timeframe of the notebooklet""",
-)
-def _failed_success_user(data: pd.DataFrame) -> pd.DataFrame:
+@set_text(docs=_CELL_DOCS, key="show_df")
+def _failed_success_user(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
     failed_logons = data[(data["LogonResult"] == "Failure") & (data["Account"] != "")]
     host_logons = data[(data["LogonResult"] == "Success") & (data["Account"] != "")]
     combined = host_logons[
         host_logons["Account"].isin(failed_logons["Account"].drop_duplicates())
     ]
-    if not combined.empty:
-        display(combined)
-    else:
-        nb_print("No accounts with both a successful and failed logon on.")
+    if silent is not True:
+        if not combined.empty:
+            display(combined)
+        else:
+            nb_print("No accounts with both a successful and failed logon on.")
     return combined
 
 

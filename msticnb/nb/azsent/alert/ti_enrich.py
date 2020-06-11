@@ -4,7 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """Alert TI encrichment - provides enrichment of alerts with threat intelligence."""
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Dict, Any
 import json
 import attr
 import pandas as pd
@@ -28,9 +28,15 @@ from ....common import (
 
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
 from ...._version import VERSION
+from ....nb_metadata import read_mod_metadata
 
 __version__ = VERSION
 __author__ = "Pete Bryan"
+
+
+_CLS_METADATA: NBMetaData
+_CELL_DOCS: Dict[str, Any]
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -59,35 +65,11 @@ class EnrichAlerts(Notebooklet):
 
     Enriches Azure Sentinel alerts with TI data.
 
-    Default Options
-    ---------------
-    - TI: Uses TI to enrich alert data. Will use your primary TI providers.
-    - details - displays a widget allowing you to see more detail about an alert.
-
-    Other Options
-    -------------
-    - secondary: If set uses secondary TI providers as well as primary for enrichment.
-
-
     """
 
-    metadata = NBMetaData(
-        # Note __qualname__ is the name of the current class
-        name=__qualname__,  # type: ignore  # noqa
-        mod_name=__name__,
-        description="Enriches Alerts with TI data",
-        default_options=["TI", "details"],
-        other_options=["secondary"],
-        keywords=["alert", "enrich", "TI", "windows"],
-        entity_types=["alert"],
-        req_providers=["LogAnalytics|LocalData", "tilookup"],
-    )
+    metadata = _CLS_METADATA
 
-    @set_text(
-        title="Enriched Alerts",
-        hd_level=1,
-        text="Azure Sentinel Alerts enriched with TI data",
-    )
+    @set_text(docs=_CELL_DOCS, key="run")
     def run(
         self,
         value: Optional[str] = None,
@@ -182,7 +164,9 @@ class EnrichAlerts(Notebooklet):
                 .hide_index()
             )
             if "details" in self.options:
-                alert_pick = _alert_picker(data, ti_prov, secondary=ti_sec)
+                alert_pick = _alert_picker(
+                    data, ti_prov, secondary=ti_sec, silent=self.silent
+                )
         else:
             raise MsticnbDataProviderError("No alerts avaliable")
 
@@ -194,13 +178,8 @@ class EnrichAlerts(Notebooklet):
 
 # %%
 # Display Alert Picker
-@set_text(
-    title="Select Alert",
-    text="""
-Select and alert to view further details.
-""",
-)
-def _alert_picker(data, ti_prov, secondary):
+@set_text(docs=_CELL_DOCS, key="select_alert")
+def _alert_picker(data, ti_prov, secondary, silent: bool):
     ti_provs = "primary"
     if secondary is True:
         ti_provs = "all"
@@ -253,7 +232,8 @@ def _alert_picker(data, ti_prov, secondary):
             "TI Risk",
         ],
     )
-    alert_select.display()
+    if silent is not True:
+        alert_select.display()
 
     return alert_select
 

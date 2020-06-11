@@ -5,15 +5,14 @@
 # --------------------------------------------------------------------------
 """host_network_summary notebooklet."""
 from functools import lru_cache
-from typing import Dict
+from typing import Dict, Tuple, Optional
 
-from datetime import datetime
 import pandas as pd
 from msticpy.data import QueryProvider
 from msticpy.nbtools import entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 
-from ...common import nb_data_wait
+from ...common import nb_data_wait, TimeSpan, MsticnbMissingParameterError, nb_print
 
 
 from ..._version import VERSION
@@ -105,10 +104,10 @@ def get_aznet_topology(
                 host_entity.public_ips = []
 
 
-@lru_cache()
+@lru_cache()  # noqa:MC0001
 def verify_host_name(
-    qry_prov: QueryProvider, start: datetime, end: datetime, host_name: str
-):
+    qry_prov: QueryProvider, host_name: str, timespan: TimeSpan = None, **kwargs
+) -> Tuple[Optional[Tuple[str, str]], Optional[Dict[str, str]]]:
     """
     Verify unique hostname by checking Win and Linux logs.
 
@@ -116,16 +115,14 @@ def verify_host_name(
     ----------
     qry_prov : QueryProvider
         Kql query provider
-    start : datetime
-        Start of the time span over which to query
-    end : datetime
-        End of the time span over which to query
+    timespan : TimeSpan
+        Time span over which to query
     host_name : str
         The full or partial hostname.
 
     Returns
     -------
-    Tuple[Optional[Tuple(str,str)], Optional[Dict[str:str]]]
+    Tuple[Optional[Tuple[str, str]], Optional[Dict[str, str]]]
         (host_name, host_names)
         If unique hostname found, host_name is populated.
         If multiple matching hostnames found, host_names is
@@ -133,6 +130,15 @@ def verify_host_name(
         If no matching host then both are None.
 
     """
+    # Check if a time span is provide as TimeSpan object or start and end parameters
+    if timespan is None and ("start" in kwargs and "end" in kwargs):
+        start = kwargs["start"]
+        end = kwargs["end"]
+    elif timespan is not None:
+        start = timespan.start
+        end = timespan.end
+    else:
+        raise MsticnbMissingParameterError("timespan")
     host_names: Dict = {}
     # Check for Windows hosts matching host_name
     if "SecurityEvent" in qry_prov.schema_tables:
@@ -176,10 +182,10 @@ def verify_host_name(
 
     if host_names:
         unique_host = next(iter(host_names))
-        print(f"Unique host found: {unique_host}")
+        nb_print(f"Unique host found: {unique_host}")
         return (unique_host, host_names[unique_host]), None
 
-    print(f"Host not found: {host_name}")
+    nb_print(f"Host not found: {host_name}")
     return None, None
 
 

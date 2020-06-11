@@ -249,7 +249,7 @@ class Notebooklet(ABC):
 
         """
         self._current_run_silent = kwargs.get("silent")
-        set_opt("silent_temp", self.silent)
+        set_opt("temp_silent", self.silent)
 
         if not options:
             self.options = self.default_options()

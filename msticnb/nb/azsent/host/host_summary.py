@@ -142,6 +142,8 @@ class HostSummary(Notebooklet):
         if not timespan:
             raise MsticnbMissingParameterError("timespan.")
 
+        self.timespan = timespan
+
         # pylint: disable=attribute-defined-outside-init
         self._last_result = HostSummaryResult(description=self.metadata.description)
 
@@ -151,7 +153,7 @@ class HostSummary(Notebooklet):
         alert_timeline = None
 
         host_name, host_names = verify_host_name(
-            self.query_provider, self.timespan, value
+            self.query_provider, value, self.timespan
         )
         if host_names:
             md(f"Could not obtain unique host name from {value}. Aborting.")
@@ -162,7 +164,9 @@ class HostSummary(Notebooklet):
                 + "Results may be unreliable.",
                 "orange",
             )
-        host_name = host_name[0] or value
+            host_name = value
+        else:
+            host_name = host_name[0]
 
         host_entity = entities.Host(HostName=host_name)
         if "heartbeat" in self.options:
@@ -174,10 +178,11 @@ class HostSummary(Notebooklet):
             )
         # If azure_details flag is set, an encrichment provider is given,
         # and the resource is an Azure host get resource details from Azure API
+
         if (
             "azure_api" in self.options
             and "azuredata" in self.data_providers.providers
-            and host_entity.Environment == "Azure"
+            and ("Environment" in host_entity and host_entity.Environment == "Azure")
         ):
             azure_api = _azure_api_details(
                 self.data_providers["azuredata"], host_entity
