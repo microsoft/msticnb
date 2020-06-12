@@ -24,7 +24,6 @@ from .. import options, init
 from ..options import get_opt, set_opt
 from .nb_test import TstNBSummary
 
-
 # pylint: disable=too-many-statements
 
 

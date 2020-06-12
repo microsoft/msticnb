@@ -315,6 +315,7 @@ def _users_pie(data: pd.DataFrame, silent: bool) -> figure:
 
     return viz
 
+
 # pylint: disable=too-many-locals
 @set_text(docs=_CELL_DOCS, key="show_process")
 def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
@@ -383,6 +384,8 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
         show(viz)
 
     return viz
+
+
 # pylint: enable=too-many-locals
 
 
@@ -437,7 +440,9 @@ def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
             data["Account"] = data.apply(_parse_user_lx, axis=1)
             data["SourceIP"] = data.apply(_parse_ip_lx, axis=1)
         if "LogonProcessName" not in data.columns:
-            data.rename(columns={"ProcessName", "LogonProcessName"})
+            data.rename(columns={"ProcessName": "LogonProcessName"})
+        if "LogonTypeName" not in data.columns:
+            data["LogonTypeName"] = data["LogonProcessName"]
     elif "EventID" and "SubjectUserSid" in data.columns:
         if "LogonResult" not in data.columns:
             data["LogonResult"] = data.apply(_event_id_to_result, axis=1)
