@@ -101,7 +101,7 @@ def set_opt(option: str, value: Any):
     if option not in _OPT_DICT:
         raise KeyError(f"Unrecognized option {option}.")
 
-    cur_opt = _OPT_DICT.get(option)
+    cur_opt = _OPT_DICT[option]
     # allow temp_silent to be None
     if option != "temp_silent" and not isinstance(value, type(cur_opt)):
         try:

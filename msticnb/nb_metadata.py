@@ -101,14 +101,14 @@ class NBMetadata:
         opt_list.append("    Default Options")
         opt_list.append("    ---------------")
         opt_list.extend(
-            [f"    {key}: {value}" for key, value in self.get_options("default")]
+            [f"    - {key}: {value}" for key, value in self.get_options("default")]
         )
         opt_list.append("")
         opt_list.append("    Other Options")
         opt_list.append("    -------------")
         if self.get_options("other"):
             opt_list.extend(
-                [f"    {key}: {value}" for key, value in self.get_options("other")]
+                [f"    - {key}: {value}" for key, value in self.get_options("other")]
             )
         else:
             opt_list.append("    None")
