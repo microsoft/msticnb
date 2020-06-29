@@ -5,14 +5,15 @@
 # --------------------------------------------------------------------------
 """host_network_summary notebooklet."""
 from functools import lru_cache
-from typing import Optional, Tuple, List
+from typing import Dict, Tuple, Optional
 
 import pandas as pd
 from msticpy.data import QueryProvider
 from msticpy.nbtools import entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 
-from ...common import TimeSpan, nb_data_wait
+from ...common import nb_data_wait, TimeSpan, MsticnbMissingParameterError, nb_print
+
 
 from ..._version import VERSION
 
@@ -103,10 +104,10 @@ def get_aznet_topology(
                 host_entity.public_ips = []
 
 
-@lru_cache()
+@lru_cache()  # noqa:MC0001
 def verify_host_name(
-    qry_prov: QueryProvider, timespan: TimeSpan, host_name: str
-) -> Tuple[Optional[str], Optional[List[str]]]:
+    qry_prov: QueryProvider, host_name: str, timespan: TimeSpan = None, **kwargs
+) -> Tuple[Optional[Tuple[str, str]], Optional[Dict[str, str]]]:
     """
     Verify unique hostname by checking Win and Linux logs.
 
@@ -121,7 +122,7 @@ def verify_host_name(
 
     Returns
     -------
-    Tuple[Optional[str], Optional[List[str]]]
+    Tuple[Optional[Tuple[str, str]], Optional[Dict[str, str]]]
         (host_name, host_names)
         If unique hostname found, host_name is populated.
         If multiple matching hostnames found, host_names is
@@ -129,50 +130,62 @@ def verify_host_name(
         If no matching host then both are None.
 
     """
-    host_names: List[str] = []
-    # Get single event - try process creation
+    # Check if a time span is provide as TimeSpan object or start and end parameters
+    if timespan is None and ("start" in kwargs and "end" in kwargs):
+        start = kwargs["start"]
+        end = kwargs["end"]
+    elif timespan is not None:
+        start = timespan.start
+        end = timespan.end
+    else:
+        raise MsticnbMissingParameterError("timespan")
+    host_names: Dict = {}
+    # Check for Windows hosts matching host_name
     if "SecurityEvent" in qry_prov.schema_tables:
-        sec_event_host = """
+        sec_event_host = f"""
             SecurityEvent
             | where TimeGenerated between (datetime({start})..datetime({end}))
-            | where Computer contains "{host}"
+            | where Computer has "{host_name}"
             | distinct Computer
              """
         nb_data_wait("SecurityEvent")
-        win_hosts_df = qry_prov.exec_query(
-            sec_event_host.format(
-                start=timespan.start, end=timespan.end, host=host_name
-            )
-        )
-        if win_hosts_df is not None and not win_hosts_df.empty:
-            host_names.extend(win_hosts_df["Computer"].to_list())
 
+        win_hosts_df = qry_prov.exec_query(sec_event_host)
+        if win_hosts_df is not None and not win_hosts_df.empty:
+            for host in win_hosts_df["Computer"].to_list():
+                host_names.update({host: "Windows"})
+
+    # Check for Linux hosts matching host_name
     if "Syslog" in qry_prov.schema_tables:
-        syslog_host = """
+        syslog_host = f"""
             Syslog
             | where TimeGenerated between (datetime({start})..datetime({end}))
-            | where Computer contains "{host}"
+            | where Computer has "{host_name}"
             | distinct Computer
             """
         nb_data_wait("Syslog")
-        lx_hosts_df = qry_prov.exec_query(
-            syslog_host.format(start=timespan.start, end=timespan.end, host=host_name)
-        )
-        if lx_hosts_df is not None and not lx_hosts_df.empty:
-            host_names.extend(lx_hosts_df["Computer"].to_list())
 
-    if len(host_names) > 1:
+        lx_hosts_df = qry_prov.exec_query(syslog_host)
+
+        if lx_hosts_df is not None and not lx_hosts_df.empty:
+            for host in lx_hosts_df["Computer"].to_list():
+                host_names.update({host: "Linux"})
+
+    # If we have more than one host let the user decide
+    if len(host_names.keys()) > 1:
         print(
             f"Multiple matches for '{host_name}'.",
-            "Please select a specific host and re-run.",
-            "\n".join(host_names),
+            "Please select a host and re-run.",
+            "\n".join(host_names.keys()),
         )
         return None, host_names
-    if host_names:
-        print(f"Unique host found: {host_names[0]}")
-        return host_names[0], None
 
-    print(f"Host not found: {host_name}")
+    if host_names:
+        unique_host = next(iter(host_names))
+        nb_print(f"Unique host found: {unique_host}")
+        return (unique_host, host_names[unique_host]), None
+
+    nb_print(f"Host not found: {host_name}")
     return None, None
 
 

@@ -1,0 +1,31 @@
+metadata:
+  name: EnrichAlerts
+  description: Alert enrichment
+  default_options:
+    - TI: Uses TI to enrich alert data. Will use your primary TI providers.
+    - details: Displays a widget allowing you to see more detail about an alert.
+  other_options:
+    - secondary: Uses secondary TI providers in lookups.
+  keywords:
+    - alert
+    - enrich
+    - TI
+    - windows
+    - linux
+  entity_types:
+    - alert
+  req_providers:
+    - LogAnalytics|LocalData
+    - tilookup
+output:
+  run:
+    title: Enriched Alerts
+    h_level: 1
+    text:
+      Displays a summary of alerts from Azure Sentinel that are enriched with
+      Threat Intelligence data from external sources and then displayed with context.
+  select_alert:
+    title: Select alert
+    text:
+      Select an alert from the selection box to see additional details about the alert.
+    md: True

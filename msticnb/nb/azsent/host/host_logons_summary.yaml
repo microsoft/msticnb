@@ -1,0 +1,60 @@
+metadata:
+  name: HostLogonsSummary
+  description: Host logons summary
+  default_options:
+    - map: Display a map of logon attempt locations.
+    - timeline: Display a timeline of logon atttempts.
+    - charts: Display a range of charts depicting different elements of logon events.
+    - failed_success: Displays a DataFrame of all users with both successful and failed logons.
+  keywords:
+    - host
+    - computer
+    - logons
+    - windows
+    - linux
+  entity_types:
+    - host
+  req_providers:
+    - LogAnalytics|LocalData
+output:
+  run:
+    title: Host Logons Summary
+    h_level: 1
+    text:
+      This shows a summary of logon events for a host.
+      It will display a breakdown of failed and sucessful logon events to the target host
+      in the specified timeframe. It will display a number of visualizations of these 
+      events as well as return raw data.
+
+      Depending on whether the host is a Linux or Windows host it will use Syslog,
+      or SecurityEvent information.
+  logons_timeline:
+    title: Timeline of logon events
+    text:
+      This timeline shows logon attempts over time. 
+      They are split by the result of the logon attempt.
+    md: True
+  show_map:
+    title: Map of logon locations
+    text:
+      Red markers show locations of failed signins, green shows sucessful logons.
+      Locations are calculated using IP address geolocation so may not be accurate.
+  show_pie:
+    title: User name prevalence
+    text:
+      Breakdown of logon attempts obsevered (failed and successful) by user name.
+  show_process:
+    title: Logon success ratio by process
+    text:
+      Ratio of failed to sucessful logons by process. Red is failure, green is successful.
+  logon_matrix:
+    title: Logon heatmap
+    text:
+      A heatmap of logons by account, logon type, and result. The stronger the color the larger
+      the number of logons with these parameters have been obsereved. 
+  show_df:
+    title: Accounts with failed and successful logons
+    text:
+      This DataFrame list all accounts that have at least one successful and one failed logon 
+      within the timeframe set. 
+      The DataFrame includes details of all logon events from those users.
