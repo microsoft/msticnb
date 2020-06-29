@@ -64,7 +64,7 @@ stages:
       condition: succeededOrFailed()
     - script: |
         pip install --upgrade bandit
-        bandit -x tests -r -s B303,B404,B603,B607 msticnb'
+        bandit -x tests -r -s B303,B404,B603,B607 msticnb
       displayName: bandit
       continueOnError: true
       condition: succeededOrFailed()
