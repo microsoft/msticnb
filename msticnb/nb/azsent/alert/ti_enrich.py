@@ -10,8 +10,8 @@ import attr
 import pandas as pd
 from tqdm.notebook import tqdm
 from IPython.display import display
-from msticpy.nbtools.nbwidgets import AlertSelector
-from msticpy.nbtools.nbdisplay import display_alert
+from msticpy.nbtools.nbwidgets import SelectAlert
+from msticpy.nbtools.nbdisplay import display_alert, format_alert
 from msticpy.nbtools.security_alert import SecurityAlert
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
@@ -55,7 +55,7 @@ class TIEnrichResult(NotebookletResult):
 
     description: str = "Enriched Alerts"
     enriched_results: pd.DataFrame = None
-    picker: AlertSelector = None
+    picker: SelectAlert = None
 
 
 # pylint: enable=too-few-public-methods
@@ -155,14 +155,21 @@ class EnrichAlerts(Notebooklet):
             data["TI Risk"] = data.progress_apply(
                 lambda row: _lookup(row, ti_prov, secondary=ti_sec), axis=1
             )
-            display(
-                data[
-                    ["StartTimeUtc", "AlertName", "Severity", "TI Risk", "Description"]
-                ]
-                .sort_values(by=["StartTimeUtc"])
-                .style.applymap(_color_cells)
-                .hide_index()
-            )
+            if not self.silent:
+                display(
+                    data[
+                        [
+                            "StartTimeUtc",
+                            "AlertName",
+                            "Severity",
+                            "TI Risk",
+                            "Description",
+                        ]
+                    ]
+                    .sort_values(by=["StartTimeUtc"])
+                    .style.applymap(_color_cells)
+                    .hide_index()
+                )
             if "details" in self.options:
                 alert_pick = _alert_picker(
                     data, ti_prov, secondary=ti_sec, silent=self.silent
@@ -184,10 +191,11 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
     if secondary is True:
         ti_provs = "all"
 
-    def show_full_alert(alert):
+    def show_full_alert(selected_alert):
         global security_alert  # pylint: disable=global-variable-undefined, invalid-name
-        security_alert = SecurityAlert(alert)
-        display_alert(security_alert, show_entities=True)
+        output = []
+        security_alert = SecurityAlert(alert_select.selected_alert)
+        output.append(format_alert(security_alert, show_entities=True))
         ioc_list = []
         if security_alert["Entities"] is not None:
             for entity in security_alert["Entities"]:
@@ -196,9 +204,8 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
                 elif entity["Type"] == "url":
                     ioc_list.append(entity["Url"])
             if len(ioc_list) > 0:
-                # Get TI results for alert
-                ti_data = ti_prov.lookup_iocs(data=ioc_list, prov_scope=ti_provs)
-                display(
+                ti_data = ti_prov.lookup_iocs(data=ioc_list, providers=ti_provs)
+                output.append(
                     ti_data[
                         ["Ioc", "IocType", "Provider", "Result", "Severity", "Details"]
                     ]
@@ -215,21 +222,24 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
                     center = get_center_ip_entities(ip_ents)
                     ip_map = FoliumMap(location=center, zoom_start=4)
                     ip_map.add_ip_cluster(ip_ents, color="red")
-                    display(ip_map)
+                    output.append(ip_map)
+                else:
+                    output.append("")
             else:
-                nb_print("No IoCs")
+                output.append("No IoCs")
         else:
-            nb_print("No IoCs")
+            output.append("No Entities with IoCs")
+        return output
 
-    alert_select = AlertSelector(
+    alert_select = SelectAlert(
         alerts=data,
         action=show_full_alert,
         columns=[
             "StartTimeUtc",
             "AlertName",
             "CompromisedEntity",
-            "SystemAlertId",
             "TI Risk",
+            "SystemAlertId",
         ],
     )
     if silent is not True:

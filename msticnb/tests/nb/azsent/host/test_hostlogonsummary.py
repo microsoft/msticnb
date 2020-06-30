@@ -14,7 +14,7 @@ from bokeh.layouts import Column
 from .....data_providers import init
 from .....read_modules import nblts
 
-_TESTDATA_FOLDER = "msticnb\\tests\\nb\\azsent\\host\\testdata"
+_TESTDATA_FOLDER = Path("msticnb\\tests\\nb\\azsent\\host\\testdata")
 
 
 @pytest.fixture

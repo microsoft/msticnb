@@ -14,7 +14,7 @@ from markdown import markdown
 import pandas as pd
 
 from msticpy.sectools import GeoLiteLookup
-from msticpy.sectools.geoip import MsticpyConfigException
+from msticpy.common.exceptions import MsticpyUserConfigError
 from ..common import MsticnbDataProviderError
 from ..data_providers import init
 
