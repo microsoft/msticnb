@@ -153,9 +153,14 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
                     f"Could not find event records for host {value}. "
                     + "Results may be unreliable."
                 )
-                return self._last_result
-            host_type = host_name[1] or None
-            host_name = host_name[0] or value
+            try:
+                host_type = host_name[1]
+            except TypeError:
+                host_type = None
+            try:
+                host_name = host_name[0]
+            except TypeError:
+                host_name = value
 
             if host_type == "Windows":
                 data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
