@@ -20,6 +20,7 @@ metadata:
 output:
   run:
     title: Enriched Alerts
+    hd_level: 1
     text:
       Displays a summary of alerts from Azure Sentinel that are enriched with
       Threat Intelligence data from external sources and then displayed with context.

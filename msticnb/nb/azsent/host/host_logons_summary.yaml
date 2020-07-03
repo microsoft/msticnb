@@ -19,6 +19,7 @@ metadata:
 output:
   run:
     title: Host Logons Summary
+    hd_level: 1
     text:
       This shows a summary of logon events for a host.
       It will display a breakdown of failed and sucessful logon events to the target host
