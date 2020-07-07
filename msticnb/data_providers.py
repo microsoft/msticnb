@@ -407,15 +407,15 @@ def init(
         You can add addtional query providers by including them
         in the `providers` list.
     providers : Optional[List[str]], optional
-        A list of provider names, by default "azure_sentinel"
+        A list of provider names, by default "LogAnalytics"
 
     Other Parameters
     ----------------
     kwargs
         You can pass parameters to individual providers using
         the following notation:
-        `provider_name.param_name="param_value"
-        Where `provider_name` is the name of the data provider,
+        `ProviderName_param_name="param_value"
+        Where `ProviderName` is the name of the data provider,
         `param_name` is the parameter name expected by the
         provider and `param_value` is the value to assign to
         `param_name`. `param_value` can be any type.
@@ -423,6 +423,11 @@ def init(
         Depending on the provider, these parameters (with the
         prefix stripped) are sent to either the constructor or
         `connect` method.
+
+    Notes
+    -----
+    To see a list of currently supported providers call:
+    `DataProviders.list_providers()`
 
     """
     d_provs = DataProviders(query_provider, providers, **kwargs)

@@ -52,7 +52,15 @@ def _get_main_class_doc_md(doc_cls) -> str:
     cls_doc_lines.append(f"# Notebooklet Class - {doc_cls.__name__}\n")
     cls_doc_str = inspect.getdoc(doc_cls)
     if cls_doc_str:
-        cls_doc_lines.append(inspect.cleandoc(cls_doc_str))
+        fmt_doc_lines: List[str] = []
+        for idx, doc_line in enumerate(inspect.cleandoc(cls_doc_str).split("\n")):
+            if doc_line.strip().startswith("--") and idx > 0:
+                # if this is a heading underline, bold the previous line
+                fmt_doc_lines[idx - 1] = f"**{fmt_doc_lines[idx - 1]}**"
+                fmt_doc_lines.append("")
+            else:
+                fmt_doc_lines.append(doc_line + "\n")
+        cls_doc_lines.extend(fmt_doc_lines)
     cls_doc_lines.append("\n---\n")
 
     cls_doc_lines.append("# Display Sections")
@@ -90,11 +98,12 @@ def _get_closure_vars(func, doc_cls) -> List[str]:
     docs = closure_args.get("docs")
     key = closure_args.get("key")
     other_items = None
-    if docs and key and isinstance(doc_cls, Notebooklet):
-        cell_docs = getattr(doc_cls.__module__, "_CELL_DOCS", None)
+    if docs and key and issubclass(doc_cls, Notebooklet):
+        cell_docs = getattr(doc_cls, "_cell_docs", None)
         if cell_docs:
             title = cell_docs.get(key, {}).get("title")
             text = cell_docs.get(key, {}).get("text")
+            hd_level = cell_docs.get(key, {}).get("hd_level", 2) + 1
             other_items = {
                 hdr: str(text)
                 for hdr, text in docs.get(key, {}).items()
@@ -186,6 +195,6 @@ def _format_func_doc(func_name, func, full_doc=False, prop_set=None):
             elif doc_line.startswith("## "):
                 refmt_headings.append(doc_line.replace("## ", "#### "))
             else:
-                refmt_headings.append(doc_line)
+                refmt_headings.append(doc_line + "\n")
         doc_lines.extend(refmt_headings)
     return doc_lines

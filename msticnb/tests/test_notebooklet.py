@@ -4,6 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """common test class."""
+from contextlib import redirect_stdout
 from io import StringIO
 
 # from contextlib import redirect_stdout
@@ -15,11 +16,12 @@ import pandas as pd
 
 from msticpy.sectools import GeoLiteLookup
 from msticpy.common.exceptions import MsticpyUserConfigError
-from ..common import MsticnbDataProviderError
+from ..common import MsticnbDataProviderError, TimeSpan
 from ..data_providers import init
 
 from ..read_modules import Notebooklet, nblts
 from ..nb.azsent.host.host_summary import HostSummaryResult
+from .nb_test import TstNBSummary
 
 
 # pylint: disable=c-extension-no-member, protected-access
@@ -53,8 +55,57 @@ class TestNotebooklet(unittest.TestCase):
                 self.assertIsInstance(new_nblt, Notebooklet)
                 self.assertIsNone(new_nblt.result)
 
+        test_nb = TstNBSummary()
+        self.assertIsNotNone(test_nb.get_provider("LocalData"))
+        with self.assertRaises(MsticnbDataProviderError):
+            test_nb.get_provider("otherprovider")
+
+    def test_notebooklet_params(self):
+        """Test supplying timespan param."""
+        init(query_provider="LocalData", providers=["tilookup"])
+        test_nb = TstNBSummary()
+
+        tspan = TimeSpan(period="1D")
+        test_nb.run(timespan=tspan)
+        self.assertEqual(tspan, test_nb.timespan)
+
+        test_nb.run(start=tspan.start, end=tspan.end)
+        self.assertEqual(tspan, test_nb.timespan)
+
+    def test_notebooklet_options(self):
+        """Test option logic for notebooklet."""
+        init(query_provider="LocalData")
+        nb_test = TstNBSummary()
+
+        # default options
+        nb_res = nb_test.run()
+        self.assertIsNotNone(nb_res.default_property)
+        self.assertIsNone(nb_res.optional_property)
+
+        # add optional option
+        nb_res = nb_test.run(options=["+optional_opt"])
+        self.assertIsNotNone(nb_res.default_property)
+        self.assertIsNotNone(nb_res.optional_property)
+
+        # remove default option
+        nb_res = nb_test.run(options=["-default_opt"])
+        self.assertIsNone(nb_res.default_property)
+        self.assertIsNone(nb_res.optional_property)
+
+        # specific options
+        nb_res = nb_test.run(options=["heartbest", "azure_net"])
+        self.assertIsNone(nb_res.default_property)
+        self.assertIsNone(nb_res.optional_property)
+
+        # invalid option
+        f_stream = StringIO()
+        with redirect_stdout(f_stream):
+            nb_test.run(options=["invalid_opt"])
+        output = str(f_stream.getvalue())
+        self.assertIn("Invalid options ['invalid_opt']", output)
+
     def test_class_doc(self):
-        """Test method."""
+        """Test class documentation."""
         for _, nblt in nblts.iter_classes():
             html_doc = nblt.get_help()
             self.assertNotEqual(html_doc, "No documentation available.")
@@ -86,10 +137,12 @@ class TestNotebooklet(unittest.TestCase):
     def test_nbresult(self):
         """Test method."""
         host_result = HostSummaryResult()
+        host_result.host_entity = {"host_name": "myhost"}
         host_result.related_alerts = pd.DataFrame()
         host_result.related_bookmarks = pd.DataFrame()
         self.assertIn("host_entity:", str(host_result))
         self.assertIn("DataFrame:", str(host_result))
+        self.assertIn("host_entity", host_result.properties)
 
         html_doc = host_result._repr_html_()
         _html_parser = etree.HTMLParser(recover=False)

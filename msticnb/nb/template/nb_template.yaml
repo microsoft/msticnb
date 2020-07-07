@@ -21,7 +21,7 @@ metadata:
 output:
   run:
     title: Title for the run method (main title)
-    h_level: 1
+    hd_level: 1
     text:
       Write your introductory text here
 

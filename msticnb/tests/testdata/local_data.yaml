@@ -2,7 +2,7 @@ metadata:
   version: 1
   description: Local Data Alert Queries
   data_environments: [LocalData]
-  data_families: [SecurityAlert, WindowsSecurity, AzureNetwork, LinuxSyslog]
+  data_families: [SecurityAlert, WindowsSecurity, AzureNetwork, LinuxSyslog, Network]
   tags: ['alert', 'securityalert', 'process', 'account', 'network', 'host']
 defaults:
   metadata:

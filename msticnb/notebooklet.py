@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from .common import TimeSpan, MsticnbDataProviderError, MsticnbError
 from .data_providers import DataProviders
-from .nb_metadata import NBMetaData
+from .nb_metadata import NBMetadata, read_mod_metadata
 from .options import get_opt, set_opt
 
 from ._version import VERSION
@@ -37,6 +37,7 @@ class NotebookletResult:
     """Base result class."""
 
     description: str = "Notebooklet base class"
+    timespan: Optional[TimeSpan] = None
     _attribute_desc: Dict[str, Tuple[str, str]] = Factory(dict)  # type: ignore
 
     def __attrs_post_init__(self):
@@ -132,13 +133,13 @@ class NotebookletResult:
     @property
     def properties(self):
         """Return names of all properties."""
-        return [name for name, val in attr.asdict(self.__class__) if val]
+        return [name for name, val in attr.asdict(self).items() if val is not None]
 
 
 class Notebooklet(ABC):
     """Base class for Notebooklets."""
 
-    metadata: NBMetaData = NBMetaData(
+    metadata: NBMetadata = NBMetadata(
         name="Notebooklet", description="Base class", default_options=[]
     )
     module_path = ""
@@ -169,13 +170,6 @@ class Notebooklet(ABC):
         self._inst_default_silent: Optional[bool] = kwargs.get("silent")
         self._current_run_silent: Optional[bool] = None
         set_opt("temp_silent", self.silent)
-
-        if self.metadata:
-            # Append the options documentation to the class docstring
-            options_doc = self.metadata.options_doc
-            if options_doc is not None:
-                curr_doc = self.__class__.__doc__ or ""
-                self.__class__.__doc__ = curr_doc + options_doc
 
         # pylint: disable=no-member
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
@@ -263,7 +257,9 @@ class Notebooklet(ABC):
                     "or options to add/remove from the default set.",
                     "You cannot mix these.",
                 )
-            invalid_opts = (sub_options | add_options) - set(self.all_options())
+            invalid_opts = (sub_options | add_options | std_options) - set(
+                self.all_options()
+            )
             if invalid_opts:
                 print(f"Invalid options {list(invalid_opts)} ignored.")
             if sub_options:
@@ -523,9 +519,20 @@ class Notebooklet(ABC):
                 mod_text = mod_file.read()
             if mod_text:
                 # replace relative references with absolute paths
-                mod_text = re.sub(r"\.{3,}", "msticnb.", mod_text)
+                mod_text = cls._update_mod_for_import(cls.module_path, mod_text)
                 shell = get_ipython()
                 shell.set_next_input(mod_text)
+
+    @classmethod
+    def _update_mod_for_import(cls, module_path, mod_text):
+        mod_text = re.sub(r"\.{3,}", "msticnb.", mod_text)
+        metadata, docs = read_mod_metadata(module_path, cls.__module__)
+        metadata_repr = repr(metadata)
+        metadata_repr = metadata_repr.replace("NBMetadata", "nb_metadata.NBMetadata")
+        repl_text = "_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)"
+        inline_text = f"_CELL_DOCS = {str(docs)}\n"
+        inline_text = f"{inline_text}\n_CLS_METADATA = {metadata_repr}"
+        return mod_text.replace(repl_text, inline_text)
 
     @classmethod
     def show_help(cls):

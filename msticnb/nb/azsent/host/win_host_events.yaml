@@ -23,7 +23,7 @@ metadata:
 output:
   run:
     title: Host Security Events Summary
-    h_level: 1
+    hd_level: 1
     text:
       This shows a summary of security events for the host.
       These are grouped by EventID and Account.
@@ -40,7 +40,7 @@ output:
     md: True
   parse_eventdata:
     title: Parsing eventdata into columns
-    h_level: 3
+    hd_level: 3
     text:
       This may take some time to complete for large numbers of events.
 

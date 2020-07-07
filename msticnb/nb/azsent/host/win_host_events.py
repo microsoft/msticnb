@@ -25,8 +25,8 @@ from ....common import (
     set_text,
     nb_markdown,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from ....nb_metadata import read_mod_metadata
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from .... import nb_metadata
 
 from ...._version import VERSION
 
@@ -34,9 +34,9 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -93,6 +93,8 @@ class WinHostEvents(Notebooklet):
     """
 
     metadata = _CLS_METADATA
+    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    _cell_docs = _CELL_DOCS
 
     @set_text(docs=_CELL_DOCS, key="run")
     def run(
@@ -152,6 +154,8 @@ class WinHostEvents(Notebooklet):
             raise MsticnbMissingParameterError("timespan.")
 
         result = WinHostEventsResult()
+        result.description = self.metadata.description
+        result.timespan = timespan
 
         all_events_df, event_pivot_df = _get_win_security_events(
             self.query_provider, host_name=value, timespan=self.timespan
@@ -167,10 +171,11 @@ class WinHostEvents(Notebooklet):
             result.account_pivot = _create_acct_event_pivot(
                 account_event_data=result.account_events
             )
-            _display_acct_event_pivot(event_pivot_df=result.account_pivot)
-            result.account_timeline = _display_acct_mgmt_timeline(
-                acct_event_data=result.account_events
-            )
+            if result.account_pivot is not None:
+                _display_acct_event_pivot(event_pivot_df=result.account_pivot)
+                result.account_timeline = _display_acct_mgmt_timeline(
+                    acct_event_data=result.account_events
+                )
 
         if "expand_events" in self.options:
             result.expanded_events = _parse_eventdata(all_events_df)
@@ -350,6 +355,8 @@ def _extract_acct_mgmt_events(event_data):
 
 def _create_acct_event_pivot(account_event_data):
     # Create a pivot of Event vs. Account
+    if account_event_data.empty:
+        return None
     win_events_acc = account_event_data[["Account", "Activity", "TimeGenerated"]].copy()
     win_events_acc = win_events_acc.replace("-\\-", "No Account").replace(
         {"Account": ""}, value="No Account"
@@ -357,6 +364,7 @@ def _create_acct_event_pivot(account_event_data):
     win_events_acc["Account"] = win_events_acc.apply(
         lambda x: x.Account.split("\\")[-1], axis=1
     )
+
     event_pivot_df = (
         pd.pivot_table(
             win_events_acc,

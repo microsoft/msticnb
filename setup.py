@@ -45,13 +45,11 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/microsoft/msticnb",
     project_urls={
-        "Documentation": "https://msticpy.readthedocs.io",
+        "Documentation": "https://msticnb.readthedocs.io",
         "Code": "https://github.com/microsoft/msticnb",
     },
     python_requires=">=3.6",
-    packages=setuptools.find_packages(
-        exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
-    ),
+    packages=setuptools.find_packages(exclude=["tests.*", "tests"]),
     classifiers=[
         "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License",

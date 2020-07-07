@@ -24,18 +24,18 @@ from ....common import (
     nb_print,
     nb_markdown,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
-from ....nb_metadata import read_mod_metadata
+from .... import nb_metadata
 from ...._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -83,6 +83,8 @@ class HostSummary(Notebooklet):
     """
 
     metadata = _CLS_METADATA
+    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    _cell_docs = _CELL_DOCS
 
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa MC0001
@@ -119,7 +121,7 @@ class HostSummary(Notebooklet):
         ----------------
         start : Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
-        mod_path Union[datetime, datelike-string]
+        end : Union[datetime, datelike-string]
             Alternative to specifying timespan parameter.
 
         Returns
@@ -145,13 +147,16 @@ class HostSummary(Notebooklet):
         self.timespan = timespan
 
         # pylint: disable=attribute-defined-outside-init
-        self._last_result = HostSummaryResult(description=self.metadata.description)
+        result = HostSummaryResult()
+        result.description = self.metadata.description
+        result.timespan = timespan
 
         host_name, host_names = verify_host_name(
             self.query_provider, value, self.timespan
         )
         if host_names:
             md(f"Could not obtain unique host name from {value}. Aborting.")
+            self._last_result = result
             return self._last_result
         if not host_name:
             nb_markdown(
@@ -190,7 +195,7 @@ class HostSummary(Notebooklet):
                     "sub_details"
                 ]
 
-        self._last_result.host_entity = host_entity
+        result.host_entity = host_entity
 
         if not self.silent:
             _show_host_entity(host_entity)
@@ -199,14 +204,15 @@ class HostSummary(Notebooklet):
                 self.query_provider, self.timespan, host_name
             )
             if len(related_alerts) > 0:
-                self._last_result.alert_timeline = _show_alert_timeline(related_alerts)
-            self._last_result.related_alerts = related_alerts
+                result.alert_timeline = _show_alert_timeline(related_alerts)
+            result.related_alerts = related_alerts
 
         if "bookmarks" in self.options:
-            self._last_result.related_bookmarks = _get_related_bookmarks(
+            result.related_bookmarks = _get_related_bookmarks(
                 self.query_provider, self.timespan, host_name
             )
 
+        self._last_result = result
         return self._last_result
 
 

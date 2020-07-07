@@ -11,17 +11,17 @@ import pandas as pd
 from msticpy.nbtools import entities
 
 from ..common import TimeSpan, nb_print, set_text
-from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from ..nb_metadata import read_mod_metadata
+from ..notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from .. import nb_metadata
 from .._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -32,6 +32,8 @@ class TstSummaryResult(NotebookletResult):
     host_entity: entities.Host = None
     related_alerts: pd.DataFrame = None
     related_bookmarks: pd.DataFrame = None
+    default_property: pd.DataFrame = None
+    optional_property: pd.DataFrame = None
 
 
 # pylint: disable=too-few-public-methods
@@ -39,6 +41,8 @@ class TstNBSummary(Notebooklet):
     """Test Notebooklet class."""
 
     metadata = _CLS_METADATA
+    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    _cell_docs = _CELL_DOCS
 
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa MC0001
@@ -56,7 +60,9 @@ class TstNBSummary(Notebooklet):
         )
 
         # pylint: disable=attribute-defined-outside-init
-        self._last_result = TstSummaryResult(description=self.metadata.description)
+        self._last_result = TstSummaryResult()
+        self._last_result.description = self.metadata.description
+        self._last_result.timespan = timespan
 
         host_entity = entities.Host(HostName="testhost")
         _test_inline_text(host_entity)
@@ -64,6 +70,11 @@ class TstNBSummary(Notebooklet):
         self._last_result.host_entity = host_entity
         self._last_result.related_alerts = pd.DataFrame()
         self._last_result.related_bookmarks = pd.DataFrame()
+
+        if "default_opt" in self.options:
+            self._last_result.default_property = pd.DataFrame()
+        if "optional_opt" in self.options:
+            self._last_result.optional_property = pd.DataFrame()
         return self._last_result
 
 

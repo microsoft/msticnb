@@ -42,9 +42,9 @@ from msticpy.nbtools import nbdisplay
 
 # Note - when moved to the final location (e.g.
 # nb/environ/category/mynotebooklet.py)
-# you will need to change the ".." to "...." in these
+# you will need to change the "..." to "...." in these
 # imports because the relative path has changed.
-from ..common import (
+from ...common import (
     TimeSpan,
     MsticnbMissingParameterError,
     nb_data_wait,
@@ -53,21 +53,21 @@ from ..common import (
     nb_markdown,
 )
 
-# change the ".." to "...."
-from ..notebooklet import Notebooklet, NotebookletResult, NBMetaData
-from ..nb_metadata import read_mod_metadata
+# change the "..." to "...."
+from ...notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from ... import nb_metadata
 
 # change the ".." to "...."
-from .._version import VERSION
+from ..._version import VERSION
 
 __version__ = VERSION
 __author__ = "Your name"
 
 
 # Read module metadata from YAML
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -120,6 +120,8 @@ class TemplateNB(Notebooklet):
 
     # assign metadata from YAML to class variable
     metadata = _CLS_METADATA
+    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    _cell_docs = _CELL_DOCS
 
     # @set_text decorator will display the title and text every time
     # this method is run.
@@ -176,6 +178,8 @@ class TemplateNB(Notebooklet):
 
         # Create a result class
         result = TemplateResult()
+        result.description = self.metadata.description
+        result.timespan = timespan
 
         # You might want to always do some tasks irrespective of
         # options sent
@@ -185,13 +189,10 @@ class TemplateNB(Notebooklet):
         result.all_events = all_events_df
 
         if "plot_events" in self.options:
-            _display_event_timeline(acct_event_data=all_events_df)
+            result.plot = _display_event_timeline(acct_event_data=all_events_df)
 
         if "get_metadata" in self.options:
-            my_provider = self.data_providers.providers.get("special_provider")
-            result.additional_info = _get_metadata(
-                qry_prov=my_provider, host_name=value, timespan=timespan
-            )
+            result.additional_info = _get_metadata(host_name=value, timespan=timespan)
 
         # Assign the result to the _last_result attribute
         # so that you can get to it without having to re-run the operation
@@ -284,12 +285,11 @@ def _display_event_timeline(acct_event_data):
 
 
 # This function has no text output associated with it
-def _get_metadata(qry_prov, host_name, timespan):
-
+def _get_metadata(host_name, timespan):
     return {
         "host": host_name,
         "data_items": {"age": 97, "color": "blue", "country_of_origin": "Norway"},
-        "provider": qry_prov,
+        "provider": "whois",
         "time_duration": timespan,
     }
 
