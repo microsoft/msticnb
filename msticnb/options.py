@@ -9,9 +9,10 @@ Notebooklets global options.
 Available options are:
 [name, type (default value), description]
 
-`verbose`: bool (True) - Show progress messages.
-`debug`: bool (False) - Turn on debug output.
-`show_sample_results`: bool (True) - Display sample of results as they are produced.
+- `verbose`: bool (True) - Show progress messages.
+- `debug`: bool (False) - Turn on debug output.
+- `show_sample_results`: bool (True) - Display sample of results as they are produced.
+- `silent`: bool (False) - Execute notebooklets with no output.
 
 """
 from typing import Any, Dict
@@ -100,7 +101,7 @@ def set_opt(option: str, value: Any):
     if option not in _OPT_DICT:
         raise KeyError(f"Unrecognized option {option}.")
 
-    cur_opt = _OPT_DICT.get(option)
+    cur_opt = _OPT_DICT[option]
     # allow temp_silent to be None
     if option != "temp_silent" and not isinstance(value, type(cur_opt)):
         try:

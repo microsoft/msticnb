@@ -27,9 +27,9 @@ from ....common import (
     nb_warn,
 )
 from ....data_providers import DataProviders
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology
-from ....nb_metadata import read_mod_metadata
+from .... import nb_metadata
 
 from ...._version import VERSION
 
@@ -37,9 +37,9 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
@@ -118,6 +118,8 @@ class NetworkFlowSummary(Notebooklet):
 
     # assign metadata from YAML to class variable
     metadata = _CLS_METADATA
+    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    _cell_docs = _CELL_DOCS
 
     def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
@@ -194,6 +196,9 @@ class NetworkFlowSummary(Notebooklet):
             raise MsticnbMissingParameterError("timespan.")
 
         result = NetworkFlowResult()
+        result.description = self.metadata.description
+        result.timespan = timespan
+
         if isinstance(value, entities.Host):
             host_name = value.HostName
             result.host_entity = value
@@ -286,7 +291,7 @@ class NetworkFlowSummary(Notebooklet):
             flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector
         )
         ti_results = _lookup_ip_ti(
-            flows_df=self._last_result,
+            flows_df=self._last_result.flow_summary,
             selected_ips=selected_ips,
             ti_lookup=self.data_providers["tilookup"],
         )

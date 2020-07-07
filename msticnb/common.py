@@ -321,19 +321,21 @@ def set_text(  # noqa: MC0001
             else:
                 run_silent = get_opt("silent")
             if not run_silent:
+                h_level = hd_level
                 out_title = title
                 out_text = text
                 other_items = {}
                 if docs and key:
                     out_title = docs.get(key, {}).get("title")
                     out_text = docs.get(key, {}).get("text")
+                    h_level = docs.get(key, {}).get("hd_level", 2)
                     other_items = {
                         hdr: str(text)
                         for hdr, text in docs.get(key, {}).items()
                         if hdr not in ("title", "text", "doc", "hd_level", "md")
                     }
                 if out_title:
-                    h_level = max(min(hd_level, 4), 1)
+                    h_level = max(min(h_level, 4), 1)
                     display(HTML(f"<h{h_level}>{out_title}</h{h_level}>"))
                 if out_text:
                     if md:

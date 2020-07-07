@@ -7,7 +7,7 @@
 import unittest
 
 from .. import init
-from ..nb_metadata import NBMetaData, read_mod_metadata
+from ..nb_metadata import NBMetadata, read_mod_metadata
 from ..nb.azsent.host import host_summary
 
 
@@ -17,7 +17,7 @@ class TestMetadata(unittest.TestCase):
     def test_read_metadata(self):
         """Tests reading metadata yaml file."""
         nb_md, docs = read_mod_metadata(host_summary.__file__, host_summary.__name__)
-        self.assertIsInstance(nb_md, NBMetaData)
+        self.assertIsInstance(nb_md, NBMetadata)
         self.assertIsInstance(docs, dict)
 
         opts = nb_md.get_options("all")
@@ -40,12 +40,12 @@ class TestMetadata(unittest.TestCase):
         host_nb = host_summary.HostSummary()
 
         self.assertTrue(hasattr(host_summary, "_CLS_METADATA"))
-        self.assertIsInstance(host_summary._CLS_METADATA, NBMetaData)
+        self.assertIsInstance(host_summary._CLS_METADATA, NBMetadata)
         self.assertTrue(hasattr(host_summary, "_CELL_DOCS"))
         self.assertIsInstance(host_summary._CELL_DOCS, dict)
 
         self.assertTrue(hasattr(host_nb, "metadata"))
-        self.assertIsInstance(host_nb.metadata, NBMetaData)
+        self.assertIsInstance(host_nb.metadata, NBMetadata)
         self.assertEqual(host_nb.metadata.mod_name, host_summary.__name__)
         self.assertEqual(host_nb.description(), "Host summary")
         self.assertEqual(host_nb.name(), "HostSummary")

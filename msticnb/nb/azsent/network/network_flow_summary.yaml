@@ -27,7 +27,7 @@ metadata:
 output:
   run:
     title: Host Network Summary
-    h_level: 1
+    hd_level: 1
     text:
       This shows a summary of network flows for this endpoint.
 

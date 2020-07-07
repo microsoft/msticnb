@@ -19,7 +19,7 @@ __author__ = "Ian Hellen"
 
 
 @attr.s(auto_attribs=True)
-class NBMetaData:
+class NBMetadata:
     """Notebooklet metadata class."""
 
     name: str = "Unnamed"
@@ -97,24 +97,28 @@ class NBMetaData:
     def options_doc(self) -> str:
         """Return list of options and documentation."""
         opt_list = []
-        opt_list.append("Default Options")
-        opt_list.append("---------------")
+        opt_list.append("")
+        opt_list.append("    Default Options")
+        opt_list.append("    ---------------")
         opt_list.extend(
-            [f"    {key}: {value}" for key, value in self.get_options("default")]
+            [f"    - {key}: {value}" for key, value in self.get_options("default")]
         )
         opt_list.append("")
-        opt_list.append("Other Options")
-        opt_list.append("-------------")
-        opt_list.extend(
-            [f"    {key}: {value}" for key, value in self.get_options("other")]
-        )
+        opt_list.append("    Other Options")
+        opt_list.append("    -------------")
+        if self.get_options("other"):
+            opt_list.extend(
+                [f"    - {key}: {value}" for key, value in self.get_options("other")]
+            )
+        else:
+            opt_list.append("    None")
         opt_list.append("")
         return "\n".join(opt_list)
 
     # pylint: enable=not-an-iterable
 
 
-def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetaData, Dict[str, Any]]:
+def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetadata, Dict[str, Any]]:
     """
     Read notebooklet metadata from yaml file.
 
@@ -127,18 +131,18 @@ def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetaData, Dict[str,
 
     Returns
     -------
-    Tuple[NBMetaData, Dict[str, Any]]
+    Tuple[NBMetadata, Dict[str, Any]]
         A tuple of the metadata class
         and the documentation dictionary
 
     """
     md_dict = _read_metadata_file(mod_path)
     if not md_dict:
-        return NBMetaData(), {}
+        return NBMetadata(), {}
     metadata_vals = md_dict.get("metadata", {})
 
     metadata_vals["mod_name"] = module_name
-    metadata = NBMetaData(**metadata_vals)
+    metadata = NBMetadata(**metadata_vals)
     output = md_dict.get("output", {})
     return metadata, output
 
@@ -151,3 +155,11 @@ def _read_metadata_file(mod_path):
         with open(md_path, "r") as _md_file:
             return yaml.safe_load(_md_file)
     return None
+
+
+def update_class_doc(cls_doc: str, cls_metadata: NBMetadata):
+    """Append the options documentation to the `cls_doc`."""
+    options_doc = cls_metadata.options_doc
+    if options_doc is not None:
+        return cls_doc + options_doc
+    return cls_doc

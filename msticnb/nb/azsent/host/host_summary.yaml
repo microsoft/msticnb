@@ -21,7 +21,7 @@ metadata:
 output:
   run:
     title: Host Entity Summary
-    h_level: 1
+    hd_level: 1
     text:
       This shows a summary data for a host.
       It shows host properties obtained from OMS Heartbeat and Azure API.

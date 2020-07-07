@@ -7,7 +7,10 @@ metadata:
       network topology information.'
     - alerts: Query any alerts for the host.
     - bookmarks: Query any bookmarks for the host.
-    - azure_api: Query Azure API for VM information.
+    - default_opt: Query Azure API for VM information.
+  other_options:
+    - optional_opt: Plots some other stuff.
+    - analyze_host: Does some analysis of host.
   keywords:
     - host
     - computer
@@ -20,7 +23,7 @@ metadata:
 output:
   run:
     title: Host Entity Summary
-    h_level: 1
+    hd_level: 1
     text:
       This shows a summary data for a host.
       It shows host properties obtained from OMS Heartbeat and Azure API.
