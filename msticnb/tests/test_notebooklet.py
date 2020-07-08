@@ -36,7 +36,7 @@ class TestNotebooklet(unittest.TestCase):
             if not geoip._api_key:
                 test_with_geop = False
             del geoip
-        except MsticpyConfigException:
+        except MsticpyUserConfigError:
             test_with_geop = False
 
         if test_with_geop:

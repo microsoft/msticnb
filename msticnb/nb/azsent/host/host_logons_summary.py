@@ -27,7 +27,7 @@ from ....common import (
     nb_data_wait,
     set_text,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
 from ...._version import VERSION
@@ -38,7 +38,7 @@ __version__ = VERSION
 __author__ = "Pete Bryan"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 

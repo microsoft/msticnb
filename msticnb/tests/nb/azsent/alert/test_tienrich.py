@@ -16,11 +16,10 @@ from msticpy.nbtools.foliummap import FoliumMap
 from msticpy.nbtools.nbwidgets import SelectAlert
 
 from .....data_providers import init
-from .....read_modules import nblts
+from ..... import nblts
 from .....common import TimeSpan
 
 _TESTDATA_FOLDER = Path("msticnb\\tests\\testdata")
-
 
 @pytest.fixture
 def nbltdata():

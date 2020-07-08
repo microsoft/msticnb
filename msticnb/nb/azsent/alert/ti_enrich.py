@@ -26,7 +26,7 @@ from ....common import (
     set_text,
 )
 
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ...._version import VERSION
 from ....nb_metadata import read_mod_metadata
 
@@ -34,7 +34,7 @@ __version__ = VERSION
 __author__ = "Pete Bryan"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
