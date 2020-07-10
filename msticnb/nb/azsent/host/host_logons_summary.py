@@ -27,7 +27,7 @@ from ....common import (
     nb_data_wait,
     set_text,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
 from ...._version import VERSION
@@ -38,7 +38,7 @@ __version__ = VERSION
 __author__ = "Pete Bryan"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
@@ -51,12 +51,12 @@ class HostLogonsSummaryResults(NotebookletResult):
     Attributes
     ----------
     logon_sessions: pd.DataFrame
-        A Dataframe summarizing all sucessfull and failed logon attempts observed during the
-        specified time period.
+        A Dataframe summarizing all sucessfull and failed logon attempts
+        observed during the specified time period.
 
     logon_map: FoliumMap
-        A map showing remote logon attempt source locations. Red points represent failed logons,
-        green successful.
+        A map showing remote logon attempt source locations. Red points
+        represent failed logons, green successful.
 
     plots: Dict
         A collection of Bokeh plot figures showing various aspects of observed logons.
@@ -69,7 +69,7 @@ class HostLogonsSummaryResults(NotebookletResult):
     logon_map: FoliumMap = None
     timeline: figure = None
     failed_success: pd.DataFrame = None
-    plots: Dict = None
+    plots: Optional[Dict[str, figure]] = None
 
 
 class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
@@ -136,38 +136,34 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         )
 
         # Check we have at either a dataset or a host_name and timespan
-        if value is None and timespan is None and data is None:
+        if (value is None and timespan is None) or data is None:
             raise MsticnbMissingParameterError("data, or a hostname and timespan.")
 
         # If data is not provided use host_name and timespan to get data
-        if data is None:
+        if data is None and timespan is not None:
             nb_data_wait(f"{value}")
-            host_name, host_names = verify_host_name(
+            host_verif = verify_host_name(
                 qry_prov=self.query_provider, timespan=timespan, host_name=value
             )
-            if host_names:
+            if host_verif.host_names:
                 nb_print(f"Could not obtain unique host name from {value}. Aborting.")
                 return self._last_result
-            if not host_name:
+            if not host_verif.host_name:
                 nb_print(
                     f"Could not find event records for host {value}. "
                     + "Results may be unreliable."
                 )
                 return self._last_result
-            host_type = host_name[1] or None
-            host_name = host_name[0] or value
+            host_type = host_verif.host_type or None
+            host_name = host_verif.host_name or value
 
-            if host_type == "Windows":
-                data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
+            if host_type == "Windows" or not host_type == "Linux":
+                # If no known data type try Windows
+                data = self.query_provider.WindowsSecurity.list_all_logons_by_host(  # type: ignore
                     host_name=host_name, start=timespan.start, end=timespan.end
                 )
-            elif host_type == "Linux":
-                data = self.query_provider.LinuxSyslog.list_logons_for_host(
-                    host_name=host_name, start=timespan.start, end=timespan.end
-                )
-            # If no known data type try Windows
             else:
-                data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
+                data = self.query_provider.LinuxSyslog.list_logons_for_host(  # type: ignore
                     host_name=host_name, start=timespan.start, end=timespan.end
                 )
         else:
@@ -184,7 +180,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             raise MsticnbDataProviderError("No valid data avaliable")
 
         # Conduct analysis and get visualizations
-        nb_print(f"Performing analytics and generating visualizations")
+        nb_print("Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
         if "timeline" in self.options:
             tl_plot = _gen_timeline(data, self.silent)
@@ -212,7 +208,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
 @set_text(docs=_CELL_DOCS, key="logons_timeline")
 def _gen_timeline(data: pd.DataFrame, silent: bool):
-    if silent is True:
+    if silent:
         time_line = timeline.display_timeline(
             data[data["LogonResult"] != "Unknown"],
             group_by="LogonResult",
@@ -257,13 +253,13 @@ def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     # Get center point of logons and build map acount that
     location = get_center_ip_entities(ip_fail_list + ip_list)
     folium_map = FoliumMap(location=location, zoom_start=4)
-    if len(ip_fail_list) > 0:
+    if ip_fail_list:
         icon_props = {"color": "red"}
         folium_map.add_ip_cluster(ip_entities=ip_fail_list, **icon_props)
-    if len(ip_list) > 0:
+    if ip_list:
         icon_props = {"color": "green"}
         folium_map.add_ip_cluster(ip_entities=ip_list, **icon_props)
-    if silent is not True:
+    if not silent:
         display(folium_map)
     return folium_map
 
@@ -310,7 +306,7 @@ def _users_pie(data: pd.DataFrame, silent: bool) -> figure:
     viz.axis.visible = False
     viz.grid.grid_line_color = None
 
-    if silent is not True:
+    if not silent:
         show(viz)
 
     return viz
@@ -380,7 +376,7 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
     viz.legend.location = "top_left"
     viz.legend.orientation = "horizontal"
 
-    if silent is not True:
+    if not silent:
         show(viz)
 
     return viz
@@ -405,7 +401,7 @@ def _logon_matrix(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
         .style.background_gradient(cmap="viridis", low=0.5, high=0)
         .format("{0:0>3.0f}")
     )
-    if silent is not True:
+    if not silent:
         display(logon_by_type)
     return logon_by_type
 
@@ -417,7 +413,7 @@ def _failed_success_user(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
     combined = host_logons[
         host_logons["Account"].isin(failed_logons["Account"].drop_duplicates())
     ]
-    if silent is not True:
+    if not silent:
         if not combined.empty:
             display(combined)
         else:
@@ -443,7 +439,7 @@ def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
             data.rename(columns={"ProcessName": "LogonProcessName"})
         if "LogonTypeName" not in data.columns:
             data["LogonTypeName"] = data["LogonProcessName"]
-    elif "EventID" and "SubjectUserSid" in data.columns:
+    elif "SubjectUserSid" in data.columns:
         if "LogonResult" not in data.columns:
             data["LogonResult"] = data.apply(_event_id_to_result, axis=1)
             data["SourceIP"] = data.apply(_win_remote_ip, axis=1)
@@ -469,18 +465,18 @@ def _parse_user_lx(row: pd.Series) -> str:
     if row.str.contains("publickey")["SyslogMessage"] is True:
         regex = re.compile("for ([^ ]*)")
         user = re.search(regex, row["SyslogMessage"])
-        return user[1]
+        return user[1] if user else None
 
     regex = re.compile("user |user= ([^ ]*)")
     user = re.search(regex, row["SyslogMessage"])
-    return user[1]
+    return user[1] if user else None
 
 
 def _parse_ip_lx(row: pd.Series) -> str:
     """Extract an IP Address from an Syslog message."""
     regex = re.compile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3})")
     ips = re.search(regex, row["SyslogMessage"])
-    return ips[1]
+    return ips[1] if ips else None
 
 
 def _event_id_to_result(row: pd.Series):

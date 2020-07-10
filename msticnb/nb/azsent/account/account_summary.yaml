@@ -1,0 +1,49 @@
+metadata:
+  name: AlertSummary
+  description: Account Summary notebooklet
+  default_options:
+    - get_alerts: Retrieve alerts for selected account
+    - get_bookmarks:
+        Display and summary and timeline of events.
+  other_options:
+  keywords:
+    - account
+    - azure
+    - office
+    - windows
+    - linux
+    - aad
+    - o365
+  entity_types:
+    - account
+  req_providers:
+    - AzureSentinel|LocalData
+output:
+  run:
+    title: Title for the run method (main title)
+    hd_level: 1
+    text:
+      Write your introductory text here
+
+      Data and plots are stored in the result class returned by this function.
+
+      If you use **markdown** syntax in this block add the following
+      to use markdown processing.
+    md: True
+  display_event_timeline:
+    title: Display the timeline.
+    text: '
+      This may take some time to complete for large numbers of events.
+
+      It will do:
+      - Item one
+      - Item two
+
+      Since some groups will be undefined these can show up as `NaN`.
+
+      Note: use a quoted string if you want to include yaml reserved chars
+      such as ":"
+      '
+    md: True
+
+

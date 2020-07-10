@@ -266,7 +266,7 @@ class Notebooklet(ABC):
                 self.options = list(set(def_options) - sub_options)
             if add_options:
                 self.options = list(set(self.options) | add_options)
-            if not add_options and not sub_options:
+            if not (add_options or sub_options):
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
         if timespan:
@@ -529,7 +529,10 @@ class Notebooklet(ABC):
         metadata, docs = read_mod_metadata(module_path, cls.__module__)
         metadata_repr = repr(metadata)
         metadata_repr = metadata_repr.replace("NBMetadata", "nb_metadata.NBMetadata")
-        repl_text = "_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)"
+        repl_text = (
+            "_CLS_METADATA, _CELL_DOCS = "
+            + "nb_metadata.read_mod_metadata(__file__, __name__)"
+        )
         inline_text = f"_CELL_DOCS = {str(docs)}\n"
         inline_text = f"{inline_text}\n_CLS_METADATA = {metadata_repr}"
         return mod_text.replace(repl_text, inline_text)
