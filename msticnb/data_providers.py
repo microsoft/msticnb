@@ -11,8 +11,9 @@ import sys
 
 from msticpy.data import QueryProvider
 from msticpy.data.query_defns import DataEnvironment
-from msticpy.data.azure_data import AzureData, MsticpyAzureException
+from msticpy.data.azure_data import AzureData
 from msticpy.common.wsconfig import WorkspaceConfig
+from msticpy.common.exceptions import MsticpyAzureConfigError
 from msticpy.sectools import TILookup, GeoLiteLookup, IPStackLookup
 
 from .common import MsticnbDataProviderError, MsticnbError
@@ -313,7 +314,7 @@ class DataProviders:
             # call the connect function
             created_provider.connect(**prov_connect_args)
             return created_provider
-        except MsticpyAzureException as mp_ex:
+        except MsticpyAzureConfigError as mp_ex:
             if get_opt("verbose"):
                 print("Warning:", mp_ex.args)
             return None

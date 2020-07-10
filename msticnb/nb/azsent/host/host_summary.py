@@ -26,7 +26,7 @@ from ....common import (
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
-from .... import nb_metadata
+from ....nb_metadata import read_mod_metadata, update_class_doc
 from ...._version import VERSION
 
 __version__ = VERSION
@@ -35,7 +35,7 @@ __author__ = "Ian Hellen"
 
 _CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
-_CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
+_CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -83,7 +83,7 @@ class HostSummary(Notebooklet):
     """
 
     metadata = _CLS_METADATA
-    __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
+    __doc__ = update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
 
     # pylint: disable=too-many-branches

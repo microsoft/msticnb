@@ -2,8 +2,8 @@ metadata:
   version: 1
   description: Local Data Alert Queries
   data_environments: [LocalData]
-  data_families: [SecurityAlert, WindowsSecurity, Network]
-  tags: ['alert', 'securityalert', 'process', 'account', 'network']
+  data_families: [SecurityAlert, WindowsSecurity, AzureNetwork, LinuxSyslog, Network]
+  tags: ['alert', 'securityalert', 'process', 'account', 'network', 'host']
 defaults:
   metadata:
     data_source: 'security_alert'
@@ -68,14 +68,21 @@ sources:
   list_azure_network_flows_by_ip:
     description: List Azure Network flows by IP address
     metadata:
-      data_families: [Network]
+      data_families: [AzureNetwork]
     args:
       query: az_net_comms_df.pkl
     parameters:
   list_azure_network_flows_by_host:
     description: List Azure Network flows by host name
     metadata:
-      data_families: [Network]
+      data_families: [AzureNetwork]
     args:
       query: az_net_comms_df.pkl
+    parameters:
+  list_all_logons_by_host:
+    description: Return Logon Events For A Host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: win_host_logons.pkl
     parameters:

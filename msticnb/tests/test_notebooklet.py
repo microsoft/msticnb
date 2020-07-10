@@ -15,7 +15,7 @@ from markdown import markdown
 import pandas as pd
 
 from msticpy.sectools import GeoLiteLookup
-from msticpy.sectools.geoip import MsticpyConfigException
+from msticpy.common.exceptions import MsticpyUserConfigError
 from ..common import MsticnbDataProviderError, TimeSpan
 from ..data_providers import init
 
@@ -36,7 +36,7 @@ class TestNotebooklet(unittest.TestCase):
             if not geoip._api_key:
                 test_with_geop = False
             del geoip
-        except MsticpyConfigException:
+        except MsticpyUserConfigError:
             test_with_geop = False
 
         if test_with_geop:
