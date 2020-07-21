@@ -27,7 +27,7 @@ from ....common import (
     nb_data_wait,
     set_text,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetaData
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
 from ...._version import VERSION
@@ -38,7 +38,7 @@ __version__ = VERSION
 __author__ = "Pete Bryan"
 
 
-_CLS_METADATA: NBMetaData
+_CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
@@ -153,9 +153,14 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
                     f"Could not find event records for host {value}. "
                     + "Results may be unreliable."
                 )
-                return self._last_result
-            host_type = host_name[1] or None
-            host_name = host_name[0] or value
+            try:
+                host_type = host_name[1]
+            except TypeError:
+                host_type = None
+            try:
+                host_name = host_name[0]
+            except TypeError:
+                host_name = value
 
             if host_type == "Windows":
                 data = self.query_provider.WindowsSecurity.list_all_logons_by_host(
