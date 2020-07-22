@@ -5,7 +5,6 @@ metadata:
     - get_alerts: Retrieve alerts for selected account
     - get_bookmarks:
         Display and summary and timeline of events.
-  other_options:
   keywords:
     - account
     - azure
