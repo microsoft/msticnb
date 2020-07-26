@@ -11,9 +11,9 @@ import unittest
 
 import pandas as pd
 
-from .....common import TimeSpan
-from ..... import nblts
-from .....data_providers import init
+from msticnb.common import TimeSpan
+from msticnb import nblts
+from msticnb.data_providers import init
 
 from ....unit_test_lib import TEST_DATA_PATH
 
@@ -21,10 +21,10 @@ from ....unit_test_lib import TEST_DATA_PATH
 # pylint: disable=no-member
 
 
-class TestWinHostEvents(unittest.TestCase):
+class TestHostSummary(unittest.TestCase):
     """Tests for nb_template."""
 
-    def test_winhostevents_notebooklet(self):
+    def test_host_summary_notebooklet(self):
         """Test basic run of notebooklet."""
         test_data = str(Path(TEST_DATA_PATH).absolute())
         init(
@@ -33,19 +33,13 @@ class TestWinHostEvents(unittest.TestCase):
             LocalData_query_paths=[test_data],
         )
 
-        test_nb = nblts.azsent.host.WinHostEvents()
+        test_nb = nblts.azsent.host.HostSummary()
         tspan = TimeSpan(period="1D")
 
         result = test_nb.run(value="myhost", timespan=tspan)
-        self.assertIsNotNone(result.all_events)
-        self.assertIsInstance(result.all_events, pd.DataFrame)
-        self.assertIsNotNone(result.event_pivot)
-        self.assertIsInstance(result.event_pivot, pd.DataFrame)
-        self.assertIsNotNone(result.account_events)
-        self.assertIsInstance(result.account_events, pd.DataFrame)
-        self.assertIsNotNone(result.event_pivot)
-        self.assertIsInstance(result.event_pivot, pd.DataFrame)
-        # self.assertIsNotNone(result.account_timeline)
-
-        exp_events = test_nb.expand_events(["5058", "5061"])
-        self.assertIsInstance(exp_events, pd.DataFrame)
+        self.assertIsNotNone(result.host_entity)
+        self.assertIsNotNone(result.related_alerts)
+        self.assertIsInstance(result.related_alerts, pd.DataFrame)
+        self.assertIsNotNone(result.alert_timeline)
+        self.assertIsNotNone(result.related_bookmarks)
+        self.assertIsInstance(result.related_bookmarks, pd.DataFrame)

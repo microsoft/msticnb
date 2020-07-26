@@ -16,11 +16,11 @@ import pandas as pd
 
 from msticpy.sectools import GeoLiteLookup
 from msticpy.common.exceptions import MsticpyUserConfigError
-from ..common import MsticnbDataProviderError, TimeSpan
-from ..data_providers import init
+from msticnb.common import MsticnbDataProviderError, TimeSpan
+from msticnb.data_providers import init
 
-from ..read_modules import Notebooklet, nblts
-from ..nb.azsent.host.host_summary import HostSummaryResult
+from msticnb.read_modules import Notebooklet, nblts
+from msticnb.nb.azsent.host.host_summary import HostSummaryResult
 from .nb_test import TstNBSummary
 
 

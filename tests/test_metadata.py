@@ -6,9 +6,9 @@
 """NB metadata test class."""
 import unittest
 
-from .. import init
-from ..nb_metadata import NBMetadata, read_mod_metadata
-from ..nb.azsent.host import host_summary
+from msticnb import init
+from msticnb.nb_metadata import NBMetadata, read_mod_metadata
+from msticnb.nb.azsent.host import host_summary
 
 
 class TestMetadata(unittest.TestCase):

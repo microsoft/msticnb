@@ -7,7 +7,7 @@
 from pathlib import Path
 import unittest
 
-from ..read_modules import discover_modules, Notebooklet, find, nblts, nb_index
+from msticnb.read_modules import discover_modules, Notebooklet, find, nblts, nb_index
 from .unit_test_lib import TEST_DATA_PATH
 
 

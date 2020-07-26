@@ -10,7 +10,7 @@ from msticpy.data import QueryProvider
 from msticpy.sectools.geoip import GeoLiteLookup
 from msticpy.sectools import TILookup
 
-from ..data_providers import DataProviders, init
+from msticnb.data_providers import DataProviders, init
 
 
 # pylint: disable=no-member

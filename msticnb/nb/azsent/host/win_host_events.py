@@ -365,7 +365,7 @@ def _create_acct_event_pivot(account_event_data):
         lambda x: x.Account.split("\\")[-1], axis=1
     )
 
-    event_pivot_df = (
+    return (
         pd.pivot_table(
             win_events_acc,
             values="TimeGenerated",
@@ -376,7 +376,6 @@ def _create_acct_event_pivot(account_event_data):
         .fillna(0)
         .reset_index()
     )
-    return event_pivot_df
 
 
 @set_text(docs=_CELL_DOCS, key="display_acct_event_pivot")

@@ -136,7 +136,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         )
 
         # Check we have at either a dataset or a host_name and timespan
-        if (value is None and timespan is None) or data is None:
+        if not (data is not None or (value is not None and timespan is not None)):
             raise MsticnbMissingParameterError("data, or a hostname and timespan.")
 
         # If data is not provided use host_name and timespan to get data
@@ -153,7 +153,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
                     f"Could not find event records for host {value}. "
                     + "Results may be unreliable."
                 )
-                return self._last_result
+                # return self._last_result
             host_type = host_verif.host_type or None
             host_name = host_verif.host_name or value
 

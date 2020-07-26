@@ -98,6 +98,7 @@ def _get_closure_vars(func, doc_cls) -> List[str]:
     docs = closure_args.get("docs")
     key = closure_args.get("key")
     other_items = None
+    title = hd_level = text = None
     if docs and key and issubclass(doc_cls, Notebooklet):
         cell_docs = getattr(doc_cls, "_cell_docs", None)
         if cell_docs:

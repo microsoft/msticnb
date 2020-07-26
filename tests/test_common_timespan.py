@@ -7,7 +7,7 @@
 from datetime import datetime, timedelta
 import unittest
 
-from ..common import TimeSpan, MsticnbMissingParameterError
+from msticnb.common import TimeSpan, MsticnbMissingParameterError
 
 
 class TestCommon(unittest.TestCase):
@@ -87,7 +87,7 @@ class TestCommon(unittest.TestCase):
         test_t.end = str(end)
         test_t.period = "1D"
 
-        tspan = TimeSpan(time_selector=test_t)
+        tspan = TimeSpan(timespan=test_t)
         self._validate_timespan(tspan, start, end)
 
     def test_timespan_invalid_params(self):
