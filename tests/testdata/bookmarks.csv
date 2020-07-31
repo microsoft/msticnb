@@ -1,0 +1,113 @@
+﻿TenantId,TimeGenerated,BookmarkId,BookmarkName,BookmarkType,CreatedBy,UpdatedBy,CreatedTime,LastUpdatedTime,EventTime,QueryText,QueryResultRow,QueryStartTime,QueryEndTime,Notes,SoftDeleted,Tags,SourceSystem,Type,"_ResourceId"
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2020-04-01T17:35:17.593Z","634e7565-a40e-4662-afe3-284c4f142352","SecurityEvent - 08d69bf66806 (1)",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2020-04-01T17:35:17Z","2020-04-01T17:35:17Z","2020-04-01T17:35:17.511Z","SecurityEvent
+| take 10
+","{""TimeGenerated"":""2020-04-01T17:18:08.6Z"",""Account"":"""",""AccountType"":"""",""Computer"":""Test4VM"",""EventSourceName"":""Microsoft-Windows-Security-Auditing"",""Channel"":""Security"",""Task"":12290,""Level"":""8"",""EventData"":""<EventData xmlns=\""http://schemas.microsoft.com/win/2004/08/events/event\"">\r\n  <Data Name=\""SubjectUserSid\"">S-1-5-18</Data>\r\n  <Data Name=\""SubjectUserName\"">Test4VM$</Data>\r\n  <Data Name=\""SubjectDomainName\""></Data>\r\n  <Data Name=\""SubjectLogonId\"">0x3e7</Data>\r\n  <Data Name=\""ProviderName\"">Microsoft Software Key Storage Provider</Data>\r\n  <Data Name=\""AlgorithmName\"">RSA</Data>\r\n  <Data Name=\""KeyName\"">af291ef4-68fb-4841-9121-6f50cc0d849c</Data>\r\n  <Data Name=\""KeyType\"">%%2499</Data>\r\n  <Data Name=\""Operation\"">%%2480</Data>\r\n  <Data Name=\""ReturnCode\"">0x0</Data>\r\n</EventData>"",""EventID"":5061,""Activity"":""5061 - Cryptographic operation."",""CommandLine"":"""",""FileHash"":"""",""FilePath"":"""",""Fqbn"":"""",""MandatoryLabel"":"""",""NewProcessId"":"""",""NewProcessName"":"""",""ParentProcessName"":"""",""Process"":"""",""__entityMapping"":{}}","2020-03-31T17:35:10.948Z","2020-04-01T17:35:10.948Z",,false,"[]",,HuntingBookmark,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2020-04-01T17:35:15.659Z","a4b0f4f5-e1e8-4747-a9e9-cd3b3788f93c","SecurityEvent - 08d69bf66806",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2020-04-01T17:35:15Z","2020-04-01T17:35:15Z","2020-04-01T17:35:15.59Z","SecurityEvent
+| take 10
+","{""TimeGenerated"":""2020-04-01T17:18:08.6Z"",""Account"":"""",""AccountType"":"""",""Computer"":""Test4VM"",""EventSourceName"":""Microsoft-Windows-Security-Auditing"",""Channel"":""Security"",""Task"":12292,""Level"":""8"",""EventData"":""<EventData xmlns=\""http://schemas.microsoft.com/win/2004/08/events/event\"">\r\n  <Data Name=\""SubjectUserSid\"">S-1-5-18</Data>\r\n  <Data Name=\""SubjectUserName\"">Test4VM$</Data>\r\n  <Data Name=\""SubjectDomainName\""></Data>\r\n  <Data Name=\""SubjectLogonId\"">0x3e7</Data>\r\n  <Data Name=\""ClientProcessId\"">1404</Data>\r\n  <Data Name=\""ClientCreationTime\"">2018-10-25T20:28:41.658859200Z</Data>\r\n  <Data Name=\""ProviderName\"">Microsoft Software Key Storage Provider</Data>\r\n  <Data Name=\""AlgorithmName\"">UNKNOWN</Data>\r\n  <Data Name=\""KeyName\"">af291ef4-68fb-4841-9121-6f50cc0d849c</Data>\r\n  <Data Name=\""KeyType\"">%%2499</Data>\r\n  <Data Name=\""KeyFilePath\"">C:\\ProgramData\\Microsoft\\Crypto\\Keys\\34129eaa9df76cfdf47c317bd7dd071e_507de7cc-db00-45b8-8a70-47ad6a955dff</Data>\r\n  <Data Name=\""Operation\"">%%2458</Data>\r\n  <Data Name=\""ReturnCode\"">0x0</Data>\r\n</EventData>"",""EventID"":5058,""Activity"":""5058 - Key file operation."",""CommandLine"":"""",""FileHash"":"""",""FilePath"":"""",""Fqbn"":"""",""MandatoryLabel"":"""",""NewProcessId"":"""",""NewProcessName"":"""",""ParentProcessName"":"""",""Process"":"""",""__entityMapping"":{}}","2020-03-31T17:35:10.948Z","2020-04-01T17:35:10.948Z",,false,"[]",,HuntingBookmark,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2020-04-01T17:35:22.592Z","b0ff0823-74dc-42f2-a478-a5ce6aa72134","SecurityEvent - 08d69bf66806 (2)",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2020-04-01T17:35:22Z","2020-04-01T17:35:22Z","2020-04-01T17:35:22.518Z","SecurityEvent
+| take 10
+","{""TimeGenerated"":""2020-04-01T17:18:08.6Z"",""Account"":""\\Test4VM$"",""AccountType"":""Machine"",""Computer"":""Test4VM"",""EventSourceName"":""Microsoft-Windows-Security-Auditing"",""Channel"":""Security"",""Task"":12292,""Level"":""8"",""EventData"":""<EventData xmlns=\""http://schemas.microsoft.com/win/2004/08/events/event\"">\r\n  <Data Name=\""SubjectUserSid\"">S-1-5-18</Data>\r\n  <Data Name=\""SubjectUserName\"">Test4VM$</Data>\r\n  <Data Name=\""SubjectDomainName\""></Data>\r\n  <Data Name=\""SubjectLogonId\"">0x3e7</Data>\r\n  <Data Name=\""ClientProcessId\"">1404</Data>\r\n  <Data Name=\""ClientCreationTime\"">2018-10-25T20:28:41.658859200Z</Data>\r\n  <Data Name=\""ProviderName\"">Microsoft Software Key Storage Provider</Data>\r\n  <Data Name=\""AlgorithmName\"">RSA</Data>\r\n  <Data Name=\""KeyName\"">af291ef4-68fb-4841-9121-6f50cc0d849c</Data>\r\n  <Data Name=\""KeyType\"">%%2499</Data>\r\n  <Data Name=\""Operation\"">%%2464</Data>\r\n  <Data Name=\""ReturnCode\"">0x0</Data>\r\n</EventData>"",""EventID"":5059,""Activity"":""5059 - Key migration operation."",""CommandLine"":"""",""FileHash"":"""",""FilePath"":"""",""Fqbn"":"""",""MandatoryLabel"":"""",""NewProcessId"":"""",""NewProcessName"":"""",""ParentProcessName"":"""",""Process"":"""",""__entityMapping"":{}}","2020-03-31T17:35:10.948Z","2020-04-01T17:35:10.948Z",,false,"[]",,HuntingBookmark,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2020-04-01T17:35:27.434Z","e9ad307d-5e58-4aaa-960e-c10490523779","SecurityEvent - 08d69bf66806 (3)",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2020-04-01T17:35:27Z","2020-04-01T17:35:27Z","2020-04-01T17:35:27.407Z","SecurityEvent
+| take 10
+","{""TimeGenerated"":""2020-04-01T17:18:08.6Z"",""Account"":""\\Test4VM$"",""AccountType"":""Machine"",""Computer"":""Test4VM"",""EventSourceName"":""Microsoft-Windows-Security-Auditing"",""Channel"":""Security"",""Task"":12292,""Level"":""8"",""EventData"":""<EventData xmlns=\""http://schemas.microsoft.com/win/2004/08/events/event\"">\r\n  <Data Name=\""SubjectUserSid\"">S-1-5-18</Data>\r\n  <Data Name=\""SubjectUserName\"">Test4VM$</Data>\r\n  <Data Name=\""SubjectDomainName\""></Data>\r\n  <Data Name=\""SubjectLogonId\"">0x3e7</Data>\r\n  <Data Name=\""ClientProcessId\"">1404</Data>\r\n  <Data Name=\""ClientCreationTime\"">2018-10-25T20:28:41.658859200Z</Data>\r\n  <Data Name=\""ProviderName\"">Microsoft Software Key Storage Provider</Data>\r\n  <Data Name=\""AlgorithmName\"">RSA</Data>\r\n  <Data Name=\""KeyName\"">af291ef4-68fb-4841-9121-6f50cc0d849c</Data>\r\n  <Data Name=\""KeyType\"">%%2499</Data>\r\n  <Data Name=\""Operation\"">%%2464</Data>\r\n  <Data Name=\""ReturnCode\"">0x0</Data>\r\n</EventData>"",""EventID"":5059,""Activity"":""5059 - Key migration operation."",""CommandLine"":"""",""FileHash"":"""",""FilePath"":"""",""Fqbn"":"""",""MandatoryLabel"":"""",""NewProcessId"":"""",""NewProcessName"":"""",""ParentProcessName"":"""",""Process"":"""",""__entityMapping"":{}}","2020-03-31T17:35:10.948Z","2020-04-01T17:35:10.948Z",,false,"[]",,HuntingBookmark,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2020-04-01T17:35:28.889Z","67404348-769d-48c8-a684-8fd84a901ed5","SecurityEvent - 08d69bf66806 (4)",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2020-04-01T17:35:28Z","2020-04-01T17:35:28Z","2020-04-01T17:35:28.887Z","SecurityEvent
+| take 10
+","{""TimeGenerated"":""2020-04-01T17:18:10Z"",""Account"":""\\Test4VM$"",""AccountType"":""Machine"",""Computer"":""Test4VM"",""EventSourceName"":""Microsoft-Windows-Security-Auditing"",""Channel"":""Security"",""Task"":13312,""Level"":""8"",""EventData"":"""",""EventID"":4688,""Activity"":""4688 - A new process has been created."",""CommandLine"":""\""C:\\Windows\\system32\\cscript.exe\"" /nologo \""MonitorKnowledgeDiscovery.vbs\"""",""FileHash"":"""",""FilePath"":"""",""Fqbn"":"""",""MandatoryLabel"":""S-1-16-16384"",""NewProcessId"":""0x271c"",""NewProcessName"":""C:\\Windows\\System32\\cscript.exe"",""ParentProcessName"":""C:\\Program Files\\Microsoft Monitoring Agent\\Agent\\MonitoringHost.exe"",""Process"":""cscript.exe"",""__entityMapping"":{}}","2020-03-31T17:35:10.948Z","2020-04-01T17:35:10.948Z",,false,"[]",,HuntingBookmark,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2019-09-24T19:50:51.841Z","66c12520-304b-43f4-b191-4508b4b4aa78","TEST - Arash (2)",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2019-09-24T19:50:51.772Z","2019-09-24T19:50:51Z","2019-09-24T19:50:51.772Z","AzureActivity // has ip
+| take 10
+","{""OperationName"":""Create or Update Virtual Machine Extension"",""OperationNameValue"":""Microsoft.Compute/virtualMachines/extensions/write"",""Level"":""Informational"",""ActivityStatus"":""Succeeded"",""ActivityStatusValue"":""Succeeded"",""ActivitySubstatus"":"""",""ActivitySubstatusValue"":"""",""ResourceGroup"":""AZUREMLRG"",""SubscriptionId"":""40dcc8bf-0478-4f3b-b275-ed0a94f2c013"",""CorrelationId"":""1c31d94d-0ac0-45a9-a5dd-19cf4a450da3"",""Caller"":""6878917f-bc1d-4e4e-bb24-12924205b215"",""CallerIpAddress"":"""",""Category"":""Administrative"",""CategoryValue"":""Administrative"",""HTTPRequest"":"""",""Properties"":"""",""EventSubmissionTimestamp"":""2019-09-24T17:50:36.127Z"",""Authorization"":""{\r\n  \""action\"": \""Microsoft.Compute/virtualMachines/extensions/write\"",\r\n  \""scope\"": \""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/AZUREMLRG/providers/Microsoft.Compute/virtualMachines/test232134505c98764cc/extensions/OmsAgentForLinux\""\r\n}"",""ResourceId"":""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourcegroups/AZUREMLRG/providers/Microsoft.Compute/virtualMachines/test232134505c98764cc/extensions/OmsAgentForLinux"",""OperationId"":""8b69c5c0-daf9-46d3-9ea5-2767cf8f1533"",""ResourceProvider"":""Microsoft.Compute"",""ResourceProviderValue"":""Microsoft.Compute"",""Resource"":""OmsAgentForLinux"",""EventDataId"":""8a232cb8-1607-4efa-b973-8a744c9fae88"",""TenantId"":""52b1ab41-869e-4138-9e40-2a4457f09bf0"",""TimeGenerated"":""2019-09-24T17:49:34.678Z"",""SourceSystem"":""Azure"",""Authorization_d"":"""",""Claims"":"""",""Claims_d"":"""",""Properties_d"":"""",""Type"":""AzureActivity"",""__entityMapping"":{"""":""Account"",""Succeeded"":""Ip""}}",null,null,wfevrtgf,false,"[
+  ""ertgrg""
+]","Azure Sentinel",,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2019-09-16T19:41:05.347Z","1361c35f-d87c-40f1-85d2-bc272a636124"," Test - 0e8267d9d855",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2019-09-16T19:41:05.307Z","2019-09-16T19:41:05Z","2019-09-16T19:41:05.307Z","AzureActivity // has ip
+| take 10
+","{""OperationName"":""Returns Storage Service SAS Token"",""OperationNameValue"":""Microsoft.Storage/storageAccounts/ListServiceSas/action"",""Level"":""Informational"",""ActivityStatus"":""Succeeded"",""ActivityStatusValue"":""Succeeded"",""ActivitySubstatus"":""OK (HTTP Status Code: 200)"",""ActivitySubstatusValue"":""OK"",""ResourceGroup"":""ASIHuntOMSWorkspaceRG"",""SubscriptionId"":""40dcc8bf-0478-4f3b-b275-ed0a94f2c013"",""CorrelationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""Caller"":""97adfcb5-357b-400d-9a68-41ece14bde74"",""CallerIpAddress"":""52.230.65.86"",""Category"":""Administrative"",""CategoryValue"":""Administrative"",""HTTPRequest"":""{\r\n  \""clientRequestId\"": \""\"",\r\n  \""clientIpAddress\"": \""52.230.65.86\"",\r\n  \""method\"": \""POST\""\r\n}"",""Properties"":""{\r\n  \""statusCode\"": \""OK\"",\r\n  \""serviceRequestId\"": \""bc3b9cb2-bd8a-45d0-b0eb-596f06c96be1\""\r\n}"",""EventSubmissionTimestamp"":""2019-09-15T20:02:59.148Z"",""Authorization"":""{\r\n  \""action\"": \""Microsoft.Storage/storageAccounts/ListServiceSas/action\"",\r\n  \""scope\"": \""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289\""\r\n}"",""ResourceId"":""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289"",""OperationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""ResourceProvider"":""Microsoft.Storage"",""ResourceProviderValue"":""Microsoft.Storage"",""Resource"":""asihuntomsworkspacerg289"",""EventDataId"":""cf4a4244-ac39-4a03-8b77-11764d5245ea"",""TenantId"":""52b1ab41-869e-4138-9e40-2a4457f09bf0"",""TimeGenerated"":""2019-09-15T20:01:22.402Z"",""SourceSystem"":""Azure"",""Authorization_d"":"""",""Claims"":"""",""Claims_d"":"""",""Properties_d"":"""",""Type"":""AzureActivity"",""__entityMapping"":{}}",null,null,,false,"[]","Azure Sentinel",,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2019-09-16T19:41:07.342Z","d5d87d7f-a5b7-4bed-86d5-7d486e376e85"," Test - 0e8267d9d855 (1)",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2019-09-16T19:41:07.323Z","2019-09-16T19:41:07Z","2019-09-16T19:41:07.323Z","AzureActivity // has ip
+| take 10
+","{""OperationName"":""Returns Storage Service SAS Token"",""OperationNameValue"":""Microsoft.Storage/storageAccounts/ListServiceSas/action"",""Level"":""Informational"",""ActivityStatus"":""Started"",""ActivityStatusValue"":""Started"",""ActivitySubstatus"":"""",""ActivitySubstatusValue"":"""",""ResourceGroup"":""ASIHuntOMSWorkspaceRG"",""SubscriptionId"":""40dcc8bf-0478-4f3b-b275-ed0a94f2c013"",""CorrelationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""Caller"":""97adfcb5-357b-400d-9a68-41ece14bde74"",""CallerIpAddress"":""52.230.65.86"",""Category"":""Administrative"",""CategoryValue"":""Administrative"",""HTTPRequest"":""{\r\n  \""clientRequestId\"": \""\"",\r\n  \""clientIpAddress\"": \""52.230.65.86\"",\r\n  \""method\"": \""POST\""\r\n}"",""Properties"":"""",""EventSubmissionTimestamp"":""2019-09-15T20:02:59.148Z"",""Authorization"":""{\r\n  \""action\"": \""Microsoft.Storage/storageAccounts/ListServiceSas/action\"",\r\n  \""scope\"": \""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289\""\r\n}"",""ResourceId"":""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289"",""OperationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""ResourceProvider"":""Microsoft.Storage"",""ResourceProviderValue"":""Microsoft.Storage"",""Resource"":""asihuntomsworkspacerg289"",""EventDataId"":""93a75eab-4560-4ed2-81e1-953f00710cb7"",""TenantId"":""52b1ab41-869e-4138-9e40-2a4457f09bf0"",""TimeGenerated"":""2019-09-15T20:01:22.346Z"",""SourceSystem"":""Azure"",""Authorization_d"":"""",""Claims"":"""",""Claims_d"":"""",""Properties_d"":"""",""Type"":""AzureActivity"",""__entityMapping"":{}}",null,null,,false,"[]","Azure Sentinel",,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2019-09-16T19:42:57.929Z","f26e5d53-97c4-43b7-b431-bc3a8e5c8124"," Test - 54cfd9b64e9f",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2019-09-16T19:42:57.899Z","2019-09-16T19:42:57Z","2019-09-16T19:42:57.899Z","AzureActivity // has ip
+| take 10
+","{""OperationName"":""Returns Storage Service SAS Token"",""OperationNameValue"":""Microsoft.Storage/storageAccounts/ListServiceSas/action"",""Level"":""Informational"",""ActivityStatus"":""Succeeded"",""ActivityStatusValue"":""Succeeded"",""ActivitySubstatus"":""OK (HTTP Status Code: 200)"",""ActivitySubstatusValue"":""OK"",""ResourceGroup"":""ASIHuntOMSWorkspaceRG"",""SubscriptionId"":""40dcc8bf-0478-4f3b-b275-ed0a94f2c013"",""CorrelationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""Caller"":""97adfcb5-357b-400d-9a68-41ece14bde74"",""CallerIpAddress"":""52.230.65.86"",""Category"":""Administrative"",""CategoryValue"":""Administrative"",""HTTPRequest"":""{\r\n  \""clientRequestId\"": \""\"",\r\n  \""clientIpAddress\"": \""52.230.65.86\"",\r\n  \""method\"": \""POST\""\r\n}"",""Properties"":""{\r\n  \""statusCode\"": \""OK\"",\r\n  \""serviceRequestId\"": \""bc3b9cb2-bd8a-45d0-b0eb-596f06c96be1\""\r\n}"",""EventSubmissionTimestamp"":""2019-09-15T20:02:59.148Z"",""Authorization"":""{\r\n  \""action\"": \""Microsoft.Storage/storageAccounts/ListServiceSas/action\"",\r\n  \""scope\"": \""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289\""\r\n}"",""ResourceId"":""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289"",""OperationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""ResourceProvider"":""Microsoft.Storage"",""ResourceProviderValue"":""Microsoft.Storage"",""Resource"":""asihuntomsworkspacerg289"",""EventDataId"":""cf4a4244-ac39-4a03-8b77-11764d5245ea"",""TenantId"":""52b1ab41-869e-4138-9e40-2a4457f09bf0"",""TimeGenerated"":""2019-09-15T20:01:22.402Z"",""SourceSystem"":""Azure"",""Authorization_d"":"""",""Claims"":"""",""Claims_d"":"""",""Properties_d"":"""",""Type"":""AzureActivity"",""__entityMapping"":{}}",null,null,,false,"[]","Azure Sentinel",,
+"52b1ab41-869e-4138-9e40-2a4457f09bf0","2019-09-16T19:43:00.426Z","cfe41501-93ff-46fc-9f82-19488504baa1"," Test - 54cfd9b64e9f (1)",,"{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","{
+  ""ObjectId"": ""ddf6375d-b314-4369-b56d-8d787b321b0e"",
+  ""Email"": ""pagoudjo@microsoft.com"",
+  ""Name"": ""100320004CA0C08B""
+}","2019-09-16T19:43:00.379Z","2019-09-16T19:43:00Z","2019-09-16T19:43:00.379Z","AzureActivity // has ip
+| take 10
+","{""OperationName"":""Returns Storage Service SAS Token"",""OperationNameValue"":""Microsoft.Storage/storageAccounts/ListServiceSas/action"",""Level"":""Informational"",""ActivityStatus"":""Started"",""ActivityStatusValue"":""Started"",""ActivitySubstatus"":"""",""ActivitySubstatusValue"":"""",""ResourceGroup"":""ASIHuntOMSWorkspaceRG"",""SubscriptionId"":""40dcc8bf-0478-4f3b-b275-ed0a94f2c013"",""CorrelationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""Caller"":""97adfcb5-357b-400d-9a68-41ece14bde74"",""CallerIpAddress"":""52.230.65.86"",""Category"":""Administrative"",""CategoryValue"":""Administrative"",""HTTPRequest"":""{\r\n  \""clientRequestId\"": \""\"",\r\n  \""clientIpAddress\"": \""52.230.65.86\"",\r\n  \""method\"": \""POST\""\r\n}"",""Properties"":"""",""EventSubmissionTimestamp"":""2019-09-15T20:02:59.148Z"",""Authorization"":""{\r\n  \""action\"": \""Microsoft.Storage/storageAccounts/ListServiceSas/action\"",\r\n  \""scope\"": \""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289\""\r\n}"",""ResourceId"":""/subscriptions/40dcc8bf-0478-4f3b-b275-ed0a94f2c013/resourceGroups/ASIHuntOMSWorkspaceRG/providers/Microsoft.Storage/storageAccounts/asihuntomsworkspacerg289"",""OperationId"":""de82fa56-d451-45e6-b6e0-82c7e262a5d9"",""ResourceProvider"":""Microsoft.Storage"",""ResourceProviderValue"":""Microsoft.Storage"",""Resource"":""asihuntomsworkspacerg289"",""EventDataId"":""93a75eab-4560-4ed2-81e1-953f00710cb7"",""TenantId"":""52b1ab41-869e-4138-9e40-2a4457f09bf0"",""TimeGenerated"":""2019-09-15T20:01:22.346Z"",""SourceSystem"":""Azure"",""Authorization_d"":"""",""Claims"":"""",""Claims_d"":"""",""Properties_d"":"""",""Type"":""AzureActivity"",""__entityMapping"":{}}",null,null,,false,"[]","Azure Sentinel",,

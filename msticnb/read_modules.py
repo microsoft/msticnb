@@ -74,11 +74,11 @@ def _import_from_folder(nb_folder: Path, pkg_folder: Path):
     custom_container = pkg_folder.stem if pkg_folder.stem != __package__ else ""
 
     # Iterate through all subfolders
-    folders = [f for f in nb_folder.glob("./**") if f.is_dir() and not f == nb_folder]
+    folders = [f for f in nb_folder.glob("./**") if f.is_dir() and f != nb_folder]
     for folder in folders:
         rel_folder_parts = folder.relative_to(nb_folder).parts
         # skip hidden folder paths with . or _ prefix
-        if any([f for f in rel_folder_parts if f.startswith(".") or f.startswith("_")]):
+        if any(f for f in rel_folder_parts if f.startswith(".") or f.startswith("_")):
             continue
 
         # Get any notebooklets from the files in the folder
@@ -109,6 +109,7 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
     -------
     Dict[str, Notebooklet]
         Notebooklets classes (name, class)
+
     """
     found_classes = {}
     pkg_root = pkg_folder.resolve().parent
@@ -131,7 +132,7 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
             # derived from Notebooklet
             mod_classes = inspect.getmembers(imp_module, inspect.isclass)
             for cls_name, mod_class in mod_classes:
-                if issubclass(mod_class, Notebooklet) and not mod_class == Notebooklet:
+                if issubclass(mod_class, Notebooklet) and mod_class != Notebooklet:
                     nb_debug("imported", cls_name)
                     # We need to store the path of the parent module in the class
                     # - this makes it easier to retrieve when we need it for
@@ -169,6 +170,7 @@ def _get_container(custom_cont: str, path_parts: Tuple[str, ...]) -> NBContainer
     NBContainer
         The container item in the tree. New one created if it
         does not exist.
+
     """
     cur_container = nblts
     path_elems = list(path_parts)

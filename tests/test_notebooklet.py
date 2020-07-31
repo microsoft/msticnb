@@ -47,14 +47,15 @@ class TestNotebooklet(unittest.TestCase):
                 self.assertIsInstance(new_nblt, Notebooklet)
                 self.assertIsNone(new_nblt.result)
 
-        # Should raise exception because Network Summary needs geolitelookup
-        init(query_provider="LocalData", providers=["tilookup"])
-        with self.assertRaises(MsticnbDataProviderError):
+        # Should throw a warning because of unrecognized provider
+        init(query_provider="LocalData")
+        with self.assertRaises(MsticnbDataProviderError) as err:
             for _, nblt in nblts.iter_classes():
+                nblt.metadata.req_providers.append("mystery_provider")
                 new_nblt = nblt()
                 self.assertIsInstance(new_nblt, Notebooklet)
                 self.assertIsNone(new_nblt.result)
-
+        self.assertIn("mystery_provider", err.exception.args[0])
         test_nb = TstNBSummary()
         self.assertIsNotNone(test_nb.get_provider("LocalData"))
         with self.assertRaises(MsticnbDataProviderError):

@@ -18,6 +18,7 @@ metadata:
     - host
   req_providers:
     - LogAnalytics|LocalData
+    - azuredata
 output:
   run:
     title: Host Entity Summary

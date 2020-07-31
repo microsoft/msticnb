@@ -9,10 +9,11 @@ from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 import attr
 import pandas as pd
+from bokeh.io import show
 from bokeh.models import LayoutDOM
 from IPython.display import HTML
 
-from msticpy.nbtools import nbdisplay, nbwidgets
+from msticpy.nbtools import nbdisplay, nbwidgets, entities
 
 from .... import nb_metadata
 from ...._version import VERSION
@@ -55,6 +56,14 @@ class AccountType(Flag):
                 return True
         return False
 
+    @classmethod
+    def parse(cls, name: str):
+        """Try to parse string to valid account type."""
+        try:
+            return cls[name]
+        except KeyError:
+            return None
+
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
 # Rename this class
@@ -93,7 +102,7 @@ class AccountSummaryResult(NotebookletResult):
     """
 
     description: str = "Account Activity Summary"
-
+    account_entity: entities.Account = None
     account_activity: pd.DataFrame = None
     account_selector: nbwidgets.SelectItem = None
     related_alerts: pd.DataFrame = None
@@ -115,11 +124,19 @@ class AccountSummary(Notebooklet):
     """
     Retrieves account summary for the selected account.
 
-    Searches for matches for the account name in Active Directory,
-    Windows and Linux host logs.
-    If one or more matches are found it will return a selection
-    widget that you can use to pick the account
+    Main operations:
+    - Searches for matches for the account name in Active Directory,
+      Windows and Linux host logs.
+    - If one or more matches are found it will return a selection
+      widget that you can use to pick the account.
+    - Selecting the account displays a summary of recent activity and
+      retrieves any alerts and hunting bookmarks related to the account
+    - The alerts and bookmarks are browseable using the `browse_alerts`
+      and `browse_bookmarks` methods
+    - You can call the `find_additional_data` method to retrieve and
+      display more detailed activity information for the account.
 
+    All of these data items are
     """
 
     # assign metadata from YAML to class variable
@@ -129,10 +146,8 @@ class AccountSummary(Notebooklet):
 
     ACCOUNT_TYPE = AccountType
 
-    # @set_text decorator will display the title and text every time
-    # this method is run.
-    # The key value refers to an entry in the `output` section of
-    # the notebooklet yaml file.
+    # pylint: disable=too-many-branches
+
     @set_text(docs=_CELL_DOCS, key="run")
     def run(
         self,
@@ -195,25 +210,40 @@ class AccountSummary(Notebooklet):
             acc_types = AccountType.__members__
 
         # Search for events for specified account types
-        acct_found = _get_matching_accounts(
+        all_acct_dfs = _get_matching_accounts(
             self.query_provider,
             account=value,
             timespan=timespan,
             account_types=acc_types,
         )
 
-        acct_activity_df = _combine_acct_dfs(acct_found)
-        result.account_activity = acct_activity_df
-        action_func = _create_display_callback(
-            self.query_provider, result, acct_activity_df, timespan, options
-        )
-        result.account_selector = _get_account_selector(acct_activity_df, action_func)
-        if acct_activity_df.empty:
+        acct_index_df = _create_account_index(all_acct_dfs)
+        if acct_index_df.empty:
             nb_markdown("No accounts matching that name.")
-        elif len(acct_activity_df) == 1:
-            acct_row = acct_activity_df.iloc[0]
-            action_func(f"{acct_row.Account} {acct_row.Source}")
+        elif len(acct_index_df) == 1:
+            # If a single account - just display directly.
+            disp_func = _create_display_callback(
+                qry_prov=self.query_provider,
+                all_acct_dfs=all_acct_dfs,
+                result=result,
+                timespan=timespan,
+                options=self.options,
+            )
+            acct_row = acct_index_df.iloc[0]
+            outputs = disp_func(f"{acct_row.AccountName} {acct_row.Source}")
+            for output in outputs:
+                nb_display(output)
+            if not self.silent:
+                self.display_alert_timeline()
         else:
+            # if multiple, create a selector
+            result.account_selector = _get_account_selector(
+                qry_prov=self.query_provider,
+                all_acct_dfs=all_acct_dfs,
+                result=result,
+                timespan=timespan,
+                options=self.options,
+            )
             nb_display(result.account_selector)
 
         # Assign the result to the _last_result attribute
@@ -222,12 +252,21 @@ class AccountSummary(Notebooklet):
 
         return self._last_result
 
+    # pylint: enable=too-many-branches
+
+    def display_alert_timeline(self):
+        """Display the alert timeline."""
+        if (
+            self._last_result is not None
+            and self._last_result.alert_timeline is not None
+        ):
+            show(self._last_result.alert_timeline)
+
     def browse_accounts(self) -> nbwidgets.SelectItem:
         """Return the accounts browser/viewer."""
         if (
             self._last_result is not None
-            and self._last_result.account_activity is not None
-            and not self._last_result.account_activity.empty
+            and self._last_result.account_selector is not None
         ):
             return self._last_result.account_selector
         return None
@@ -239,6 +278,12 @@ class AccountSummary(Notebooklet):
             and self._last_result.related_alerts is not None
             and not self._last_result.related_alerts.empty
         ):
+            if "CompromisedEntity" not in self._last_result.related_alerts:
+                self._last_result.related_alerts["CompromisedEntity"] = "n/a"
+            if "StartTimeUtc" not in self._last_result.related_alerts:
+                self._last_result.related_alerts[
+                    "StartTimeUtc"
+                ] = self._last_result.related_alerts["TimeGenerated"]
             return nbwidgets.SelectAlert(
                 alerts=self._last_result.related_alerts, action=nbdisplay.format_alert
             )
@@ -275,28 +320,41 @@ class AccountSummary(Notebooklet):
         if not acct or not source:
             print("Please use select an account before using this method.")
             return
+        self._last_result.host_logons = None
+        self._last_result.host_logon_summary = None
+        self._last_result.account_timeline_by_ip = None
+        self._last_result.azure_activity = None
+        self._last_result.azure_timeline_by_provider = None
+        self._last_result.account_timeline_by_ip = None
+        self._last_result.azure_timeline_by_operation = None
+        self._last_result.azure_activity_summary = None
 
-        if source == "LinuxHostLogon":
+        acct_type = AccountType.parse(source)
+        if acct_type == AccountType.Linux:
             self._last_result.host_logons = _get_linux_add_activity(
                 self.query_provider, acct, self.timespan
             )
             self._last_result.host_logon_summary = _summarize_host_activity(
-                self._last_result.host_logons
+                self._last_result.host_logons, ip_col="SourceIP"
             )
             self._last_result.account_timeline_by_ip = _create_host_timeline(
-                self._last_result.host_logons, self.silent
+                self._last_result.host_logons, ip_col="SourceIP", silent=self.silent
             )
-        if source == "WindowsHostLogon":
+        if acct_type == AccountType.Windows:
             self._last_result.host_logons = _get_windows_add_activity(
                 self.query_provider, acct, self.timespan
             )
             self._last_result.host_logon_summary = _summarize_host_activity(
-                self._last_result.host_logons
+                self._last_result.host_logons, ip_col="IpAddress"
             )
             self._last_result.account_timeline_by_ip = _create_host_timeline(
-                self._last_result.host_logons, self.silent
+                self._last_result.host_logons, ip_col="IpAddress", silent=self.silent
             )
-        if source in ["AADSignin", "AzureActivity", "O365Activity"]:
+        if acct_type in [
+            AccountType.AzureActiveDirectory,
+            AccountType.AzureActivity,
+            AccountType.Office365,
+        ]:
             az_activity = _get_azure_add_activity(
                 self.query_provider, acct, self.timespan
             )
@@ -319,7 +377,16 @@ class AccountSummary(Notebooklet):
 
 
 # pylint: disable=no-member
+
 # %%
+# Account Query functions
+def _df_clean(dataframe):
+    """Clean empty aggregate rows because of arg_max."""
+    if isinstance(dataframe, pd.DataFrame):
+        return dataframe[dataframe["TimeGenerated"].notna()]
+    return pd.DataFrame()
+
+
 @set_text(docs=_CELL_DOCS, key="get_matching_accounts")
 def _get_matching_accounts(qry_prov, timespan, account, account_types):
     """Get Account Activity for `account` in `timespan`."""
@@ -327,46 +394,34 @@ def _get_matching_accounts(qry_prov, timespan, account, account_types):
     rec_count = 0
     if AccountType.AzureActiveDirectory.in_list(account_types):
         nb_data_wait("AADSignin")
-        summarize_clause = """
-        | summarize arg_max(TimeGenerated, *) by UserPrincipalName, OperationName,
-        Identity, IPAddress, tostring(LocationDetails)
-        | project TimeGenerated, UserPrincipalName, Identity, IPAddress, LocationDetails
+        summarize_clause = f"""
+        | summarize arg_max(TimeGenerated, *)
+        | extend AccountName = UserPrincipalName,
+          Source = '{AccountType.AzureActiveDirectory.name}'
         """
 
         aad_signin_df = qry_prov.Azure.list_aad_signins_for_account(
             timespan, account_name=account, add_query_items=summarize_clause
         )
+        aad_signin_df = _df_clean(aad_signin_df)
         rec_count += len(aad_signin_df)
         nb_markdown(f"  {len(aad_signin_df)} records in AAD")
         account_dfs[AccountType.AzureActiveDirectory] = aad_signin_df
 
-    if AccountType.AzureActiveDirectory.in_list(account_types):
-        nb_data_wait("AzureActivity")
-        # Azure Activity
-        summarize_clause = """
-        | summarize arg_max(TimeGenerated, *) by Caller, OperationName,
-        CallerIpAddress, ResourceId
-        | project TimeGenerated, UserPrincipalName=Caller, IPAddress=CallerIpAddress"""
-
-        azure_activity_df = qry_prov.Azure.list_azure_activity_for_account(
-            timespan, account_name=account, add_query_items=summarize_clause
-        )
-        nb_markdown(f"  {len(azure_activity_df)} records in Azure Activity")
-        account_dfs[AccountType.AzureActivity] = azure_activity_df
-
     if AccountType.Office365.in_list(account_types):
         nb_data_wait("Office365Activity")
         # Office Activity
-        summarize_clause = """
-        | project TimeGenerated, UserId = tolower(UserId), OfficeWorkload, Operation,
-        ClientIP, UserType
-        | summarize arg_max(TimeGenerated, *) by UserId, OfficeWorkload, ClientIP
-        | order by TimeGenerated desc
+        summarize_clause = f"""
+        | extend UserId = tolower(UserId)
+        | summarize arg_max(TimeGenerated, *)
+        | extend AccountName = UserId,
+          Source = '{AccountType.Office365.name}'
         """
 
         o365_activity_df = qry_prov.Office365.list_activity_for_account(
             timespan, account_name=account, add_query_items=summarize_clause
         )
+        o365_activity_df = _df_clean(o365_activity_df)
         rec_count += len(o365_activity_df)
         nb_markdown(f"  {len(o365_activity_df)} records in Office Activity")
         account_dfs[AccountType.Office365] = o365_activity_df
@@ -374,18 +429,17 @@ def _get_matching_accounts(qry_prov, timespan, account, account_types):
     if AccountType.Windows.in_list(account_types):
         nb_data_wait("Windows Logon activity")
         # Windows Host
-        summarize_clause = """
+        summarize_clause = f"""
         | extend LogonStatus = iff(EventID == 4624, "success", "failed")
-        | project TimeGenerated, TargetUserName, TargetDomainName, Computer,
-        LogonType, SubjectUserName, SubjectDomainName, TargetUserSid, EventID,
-        IpAddress, LogonStatus
-        | summarize arg_max(TimeGenerated, *) by
-        TargetUserName, TargetDomainName, LogonType, Computer, LogonStatus
+        | summarize arg_max(TimeGenerated, *)
+        | extend AccountName = TargetUserName,
+          Source = '{AccountType.Windows.name}'
         """
 
         win_logon_df = qry_prov.WindowsSecurity.list_logon_attempts_by_account(
             timespan, account_name=account, add_query_items=summarize_clause
         )
+        win_logon_df = _df_clean(win_logon_df)
         rec_count += len(win_logon_df)
         nb_markdown(f"  {len(win_logon_df)} records in Windows logon data")
         account_dfs[AccountType.Windows] = win_logon_df
@@ -393,96 +447,39 @@ def _get_matching_accounts(qry_prov, timespan, account, account_types):
     if AccountType.Linux.in_list(account_types):
         nb_data_wait("Linux logon activity")
         # Linux host
-        summarize_clause = """
-        | summarize arg_max(TimeGenerated, *) by LogonType, SourceIP, Computer,
-          LogonResult
+        summarize_clause = f"""
+        | summarize arg_max(TimeGenerated, *)
+        | extend Source = '{AccountType.Linux.name}'
         """
 
         linux_logon_df = qry_prov.LinuxSyslog.list_logons_for_account(
             timespan, account_name=account, add_query_items=summarize_clause
         )
+        linux_logon_df = _df_clean(linux_logon_df)
         rec_count += len(linux_logon_df)
         nb_markdown(f"  {len(linux_logon_df)} records in Linux logon data")
         account_dfs[AccountType.Linux] = linux_logon_df
 
-    nb_markdown(f"Found {rec_count} total records...")
+    nb_markdown(f"Found {rec_count} total recordsmsticnb.")
 
     return account_dfs
 
 
-# pylint: disable=no-member
-def _combine_acct_dfs(acct_dfs: Dict[AccountType, pd.DataFrame]):
-    """Combine to single Dataframe for display."""
-    lx_df = (
-        acct_dfs[AccountType.Linux][["AccountName", "TimeGenerated"]]
-        .groupby("AccountName")
-        .max()
-        .reset_index()
-        .assign(Source="LinuxHostLogon")
-    )
-
-    win_df = (
-        acct_dfs[AccountType.Windows][["TargetUserName", "TimeGenerated"]]
-        .groupby("TargetUserName")
-        .max()
-        .reset_index()
-        .rename(columns={"TargetUserName": "AccountName"})
-        .assign(Source="WindowsHostLogon")
-    )
-
-    o365_df = (
-        acct_dfs[AccountType.Office365][["UserId", "TimeGenerated"]]
-        .groupby("UserId")
-        .max()
-        .reset_index()
-        .rename(columns={"UserId": "AccountName"})
-        .assign(Source="O365Activity")
-    )
-
-    aad_df = (
-        acct_dfs[AccountType.AzureActiveDirectory][
-            ["UserPrincipalName", "TimeGenerated"]
-        ]
-        .groupby("UserPrincipalName")
-        .max()
-        .reset_index()
-        .rename(columns={"UserPrincipalName": "AccountName"})
-        .assign(Source="AADSignin")
-    )
-
-    azure_df = (
-        acct_dfs[AccountType.AzureActivity][["UserPrincipalName", "TimeGenerated"]]
-        .groupby("UserPrincipalName")
-        .max()
-        .reset_index()
-        .rename(columns={"UserPrincipalName": "AccountName"})
-        .assign(Source="AzureActivity")
-    )
-
-    return pd.concat([lx_df, win_df, o365_df, aad_df, azure_df])
-
-
 # %%
-# Display account activity for selected account
+# Account selector functions
 def _display_acct_activity(
     selected_item: str, acct_activity_df: pd.DataFrame
 ) -> Iterable[Any]:
     """Return list of display objects for Select list display."""
-    acct, source = selected_item.split(" ") if selected_item else "", ""
+    acct, source = selected_item.split(" ")
     outputs = []
     title = HTML(f"<b>{acct} (source: {source})</b>")
     outputs.append(title)
-
-    outputs.append(
-        acct_activity_df[
-            (acct_activity_df["Source"] == source)
-            & (acct_activity_df["AccountName"] == acct)
-        ].sort_values("TimeGenerated", ascending=True)
-    )
+    outputs.append(acct_activity_df.sort_values("TimeGenerated", ascending=True))
     return outputs
 
 
-def _get_select_acct_dict(acc_activity_df: pd.DataFrame) -> Dict[str, str]:
+def _get_select_acct_dict(acct_index_df: pd.DataFrame) -> Dict[str, str]:
     """Return dictionary of account entries for Select list."""
 
     def format_tuple(row):
@@ -496,49 +493,181 @@ def _get_select_acct_dict(acc_activity_df: pd.DataFrame) -> Dict[str, str]:
             row.AccountName + " " + row.Source,
         )
 
-    return {item[0]: item[1] for item in acc_activity_df.apply(format_tuple, axis=1)}
+    return {item[0]: item[1] for item in acct_index_df.apply(format_tuple, axis=1)}
+
+
+def _create_account_index(all_acct_dfs):
+    acct_activity_df = pd.concat(all_acct_dfs.values())
+    return (
+        acct_activity_df[["AccountName", "Source", "TimeGenerated"]]
+        .groupby(["AccountName", "Source"])
+        .max()
+        .reset_index()
+        .dropna()
+    )
 
 
 def _get_account_selector(
-    acc_activity_df: pd.DataFrame, _acct_activity_action: Callable[[str], Iterable[Any]]
+    qry_prov, all_acct_dfs: pd.DataFrame, result, timespan, options
 ):
     """Build and return the Account Select list."""
-    accts_dict = _get_select_acct_dict(acc_activity_df)
+    action_func = _create_display_callback(
+        qry_prov=qry_prov,
+        all_acct_dfs=all_acct_dfs,
+        result=result,
+        timespan=timespan,
+        options=options,
+    )
+
+    acct_index_df = _create_account_index(all_acct_dfs)
+    accts_dict = _get_select_acct_dict(acct_index_df)
     return nbwidgets.SelectItem(
         item_dict=accts_dict,
         description="Select an account to explore",
-        action=_acct_activity_action,
+        action=action_func,
         height="200px",
         width="100%",
     )
 
 
 def _create_display_callback(
-    qry_prov, acct_activity_df, result, timespan, options
+    qry_prov, all_acct_dfs, result, timespan, options
 ) -> Callable[[str], Iterable[Any]]:
     """Create closure for display_acct callback."""
 
     def display_account(selected_item: str):
-        # Add default activity
-        outputs = list(_display_acct_activity(selected_item, acct_activity_df))
+        account_name, source = selected_item.split(" ")
+        acct_type = AccountType.parse(source)
+        outputs = []
 
-        account_name, _ = selected_item.split(" ")
+        # Create entity
+        acct_entity = _create_account_entity(account_name, acct_type, all_acct_dfs)
+        outputs.append(HTML("<h3>Alert Entity</h3>"))
+        result.account_entity = acct_entity
+        outputs.append(acct_entity)
+        # Add account activity
+        outputs.append(HTML("<h3>Account last activity</h3>"))
+        outputs.extend(_display_acct_activity(selected_item, all_acct_dfs[acct_type]))
+        result.account_activity = all_acct_dfs[acct_type]
+
+        # Optional alerts and bookmarks
         if "get_alerts" in options:
             related_alerts = _get_related_alerts(qry_prov, account_name, timespan)
             result.related_alerts = related_alerts
             outputs.append(_get_related_alerts_summary(related_alerts))
-            result.alert_timeline = _get_alerts_timeline(related_alerts)
-            outputs.append(result.alert_timeline)
+            if related_alerts is not None and not related_alerts.empty:
+                result.alert_timeline = _get_alerts_timeline(related_alerts)
         if "get_bookmarks" in options:
             related_bkmarks = _get_related_bookmarks(qry_prov, account_name, timespan)
             result.related_bookmarks = related_bkmarks
             outputs.append(_get_related_bkmks_summary(related_bkmarks))
+        return outputs
 
     return display_account
 
 
 # %%
-# Display Alert Details
+# Account entity from data
+def _create_account_entity(
+    account_name, acct_type, acct_activity_dfs
+) -> entities.Account:
+
+    if acct_type == AccountType.Windows:
+        acct_activity_df = acct_activity_dfs[AccountType.Windows]
+        return _create_win_account_entity(account_name, acct_activity_df)
+
+    if acct_type == AccountType.Linux:
+        acct_activity_df = acct_activity_dfs[AccountType.Linux]
+        return _create_lx_account_entity(account_name, acct_activity_df)
+
+    if acct_type == AccountType.AzureActiveDirectory:
+        acct_activity_df = acct_activity_dfs[AccountType.AzureActiveDirectory]
+        return _create_aad_account_entity(account_name, acct_activity_df)
+
+    if acct_type == AccountType.Office365:
+        acct_activity_df = acct_activity_dfs[AccountType.Office365]
+        return _create_o365_account_entity(account_name, acct_activity_df)
+
+    acc_entity = entities.Account()
+    acc_entity.Name = account_name
+    return acc_entity
+
+
+def _create_win_account_entity(
+    account_name: str, acct_activity_df: pd.DataFrame
+) -> entities.Account:
+    account_event = acct_activity_df[
+        acct_activity_df["AccountName"] == account_name
+    ].iloc[0]
+    acc_entity = entities.Account(src_event=account_event)
+    host = entities.Host(src_event=account_event)
+    acc_entity.Host = host
+    acc_entity.IpAddress = entities.IpAddress(address=account_event["IpAddress"])
+    acc_entity.LogonType = account_event["LogonTypeName"]
+    acc_entity.AadTenantId = account_event["TenantId"]
+    return acc_entity
+
+
+def _create_lx_account_entity(
+    account_name: str, acct_activity_df: pd.DataFrame
+) -> entities.Account:
+    acc_entity = entities.Account()
+    account_event = acct_activity_df[
+        acct_activity_df["AccountName"] == account_name
+    ].iloc[0]
+    acc_entity.Name = account_event["AccountName"]
+    host = entities.Host(HostName=account_event["Computer"])
+    host.IpAddress = entities.IpAddress(address=account_event["HostIP"])
+    acc_entity.Host = host
+    acc_entity.IpAddress = entities.IpAddress(address=account_event["SourceIP"])
+    acc_entity.LogonType = account_event["LogonType"]
+    acc_entity.Sid = account_event["UID"]
+    acc_entity.AadTenantId = account_event["TenantId"]
+    return acc_entity
+
+
+def _create_aad_account_entity(
+    account_name: str, acct_activity_df: pd.DataFrame
+) -> entities.Account:
+    acc_entity = entities.Account()
+    account_event = acct_activity_df[
+        acct_activity_df["UserPrincipalName"] == account_name
+    ].iloc[0]
+    acc_entity.Name = account_event["UserPrincipalName"]
+    if "@" in account_event["UserPrincipalName"]:
+        acc_entity.UPNSuffix = account_event["UserPrincipalName"].split("@")[1]
+    acc_entity.AadTenantId = account_event["AADTenantId"]
+    acc_entity.AadUserId = account_event["UserId"]
+    acc_entity.DisplayName = account_event["UserDisplayName"]
+    acc_entity.IpAddress = entities.IpAddress(Address=account_event["IPAddress"])
+    acc_entity.DeviceDetail = account_event["DeviceDetail"]
+    acc_entity.Location = account_event["LocationDetails"]
+    acc_entity.UserAgent = account_event["UserAgent"]
+    return acc_entity
+
+
+def _create_o365_account_entity(account_name, acct_activity_df):
+    acc_entity = entities.Account()
+    account_event = acct_activity_df[acct_activity_df["UserId"] == account_name].iloc[0]
+    acc_entity.Name = account_event["UserId"]
+    if "@" in account_event["UserId"]:
+        acc_entity.UPNSuffix = account_event["UserId"].split("@")[1]
+    acc_entity.AadTenantId = account_event["TenantId"]
+    acc_entity.OrganizationId = account_event["OrganizationId"]
+    client_ip = ""
+    if "ClientIP" in account_event:
+        client_ip = account_event["ClientIP"]
+    elif "ClientIP_" in account_event:
+        client_ip = account_event["ClientIP_"]
+    elif "IPAddress" in account_event:
+        client_ip = account_event["IPAddress"]
+    if client_ip:
+        acc_entity.IpAddress = entities.IpAddress(Address=client_ip)
+    return acc_entity
+
+
+# %%
+# Alert and bookmark details
 def _get_related_alerts(
     qry_prov, account_name: str, timespan: TimeSpan
 ) -> pd.DataFrame:
@@ -546,6 +675,41 @@ def _get_related_alerts(
     return qry_prov.SecurityAlert.list_related_alerts(
         timespan, account_name=account_name
     )
+
+
+def _get_alerts_timeline(related_alerts: pd.DataFrame) -> LayoutDOM:
+    """Return alert timeline."""
+    return nbdisplay.display_timeline(
+        data=related_alerts,
+        title="Alerts",
+        source_columns=["AlertName"],
+        height=300,
+        hide=True,
+    )
+
+
+def _get_related_alerts_summary(related_alerts: pd.DataFrame):
+    if related_alerts.empty:
+        return HTML("<br><b>No alerts for this account</b>")
+    alert_items = (
+        related_alerts[["AlertName", "TimeGenerated"]]
+        .groupby("AlertName")
+        .TimeGenerated.agg("count")
+        .to_dict()
+    )
+    output = [
+        "<h3>Related alerts</h3>",
+        f"<b>Found {len(alert_items)} different alert types "
+        f"related to this account</b>",
+    ]
+
+    for (name, count) in alert_items.items():
+        output.append(f"- {name}, # Alerts: {count}")
+    output.append(
+        "<br>To show the alert timeline call the <b>display_alert_time()</b> method."
+    )
+    output.append("To browse the alerts call the <b>browse_alerts()</b> method.")
+    return HTML("<br>".join(output))
 
 
 def _get_related_bookmarks(
@@ -557,53 +721,28 @@ def _get_related_bookmarks(
     )
 
 
-def _get_alerts_timeline(related_alerts: pd.DataFrame) -> LayoutDOM:
-    """Return alert timeline."""
-    return nbdisplay.display_timeline(
-        data=related_alerts, title="Alerts", source_columns=["AlertName"], height=300
-    )
-
-
-def _get_related_alerts_summary(related_alerts: pd.DataFrame):
-    alert_items = (
-        related_alerts[["AlertName", "TimeGenerated"]]
-        .groupby("AlertName")
-        .TimeGenerated.agg("count")
-        .to_dict()
-    )
-    output = []
-    if alert_items:
-        output.append(
-            f"<b>Found {len(alert_items)} different alert types "
-            f"related to this account</b>"
-        )
-        for (name, count) in alert_items.items():
-            output.append(f"- {name}, # Alerts: {count}")
-    else:
-        output.append("<b>No alerts for this account</b>")
-    return HTML("<br>".join(output))
-
-
 def _get_related_bkmks_summary(related_bookmarks: pd.DataFrame):
-    bookmarks = related_bookmarks.apply(
-        lambda x: (f"{x.BookmarkName} {x.Tags}  {x.TimeGenerated}", x.BookmarkId),
-        axis=1,
-    ).tolist()
-    output = []
-    if bookmarks:
-        output.append(
-            f"<b>Found {len(bookmarks)} different bookmarks "
-            f"related to this account</b>"
+    if related_bookmarks.empty:
+        return HTML("<br><b>No bookmarks for this account</b>")
+    bookmarks = list(
+        related_bookmarks.apply(
+            lambda x: (
+                f"{x.BookmarkName} [{x.Tags}]  {x.TimeGenerated}"
+                + ", BookmarkId:{x.BookmarkId}"
+            ),
+            axis=1,
         )
-        for (desc, bm_id) in bookmarks:
-            output.append(f"- {desc}, BookmarkId: {bm_id}")
-    else:
-        output.append("No bookmarks for this account</b>")
+    )
+    output = [
+        "<h3>Related bookmarks</h3>",
+        f"<b>Found {len(bookmarks)} different bookmarks " "related to this account</b>",
+        *bookmarks,
+        "<br>To browse the bookmarks call the <b>browse_bookmarks()</b> method.",
+    ]
+
     return HTML("<br>".join(output))
 
 
-# %%
-# Utility functions
 def _get_bookmark_select(bookmarks_df):
     """Create and return Selector for bookmarks."""
     opts = dict(
@@ -632,16 +771,14 @@ def _get_linux_add_activity(qry_prov, acct, timespan):
 
 
 @set_text(docs=_CELL_DOCS, key="summarize_host_activity")
-def _summarize_host_activity(all_logons: pd.DataFrame):
+def _summarize_host_activity(all_logons: pd.DataFrame, ip_col="SourceIP"):
     """Summarize logon activity on win or linux host."""
     summary = all_logons.groupby("Computer").agg(
         TotalLogons=pd.NamedAgg(column="Computer", aggfunc="count"),
         FailedLogons=pd.NamedAgg(
             column="LogonResult", aggfunc=lambda x: x.value_counts().to_dict()
         ),
-        IPAddresses=pd.NamedAgg(
-            column="SourceIP", aggfunc=lambda x: x.unique().tolist()
-        ),
+        IPAddresses=pd.NamedAgg(column=ip_col, aggfunc=lambda x: x.unique().tolist()),
         LogonTypeCount=pd.NamedAgg(
             column="LogonType", aggfunc=lambda x: x.value_counts().to_dict()
         ),
@@ -653,10 +790,12 @@ def _summarize_host_activity(all_logons: pd.DataFrame):
 
 
 @set_text(docs=_CELL_DOCS, key="create_host_timeline")
-def _create_host_timeline(all_logons: pd.DataFrame, silent: bool = False):
+def _create_host_timeline(
+    all_logons: pd.DataFrame, ip_col="SourceIP", silent: bool = False
+):
     return nbdisplay.display_timeline(
         data=all_logons,
-        group_by="SourceIP",
+        group_by=ip_col,
         source_columns=["Computer", "LogonResult", "LogonType"],
         title="Timeline of Logons by source IP address",
         hide=silent,

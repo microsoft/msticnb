@@ -107,3 +107,4 @@ venv.bak/
 **/.vscode*
 **/Kqlmagic_temp_files/**
 **/**.code-workspace
+**/kqlmagic/temp_files/**

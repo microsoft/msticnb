@@ -30,7 +30,7 @@ sources:
     metadata:
       data_families: [AzureSentinel]
     args:
-      query: alerts_list.pkl
+      query: bookmarks.csv
     parameters:
   # Windows
   list_host_processes:
@@ -103,7 +103,7 @@ sources:
     metadata:
       data_families: [Azure]
     args:
-      query: aad_signin.pkl
+      query: aad_signin_user.pkl
     parameters:
   # Azure Activity
   list_azure_activity_for_account:
@@ -111,7 +111,8 @@ sources:
     metadata:
       data_families: [Azure]
     args:
-      query: azure_activity.pkl
+      # Note - replace this with real Azure Activity if needed
+      query: office_activity_user.pkl
     parameters:
   # O365
   list_activity_for_account:
@@ -119,7 +120,7 @@ sources:
     metadata:
       data_families: [Office365]
     args:
-      query: azure_activity.pkl
+      query: office_activity_user.pkl
     parameters:
   # Linux
   list_logons_for_account:

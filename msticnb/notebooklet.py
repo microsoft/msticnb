@@ -62,7 +62,7 @@ class NotebookletResult:
     def _str_repr(obj):
         if isinstance(obj, pd.DataFrame):
             return f"DataFrame: {len(obj)} rows"
-        if isinstance(obj, Figure):
+        if isinstance(obj, LayoutDOM):
             return "Bokeh plot"
         return str(obj)
 
@@ -126,6 +126,11 @@ class NotebookletResult:
             else:
                 attr_lines.append(line.strip())
         attr_dict[attr_name] = attr_type, " ".join(attr_lines)
+        if "timespan" not in attr_dict:
+            attr_dict["timespan"] = (
+                "TimeSpan",
+                "Time span for the queried results data.",
+            )
         # pylint: disable=no-member
         self._attribute_desc.update(attr_dict)  # type: ignore
         # pylint: enable=no-member
@@ -134,6 +139,14 @@ class NotebookletResult:
     def properties(self):
         """Return names of all properties."""
         return [name for name, val in attr.asdict(self).items() if val is not None]
+
+    def prop_doc(self, name) -> Tuple[str, str]:
+        """Get the property documentation for the property."""
+        # pylint: disable=unsupported-membership-test, unsubscriptable-object
+        if name in self._attribute_desc:
+            return self._attribute_desc[name]
+        # pylint: enable=unsupported-membership-test, unsubscriptable-object
+        raise KeyError(f"Unknown property {name}.")
 
 
 class Notebooklet(ABC):
@@ -183,10 +196,24 @@ class Notebooklet(ABC):
         missing_provs, unknown_provs = self.data_providers.has_required_providers(
             self.metadata.req_providers
         )
+        prov_add_errs: List[Exception] = []
+        if missing_provs:
+            # Try to add any providers that the notebooklet needs.
+            add_providers = missing_provs.copy()
+            for missing_prov in add_providers:
+                try:
+                    self.data_providers.add_provider(provider=missing_prov, **kwargs)
+                    missing_provs.remove(missing_prov)
+                    if missing_prov in unknown_provs:
+                        unknown_provs.remove(missing_prov)
+                except MsticnbDataProviderError as err:
+                    prov_add_errs.append(err)
+
         if missing_provs:
             raise MsticnbDataProviderError(
                 f"Required data provider(s) {', '.join(missing_provs)} not loaded.",
                 f"Class {self.__class__.__name__}",
+                *prov_add_errs,
             )
         if unknown_provs:
             warnings.warn(
@@ -507,7 +534,7 @@ class Notebooklet(ABC):
             if isinstance(timespan, TimeSpan):
                 self.timespan = timespan
             else:
-                self.timespan = TimeSpan(time_selector=timespan)
+                self.timespan = TimeSpan(timespan=timespan)
         elif "start" in kwargs and "end" in kwargs:
             self.timespan = TimeSpan(start=kwargs["start"], end=kwargs["end"])
 

@@ -48,8 +48,7 @@ def get_class_doc(doc_cls: type, fmt: str = "html") -> str:
 
 def _get_main_class_doc_md(doc_cls) -> str:
     """Return Markdown format of class documentation."""
-    cls_doc_lines = []
-    cls_doc_lines.append(f"# Notebooklet Class - {doc_cls.__name__}\n")
+    cls_doc_lines = [f"# Notebooklet Class - {doc_cls.__name__}\n"]
     cls_doc_str = inspect.getdoc(doc_cls)
     if cls_doc_str:
         fmt_doc_lines: List[str] = []
@@ -98,7 +97,8 @@ def _get_closure_vars(func, doc_cls) -> List[str]:
     docs = closure_args.get("docs")
     key = closure_args.get("key")
     other_items = None
-    title = hd_level = text = None
+    title = text = None
+    hd_level = 2
     if docs and key and issubclass(doc_cls, Notebooklet):
         cell_docs = getattr(doc_cls, "_cell_docs", None)
         if cell_docs:
@@ -137,10 +137,7 @@ def _get_result_doc(cls) -> str:
             attr_section = True
 
         elif attr_section:
-            if not line.startswith(" "):
-                line = "\n- " + line + "<br>"
-            else:
-                line = line.strip()
+            line = "\n- " + line + "<br>" if not line.startswith(" ") else line.strip()
         doc_lines.append(line)
     return "\n".join(doc_lines)
 
@@ -173,8 +170,7 @@ def _get_class_func_doc(doc_cls: type) -> str:
 
 def _format_func_doc(func_name, func, full_doc=False, prop_set=None):
     """Format function signature."""
-    doc_lines = []
-    doc_lines.append(f"### {func_name}\n")
+    doc_lines = [f"### {func_name}\n"]
     if prop_set and func_name in prop_set:
         doc_lines.append(f"{func_name} [property]")
     else:

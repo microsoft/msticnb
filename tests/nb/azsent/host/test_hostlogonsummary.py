@@ -20,6 +20,9 @@ from msticnb.common import TimeSpan
 from ....unit_test_lib import TEST_DATA_PATH
 
 
+# nosec
+
+
 @pytest.fixture
 def nbltdata():
     """Generate test nblt output."""
