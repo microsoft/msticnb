@@ -4,6 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """Functions to create documentation from notebooklets classes."""
+import html
 import inspect
 from typing import List
 
@@ -145,9 +146,26 @@ def _get_result_doc(cls) -> str:
 def _get_class_methods_doc(doc_cls: type) -> str:
     """Get class instance methods."""
     doc_lines: List[str] = []
-    for func_name, func in inspect.getmembers(doc_cls, inspect.isfunction):
-        if not func_name.startswith("_"):
+    doc_lines_parent: List[str] = []
+    allow_inherited = ["__init__", "run"]
+    nb_methods = [
+        f_name for f_name, _ in inspect.getmembers(Notebooklet, inspect.isfunction)
+    ]
+    cls_methods = inspect.getmembers(doc_cls, inspect.isfunction)
+
+    for func_name, func in sorted(cls_methods):
+        # First list is:
+        # - run and __init__ methods
+        # - other subclass funcs that are not in the parent class
+        # (but not if it's a private method)
+        if func_name in allow_inherited or (
+            func_name not in nb_methods and not func_name.startswith("_")
+        ):
             doc_lines.extend(_format_func_doc(func_name, func, True))
+        elif func_name in nb_methods and not func_name.startswith("_"):
+            doc_lines_parent.extend(_format_func_doc(func_name, func, True))
+    doc_lines.append("## Inherited methods")
+    doc_lines.extend(doc_lines_parent)
     return "\n".join(doc_lines)
 
 
@@ -170,11 +188,13 @@ def _get_class_func_doc(doc_cls: type) -> str:
 
 def _format_func_doc(func_name, func, full_doc=False, prop_set=None):
     """Format function signature."""
-    doc_lines = [f"### {func_name}\n"]
+    func_disp_name = func_name.replace("_", "\\_")
+    doc_lines = [f"### {func_disp_name}\n"]
     if prop_set and func_name in prop_set:
-        doc_lines.append(f"{func_name} [property]")
+        doc_lines.append(f"{func_disp_name} [property]")
     else:
-        doc_lines.append(f"{func_name}{inspect.signature(func)}")
+        func_sig = html.escape(str(inspect.signature(func)))
+        doc_lines.append(f"{func_disp_name}{func_sig}<br>")
 
     func_doc = inspect.getdoc(func)
     if func_doc:

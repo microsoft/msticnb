@@ -121,15 +121,15 @@ class NBBrowser:
 
     def _create_code_sample(self, nb_cls):
         start = (datetime.utcnow() - timedelta(1)).strftime("%Y-%m-%d %H:%M")
-        code_sample = self._CODE_TEMPLATE.format(
+        return self._CODE_TEMPLATE.format(
             nb_instance=self._pyvar_case(nb_cls.__name__),
             nb_cls=self._get_class_index(nb_cls),
             start=start,
         )
-        return code_sample
 
     def _insert_code(self, change):
         del change
         code = self._create_code_sample(self.nb_select.value)
         shell = get_ipython()
-        shell.set_next_input(code)
+        if shell:
+            shell.set_next_input(code)

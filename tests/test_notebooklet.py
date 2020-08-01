@@ -51,11 +51,16 @@ class TestNotebooklet(unittest.TestCase):
         init(query_provider="LocalData")
         with self.assertRaises(MsticnbDataProviderError) as err:
             for _, nblt in nblts.iter_classes():
-                nblt.metadata.req_providers.append("mystery_provider")
-                new_nblt = nblt()
-                self.assertIsInstance(new_nblt, Notebooklet)
-                self.assertIsNone(new_nblt.result)
-        self.assertIn("mystery_provider", err.exception.args[0])
+                curr_provs = nblt.metadata.req_providers
+                bad_provs = [*curr_provs, "bad_provider"]
+                try:
+                    nblt.metadata.req_providers = bad_provs
+                    new_nblt = nblt()
+                    self.assertIsInstance(new_nblt, Notebooklet)
+                    self.assertIsNone(new_nblt.result)
+                finally:
+                    nblt.metadata.req_providers = curr_provs
+        self.assertIn("bad_provider", err.exception.args[0])
         test_nb = TstNBSummary()
         self.assertIsNotNone(test_nb.get_provider("LocalData"))
         with self.assertRaises(MsticnbDataProviderError):

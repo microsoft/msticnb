@@ -39,6 +39,7 @@ output:
     md: True
   get_matching_accounts:
     title: Querying for account matches.
+    hd_level: 3
     text: '
       Searching through Active Directory, Windows and Linux events.
       This may take a few moments to complete.
@@ -46,7 +47,6 @@ output:
     md: True
   summarize_host_activity:
     title: Summary of host logon activity.
-    hd_level: 3
     text: '
       Shows the total number of logons attempts by host.
       FailedLogons shows the breakdown of successfull and failed

@@ -158,7 +158,7 @@ class AccountSummary(Notebooklet):
         **kwargs,
     ) -> AccountSummaryResult:
         """
-        Return XYZ summary.
+        Return account activity summary.
 
         Parameters
         ----------
@@ -756,7 +756,9 @@ def _get_bookmark_select(bookmarks_df):
     )
 
     def display_bookmark(bookmark_id):
-        return bookmarks_df[bookmarks_df["BookmarkId"] == bookmark_id].iloc[0].T
+        return pd.DataFrame(
+            data=bookmarks_df[bookmarks_df["BookmarkId"] == bookmark_id].iloc[0].T
+        ).rename(columns={0: "value"})
 
     return nbwidgets.SelectItem(
         item_dict=opts, action=display_bookmark, height="200px", width="100%"
