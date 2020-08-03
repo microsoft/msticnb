@@ -227,6 +227,7 @@ class NetworkFlowSummary(Notebooklet):
             result.plot_flows_by_direction = _plot_flows_by_direction(flow_df)
         if "plot_flow_values" in self.options:
             result.plot_flow_values = _plot_flow_values(flow_df)
+        flow_index = None
         if "flow_summary" in self.options:
             flow_index = _extract_flow_ips(flow_df)
             result.flow_index = _get_flow_index(flow_index)
@@ -236,7 +237,7 @@ class NetworkFlowSummary(Notebooklet):
             if not self.silent:
                 display(result.flow_summary)
             result.flow_index_data = flow_index
-        if "geo_map" in self.options:
+        if "geo_map" in self.options and flow_index is not None:
             result.geo_map = _display_geo_map_all(
                 flow_index=flow_index,
                 ip_locator=self.data_providers["geolitelookup"],

@@ -15,6 +15,8 @@ from msticnb.data_providers import init
 
 from ....unit_test_lib import TEST_DATA_PATH
 
+# pylint: disable=protected-access
+
 
 def test_account_summary_notebooklet():
     """Test basic run of notebooklet."""
