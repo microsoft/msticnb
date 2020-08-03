@@ -205,7 +205,7 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
                 elif entity["Type"] == "url":
                     ioc_list.append(entity["Url"])
             if ioc_list:
-                ti_data = ti_prov.lookup_iocs(data=ioc_list, providers=ti_provs)
+                ti_data = ti_prov.lookup_iocs(data=ioc_list, prov_scope=ti_provs)
                 output.append(
                     ti_data[
                         ["Ioc", "IocType", "Provider", "Result", "Severity", "Details"]
