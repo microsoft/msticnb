@@ -1,10 +1,20 @@
 
-# Notebooklets
+# Notebooklets - msticnb
 
 Notebooklets are reusable Jupyter notebook code patterns for InfoSec investigators
 and hunters.
 
-## Notebook Authoring issues
+The msticnb package uses functionality from the
+[msticpy](https://github.com/microsoft/msticpy) package. Each notebooklet collects
+together multiple msticpy and custom code functions to automate specific scenarios
+related to InfoSec hunting and investigation.
+
+Each notebooklet can be invoked and run with a couple of lines of code and replaces
+what would be many code cells and hundreds of lines of code in a typical Jupyter
+notebook.
+
+# Motivation for msticnb
+## Jupyter notebook authoring issues
 
 Notebook authors face several issues:
 
@@ -16,9 +26,10 @@ Notebook authors face several issues:
 
 The goals for MSTIC notebooklets are:
 
+- Speed up authoring of new notebooks by aggregating a complex set of operations
+  in a single callable unit
 - Enable re-use of common notebook patterns
 - Allow unit testing of code blocks
-- Speed up authoring of new notebooks
 - Allow update of notebooklets code for fixes and enhancement
 - Support multiple data platforms
 
@@ -29,6 +40,8 @@ pip install msticnb
 ```
 
 # Usage
+
+For detailed usage and examples see the [NotebookletDemo notebook](./docs/notebooks/NotebookletsDemo.ipynb)
 
 ### Import and initialize the notebooklets
 
