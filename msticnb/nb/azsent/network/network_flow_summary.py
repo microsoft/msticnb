@@ -227,6 +227,7 @@ class NetworkFlowSummary(Notebooklet):
             result.plot_flows_by_direction = _plot_flows_by_direction(flow_df)
         if "plot_flow_values" in self.options:
             result.plot_flow_values = _plot_flow_values(flow_df)
+        flow_index = None
         if "flow_summary" in self.options:
             flow_index = _extract_flow_ips(flow_df)
             result.flow_index = _get_flow_index(flow_index)
@@ -236,7 +237,7 @@ class NetworkFlowSummary(Notebooklet):
             if not self.silent:
                 display(result.flow_summary)
             result.flow_index_data = flow_index
-        if "geo_map" in self.options:
+        if "geo_map" in self.options and flow_index is not None:
             result.geo_map = _display_geo_map_all(
                 flow_index=flow_index,
                 ip_locator=self.data_providers["geolitelookup"],
@@ -561,9 +562,7 @@ def _select_asn_subset(flow_sum_df, host_entity):
         quant_25pc_df["SourceASN"].unique()
     )
     other_asns = set(other_asns) - set(our_host_asns)
-    sel_asn = nbwidgets.SelectSubset(source_items=all_asns, default_selected=other_asns)
-
-    return sel_asn
+    return nbwidgets.SelectSubset(source_items=all_asns, default_selected=other_asns)
 
 
 # %%
@@ -716,7 +715,7 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     folium_map.add_ip_cluster(ip_entities=ips_out, **icon_props)
     icon_props = {"color": "purple"}
     folium_map.add_ip_cluster(ip_entities=ips_in, **icon_props)
-    if ti_results is not None and not ti_results.empty:
+    if not (ti_results is None or ti_results.empty):
         ips_threats = list(
             ti_results.apply(lambda x: _format_ip_entity(ip_locator, x, "Ioc"), axis=1)
         )

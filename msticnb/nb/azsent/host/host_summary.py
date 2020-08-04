@@ -151,14 +151,12 @@ class HostSummary(Notebooklet):
         result.description = self.metadata.description
         result.timespan = timespan
 
-        host_name, host_names = verify_host_name(
-            self.query_provider, value, self.timespan
-        )
-        if host_names:
+        host_verif = verify_host_name(self.query_provider, value, self.timespan)
+        if host_verif.host_names:
             md(f"Could not obtain unique host name from {value}. Aborting.")
             self._last_result = result
             return self._last_result
-        if not host_name:
+        if not host_verif.host_name:
             nb_markdown(
                 f"Could not find event records for host {value}. "
                 + "Results may be unreliable.",
@@ -166,7 +164,7 @@ class HostSummary(Notebooklet):
             )
             host_name = value
         else:
-            host_name = host_name[0]
+            host_name = host_verif.host_name
 
         host_entity = entities.Host(HostName=host_name)
         if "heartbeat" in self.options:
@@ -263,9 +261,7 @@ def _azure_api_details(az_cli, host_record):
             "Network Interfaces": network_ints,
             "Tags": str(resource_details["tags"]),
         }
-        azure_api = {"resoure_details": resource_details, "sub_details": sub_details}
-
-        return azure_api
+        return {"resoure_details": resource_details, "sub_details": sub_details}
     except CloudError:
         return None
 
@@ -302,13 +298,12 @@ def _get_related_alerts(qry_prov, timespan, host_name):
 @set_text(docs=_CELL_DOCS, key="show_alert_timeline")
 def _show_alert_timeline(related_alerts):
     if len(related_alerts) > 1:
-        alert_plot = nbdisplay.display_timeline(
+        return nbdisplay.display_timeline(
             data=related_alerts,
             title="Related Alerts",
             source_columns=["AlertName", "TimeGenerated"],
             height=200,
         )
-        return alert_plot
     if len(related_alerts) == 1:
         nb_markdown("A single alert cannot be plotted on a timeline.")
     else:

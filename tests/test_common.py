@@ -9,9 +9,9 @@ import io
 import unittest
 import warnings
 
-from ..common import add_result, nb_data_wait, nb_debug, nb_print
-from .. import options, init
-from ..options import get_opt, set_opt
+from msticnb.common import add_result, nb_data_wait, nb_debug, nb_print
+from msticnb import options, init
+from msticnb.options import get_opt, set_opt
 from .nb_test import TstNBSummary
 
 # pylint: disable=too-many-statements

@@ -96,16 +96,16 @@ class NBMetadata:
     @property
     def options_doc(self) -> str:
         """Return list of options and documentation."""
-        opt_list = []
-        opt_list.append("")
-        opt_list.append("    Default Options")
-        opt_list.append("    ---------------")
-        opt_list.extend(
-            [f"    - {key}: {value}" for key, value in self.get_options("default")]
-        )
-        opt_list.append("")
-        opt_list.append("    Other Options")
-        opt_list.append("    -------------")
+        opt_list = [
+            "",
+            "    Default Options",
+            "    ---------------",
+            *[f"    - {key}: {value}" for key, value in self.get_options("default")],
+            "",
+            "    Other Options",
+            "    -------------",
+        ]
+
         if self.get_options("other"):
             opt_list.extend(
                 [f"    - {key}: {value}" for key, value in self.get_options("other")]
@@ -148,9 +148,9 @@ def read_mod_metadata(mod_path: str, module_name) -> Tuple[NBMetadata, Dict[str,
 
 
 def _read_metadata_file(mod_path):
-    md_path = Path(mod_path.replace(".py", ".yaml"))
+    md_path = Path(str(mod_path).replace(".py", ".yaml"))
     if not md_path.is_file():
-        md_path = Path(mod_path.replace(".py", ".yml"))
+        md_path = Path(str(mod_path).replace(".py", ".yml"))
     if md_path.is_file():
         with open(md_path, "r") as _md_file:
             return yaml.safe_load(_md_file)

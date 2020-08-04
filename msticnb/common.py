@@ -34,7 +34,6 @@ class TimeSpan:
         start: Optional[Union[datetime, str]] = None,
         end: Optional[Union[datetime, str]] = None,
         period: Optional[Union[timedelta, str]] = None,
-        time_selector: Any = None,
     ):
         """
         Initialize Timespan.
@@ -42,8 +41,11 @@ class TimeSpan:
         Parameters
         ----------
         timespan : Union(TimeSpan, Tuple(Any, Any)), optional
-            Another TimeSpan object or a tuple of datetimes
-            or datetime strings, by default None
+            A TimeSpan object
+            or a tuple of datetimes or datetime strings,
+            or an object that has either `start` and `end` or `start` and
+            `period` date_time-like attributes.
+            By default None
         start : Optional[Union[datetime, str]], optional
             datetime of the start of the time period, by default None
         end : Optional[Union[datetime, str]], optional
@@ -60,9 +62,7 @@ class TimeSpan:
             If neither `start` nor `period` are specified.
 
         """
-        start, end, period = self._process_args(
-            timespan, time_selector, start, end, period
-        )
+        start, end, period = self._process_args(timespan, start, end, period)
 
         if not start and not period:
             raise MsticnbMissingParameterError(
@@ -135,20 +135,21 @@ class TimeSpan:
         return self._period
 
     @staticmethod
-    def _process_args(timespan, time_selector, start, end, period):
-        if timespan and isinstance(timespan, TimeSpan):
-            start = timespan.start
-            end = timespan.end
-            period = timespan.period
-        elif timespan and isinstance(timespan, tuple):
-            start = timespan[0]
-            end = timespan[1]
-        if not start and hasattr(time_selector, "start"):
-            start = getattr(time_selector, "start", None)
-        if not end and hasattr(time_selector, "end"):
-            end = getattr(time_selector, "end", None)
-        if not period and hasattr(time_selector, "period"):
-            period = getattr(time_selector, "period", None)
+    def _process_args(timespan, start, end, period):
+        if timespan:
+            if isinstance(timespan, TimeSpan):
+                start = timespan.start
+                end = timespan.end
+                period = timespan.period
+            elif isinstance(timespan, tuple):
+                start = timespan[0]
+                end = timespan[1]
+        if not start and hasattr(timespan, "start"):
+            start = getattr(timespan, "start", None)
+        if not end and hasattr(timespan, "end"):
+            end = getattr(timespan, "end", None)
+        if not period and hasattr(timespan, "period"):
+            period = getattr(timespan, "period", None)
         return start, end, period
 
     @staticmethod

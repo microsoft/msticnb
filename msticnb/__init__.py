@@ -36,11 +36,13 @@ To start using notebooklets:
 from .data_providers import DataProviders, init  # noqa:F401
 from .read_modules import discover_modules, nblts, nb_index, find  # noqa:F401
 from .options import get_opt, set_opt  # noqa:F401
-from .nb_browser import NBBrowser as browse  # noqa:F401
+from .nb_browser import NBBrowser  # noqa:F401
 
 from ._version import VERSION
 
 __version__ = VERSION
 
+# pylint: disable=invalid-name
+browse = NBBrowser
 discover_modules()
 print(len(list(nblts.iter_classes())), "notebooklets loaded.")

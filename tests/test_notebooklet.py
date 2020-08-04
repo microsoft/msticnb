@@ -16,11 +16,11 @@ import pandas as pd
 
 from msticpy.sectools import GeoLiteLookup
 from msticpy.common.exceptions import MsticpyUserConfigError
-from ..common import MsticnbDataProviderError, TimeSpan
-from ..data_providers import init
+from msticnb.common import MsticnbDataProviderError, TimeSpan
+from msticnb.data_providers import init
 
-from ..read_modules import Notebooklet, nblts
-from ..nb.azsent.host.host_summary import HostSummaryResult
+from msticnb.read_modules import Notebooklet, nblts
+from msticnb.nb.azsent.host.host_summary import HostSummaryResult
 from .nb_test import TstNBSummary
 
 
@@ -47,14 +47,20 @@ class TestNotebooklet(unittest.TestCase):
                 self.assertIsInstance(new_nblt, Notebooklet)
                 self.assertIsNone(new_nblt.result)
 
-        # Should raise exception because Network Summary needs geolitelookup
-        init(query_provider="LocalData", providers=["tilookup"])
-        with self.assertRaises(MsticnbDataProviderError):
+        # Should throw a warning because of unrecognized provider
+        init(query_provider="LocalData")
+        with self.assertRaises(MsticnbDataProviderError) as err:
             for _, nblt in nblts.iter_classes():
-                new_nblt = nblt()
-                self.assertIsInstance(new_nblt, Notebooklet)
-                self.assertIsNone(new_nblt.result)
-
+                curr_provs = nblt.metadata.req_providers
+                bad_provs = [*curr_provs, "bad_provider"]
+                try:
+                    nblt.metadata.req_providers = bad_provs
+                    new_nblt = nblt()
+                    self.assertIsInstance(new_nblt, Notebooklet)
+                    self.assertIsNone(new_nblt.result)
+                finally:
+                    nblt.metadata.req_providers = curr_provs
+        self.assertIn("bad_provider", err.exception.args[0])
         test_nb = TstNBSummary()
         self.assertIsNotNone(test_nb.get_provider("LocalData"))
         with self.assertRaises(MsticnbDataProviderError):

@@ -10,10 +10,10 @@ import attr
 import pandas as pd
 from msticpy.nbtools import entities
 
-from ..common import TimeSpan, nb_print, set_text
-from ..notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from .. import nb_metadata
-from .._version import VERSION
+from msticnb.common import TimeSpan, nb_print, set_text
+from msticnb.notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from msticnb import nb_metadata
+from msticnb._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"

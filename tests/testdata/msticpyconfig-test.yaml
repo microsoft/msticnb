@@ -14,31 +14,20 @@ QueryDefinitions:
 TIProviders:
   OTX:
     Args:
-      AuthKey:
-        EnvironmentVar: "OTX_AUTH"
+      AuthKey: "OTX_AUTH"
     Primary: True
     Provider: "OTX"
   VirusTotal:
     Args:
-      AuthKey:
-        EnvironmentVar: "VIRUSTOTAL_AUTH"
+      AuthKey: "VIRUSTOTAL_AUTH"
     Primary: True
     Provider: "VirusTotal"
   XForce:
     Args:
-      ApiID:
-        EnvironmentVar: "XFORCE_ID"
-      AuthKey:
-        EnvironmentVar: "XFORCE_AUTH"
+      ApiID: "XFORCE_ID"
+      AuthKey: "XFORCE_AUTH"
     Primary: False
     Provider: "XForce"
-  AzureSentinel:
-    Args:
-      # TBD
-      WorkspaceID: "a927809c-8142-43e1-96b3-4ad87cfe95a3"
-      TenantID: "69d28fd7-42a5-48bc-a619-af56397b9f28"
-    Primary: True
-    Provider: "NoLoad-AzSTI"
   OpenPageRank:
     Args:
       AuthKey:

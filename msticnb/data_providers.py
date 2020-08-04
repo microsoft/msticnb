@@ -83,7 +83,7 @@ ProviderDefn = namedtuple("ProviderDefn", "prov_class, connect_reqd, get_config"
 class DataProviders:
     """Notebooklet DataProviders class."""
 
-    _default_providers = ["azuredata", "tilookup", "geolitelookup"]
+    _default_providers = ["tilookup", "geolitelookup"]
     _other_providers: List[str] = ["ipstacklookup"]
 
     def __init__(
@@ -126,7 +126,18 @@ class DataProviders:
 
         """
         self.provider_names: set = self._get_custom_providers(providers)
-        self.provider_names.add(DataEnvironment.parse(query_provider).name)
+        parsed_provider = DataEnvironment.parse(query_provider)
+        if parsed_provider == DataEnvironment.Unknown:
+            known_providers = set(DataEnvironment.__members__.keys()) - {
+                "Unknown",
+                "Kusto",
+                "AzureSecurityCenter",
+            }
+            raise MsticnbDataProviderError(
+                f"Unknown query provider '{query_provider}",
+                f"Available providers are {', '.join(known_providers)}",
+            )
+        self.provider_names.add(parsed_provider.name)
         self.providers: Dict[str, Any] = {}
 
         self.provider_classes: Dict[str, ProviderDefn] = {
@@ -140,10 +151,15 @@ class DataProviders:
         self.query_provider = None
 
         for provider in sorted(self.provider_names):
-            self.add_provider(provider, **kwargs)
-            if provider in self.providers and provider == query_provider:
-                # If this is the default query provider
-                setattr(self, "query_provider", self.providers[provider])
+            try:
+                self.add_provider(provider, **kwargs)
+            except MsticnbDataProviderError as err:
+                print(f"Data provider {provider} could not be added.")
+                print(err.args)
+            else:
+                if provider in self.providers and provider == parsed_provider.name:
+                    # If this is the default query provider
+                    setattr(self, "query_provider", self.providers[provider])
 
     def __getitem__(self, key: str):
         """Return provider matching `key`."""
@@ -192,7 +208,7 @@ class DataProviders:
         provider_key = provider.casefold()
         new_provider = None
         if provider in DataEnvironment.__members__:
-            # If this is a known query provider pass to appropriate
+            # If this is a known query provider, pass to appropriate
             prov_def = self.provider_classes.get(
                 provider_key, self.provider_classes["queryprovider"]
             )
@@ -205,7 +221,7 @@ class DataProviders:
             else:
                 new_provider = self._no_connect_prov(provider, prov_def, **kwargs)
         else:
-            print(f"Provider {provider} not recognized.")
+            raise MsticnbDataProviderError(f"Provider {provider} not recognized.")
 
         if new_provider:
             setattr(self, provider, new_provider)
@@ -256,7 +272,7 @@ class DataProviders:
             alias_opts = {DataEnvironment.parse(prov).name for prov in prov_opts}
             prov_opts.update(alias_opts - {"Unknown"})
             # We only need to match one of these
-            if any([m_prov for m_prov in prov_opts if m_prov in self.providers]):
+            if any(m_prov for m_prov in prov_opts if m_prov in self.providers):
                 continue
             missing_provs.add(r_prov)
         unknown_provs = missing_provs - set(self.list_providers())
@@ -319,19 +335,6 @@ class DataProviders:
                 print("Warning:", mp_ex.args)
             return None
 
-    # def _azure_api_prov(self, provider, **kwargs):
-    #     az_data_args = self._get_provider_kwargs(provider, **kwargs)
-    #     try:
-    #         az_provider = AzureData()
-    #         az_connect_args = self._get_connect_args(
-    #             az_provider.connect, **az_data_args
-    #         )
-    #         az_provider.connect(**az_connect_args)
-    #         self.providers[provider] = az_provider
-    #     except MsticpyAzureException as mp_ex:
-    #         if get_opt("verbose"):
-    #             print("Warning:", mp_ex.args)
-
     def _no_connect_prov(self, provider, provider_defn, **kwargs):
         # Get the args passed to __init__ for this provider
         prov_args = self._get_provider_kwargs(provider, **kwargs)
@@ -345,6 +348,15 @@ class DataProviders:
     @staticmethod
     def _get_provider_kwargs(prefix, **kwargs):
         """Return the kwargs prefixed with "prefix_"."""
+        if prefix == "LogAnalytics" and any(
+            key for key in kwargs if key.startswith("AzureSentinel")
+        ):
+            azsent_args = {
+                key.replace("AzureSentinel", "LogAnalytics"): val
+                for key, val in kwargs.items()
+            }
+            kwargs.update(azsent_args)
+
         return {
             name.replace(f"{prefix}_", ""): arg
             for name, arg in kwargs.items()

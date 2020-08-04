@@ -11,7 +11,7 @@ import pandas as pd
 from tqdm.notebook import tqdm
 from IPython.display import display
 from msticpy.nbtools.nbwidgets import SelectAlert
-from msticpy.nbtools.nbdisplay import display_alert, format_alert
+from msticpy.nbtools.nbdisplay import format_alert
 from msticpy.nbtools.security_alert import SecurityAlert
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
@@ -59,6 +59,7 @@ class TIEnrichResult(NotebookletResult):
 
 
 # pylint: enable=too-few-public-methods
+# pylint: disable=too-many-branches
 class EnrichAlerts(Notebooklet):
     """
     Alert Enrichment Notebooklet Class.
@@ -150,7 +151,8 @@ class EnrichAlerts(Notebooklet):
                 ti_sec = True
             md(
                 """Alerts enriched with threat intelligence -
-                 TI Risk is the the hightest score provided by any of the configured providers."""
+                 TI Risk is the the hightest score provided by any of
+                 the configured providers."""
             )
             data["TI Risk"] = data.progress_apply(
                 lambda row: _lookup(row, ti_prov, secondary=ti_sec), axis=1
@@ -171,14 +173,13 @@ class EnrichAlerts(Notebooklet):
                     .hide_index()
                 )
             if "details" in self.options:
-                alert_pick = _alert_picker(
+                self._last_result.picker = _alert_picker(
                     data, ti_prov, secondary=ti_sec, silent=self.silent
                 )
         else:
             raise MsticnbDataProviderError("No alerts avaliable")
 
         self._last_result.enriched_results = data
-        self._last_result.picker = alert_pick
 
         return self._last_result
 
@@ -194,17 +195,17 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
     def show_full_alert(selected_alert):
         global security_alert  # pylint: disable=global-variable-undefined, invalid-name
         output = []
-        security_alert = SecurityAlert(alert_select.selected_alert)
+        security_alert = SecurityAlert(selected_alert)
         output.append(format_alert(security_alert, show_entities=True))
         ioc_list = []
         if security_alert["Entities"] is not None:
             for entity in security_alert["Entities"]:
-                if entity["Type"] == "ipaddress" or entity["Type"] == "ip":
+                if entity["Type"] in ("ipaddress", "ip"):
                     ioc_list.append(entity["Address"])
                 elif entity["Type"] == "url":
                     ioc_list.append(entity["Url"])
-            if len(ioc_list) > 0:
-                ti_data = ti_prov.lookup_iocs(data=ioc_list, providers=ti_provs)
+            if ioc_list:
+                ti_data = ti_prov.lookup_iocs(data=ioc_list, prov_scope=ti_provs)
                 output.append(
                     ti_data[
                         ["Ioc", "IocType", "Provider", "Result", "Severity", "Details"]
@@ -248,6 +249,9 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
     return alert_select
 
 
+# pylint: disable=too-many-branches
+
+
 # %%
 # Get Alerts
 def _get_all_alerts(qry_prov, timespan, filter_item=None):
@@ -277,12 +281,12 @@ def _entity_load(entity):
 def _lookup(row, ti_prov, secondary: bool = False):
     sev = []
     prov_scope = "primary"
-    if secondary is True:
+    if secondary:
         prov_scope = "all"
     if row["Entities"] is not None:
         for entity in row["Entities"]:
             try:
-                if entity["Type"] == "ip" or entity["Type"] == "ipaddress":
+                if entity["Type"] in ("ipaddress", "ip"):
                     resp = ti_prov.lookup_ioc(
                         observable=entity["Address"], prov_scope=prov_scope
                     )

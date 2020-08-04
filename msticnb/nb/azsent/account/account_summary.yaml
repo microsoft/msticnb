@@ -1,0 +1,87 @@
+metadata:
+  name: AlertSummary
+  description: Account Summary notebooklet
+  default_options:
+    - get_alerts:
+        Retrieve alerts and display timeline for the account.
+    - get_bookmarks:
+        Retrieve investigation bookmarks for the account
+  keywords:
+    - account
+    - azure
+    - office
+    - windows
+    - linux
+    - aad
+    - o365
+  entity_types:
+    - account
+  req_providers:
+    - AzureSentinel|LocalData
+output:
+  run:
+    title: Account Summary
+    hd_level: 1
+    text:
+      This function searches Active Directory, Azure, Office365, Windows
+      and Linux logs for matching accounts.
+
+      If any matches are found you can choose an account to explore,
+      viewing the times of recent event types, any alerts and hunting
+      bookmarks that relate to the account name.
+
+      You can also retrieve recent details of the logon activity or
+      cloud activity for the account.
+
+      For further investigation use the host_logons_summary notebooklet
+      for Windows and Linux host logons. Or use the azure_account_summary
+      for cloud accounts.
+    md: True
+  get_matching_accounts:
+    title: Querying for account matches.
+    hd_level: 3
+    text: '
+      Searching through Active Directory, Windows and Linux events.
+      This may take a few moments to complete.
+      '
+    md: True
+  summarize_host_activity:
+    title: Summary of host logon activity.
+    text: '
+      Shows the total number of logons attempts by host.
+      FailedLogons shows the breakdown of successfull and failed
+      logons.
+      IPAddresses is a list of distinct source IP addresses for
+      the logons.
+      LogonTypeCount breaks down the logon type used by count.
+      First and LastLogon shows the earliest and lastest logons
+      on each host by this account in the selected time range.
+      '
+    md: True
+  create_host_timeline:
+    title: Host logon attempt timeline
+    hd_level: 3
+    text: Hover over each timeline event to see details.
+  summarize_azure_activity:
+    title: Summary of azure activity for AAD, Azure resource and O365
+    hd_level: 3
+    text: '
+      Shows the total number of operations, the list of unique
+      operations, the list of unique resource IDs and the first
+      and last operation recorded in the selected time range.
+      The data is grouped by:
+        - Data source
+        - User
+        - Type - Azure activity type/source
+        - Client IP Address
+        - Application resource provider
+        - User type
+      '
+  create_azure_timelines:
+    title: Azure activity timelines
+    hd_level: 3
+    text: '
+      These timelines show combined Azure activity
+      grouped by Application Resource Provider, IP Address and
+      Operation respectively.
+      '

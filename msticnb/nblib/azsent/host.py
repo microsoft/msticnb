@@ -4,8 +4,9 @@
 # license information.
 # --------------------------------------------------------------------------
 """host_network_summary notebooklet."""
+from collections import namedtuple
 from functools import lru_cache
-from typing import Dict, Tuple, Optional
+from typing import Dict
 
 import pandas as pd
 from msticpy.data import QueryProvider
@@ -82,32 +83,36 @@ def get_aznet_topology(
         Host IP Address, by default None
 
     """
-    if "AzureNetworkAnalytics_CL" in qry_prov.schema_tables:
-        nb_data_wait("AzureNetworkAnalytics")
-        if host_name:
-            az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
-        elif host_ip:
-            az_net_df = qry_prov.Network.host_for_ip(ip_address=host_ip)
+    if "AzureNetworkAnalytics_CL" not in qry_prov.schema_tables:
+        return
+    nb_data_wait("AzureNetworkAnalytics")
+    if host_name:
+        az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
+    elif host_ip:
+        az_net_df = qry_prov.Network.host_for_ip(ip_address=host_ip)
 
-        if not az_net_df.empty:
-            host_entity.private_ips = convert_to_ip_entities(
-                az_net_df["PrivateIPAddresses"].iloc[0]
-            )
-            host_entity.public_ips = convert_to_ip_entities(
-                az_net_df["PublicIPAddresses"].iloc[0]
-            )
+    if not az_net_df.empty:
+        host_entity.private_ips = convert_to_ip_entities(
+            az_net_df["PrivateIPAddresses"].iloc[0]
+        )
+        host_entity.public_ips = convert_to_ip_entities(
+            az_net_df["PublicIPAddresses"].iloc[0]
+        )
 
-        else:
-            if "private_ips" not in host_entity:
-                host_entity.private_ips = []
-            if "public_ips" not in host_entity:
-                host_entity.public_ips = []
+    else:
+        if "private_ips" not in host_entity:
+            host_entity.private_ips = []
+        if "public_ips" not in host_entity:
+            host_entity.public_ips = []
+
+
+HostNameVerif = namedtuple("HostNameVerif", "host_name, host_type, host_names")
 
 
 @lru_cache()  # noqa:MC0001
 def verify_host_name(
     qry_prov: QueryProvider, host_name: str, timespan: TimeSpan = None, **kwargs
-) -> Tuple[Optional[Tuple[str, str]], Optional[Dict[str, str]]]:
+) -> HostNameVerif:
     """
     Verify unique hostname by checking Win and Linux logs.
 
@@ -122,12 +127,15 @@ def verify_host_name(
 
     Returns
     -------
-    Tuple[Optional[Tuple[str, str]], Optional[Dict[str, str]]]
-        (host_name, host_names)
+    HostNameVerif
+        Tuple[Optional[str], Optional[str], Optional[Dict[str, str]]]
+        Named tuple HostNameVerif
+        fields: host_name, host_type, host_names
         If unique hostname found, host_name is populated.
         If multiple matching hostnames found, host_names is
         populated and host_name is None.
-        If no matching host then both are None.
+        host_type is either Windows or Linux.
+        If no matching host then all fields are None.
 
     """
     # Check if a time span is provide as TimeSpan object or start and end parameters
@@ -178,15 +186,15 @@ def verify_host_name(
             "Please select a host and re-run.",
             "\n".join(host_names.keys()),
         )
-        return None, host_names
+        return HostNameVerif(None, None, host_names)
 
     if host_names:
         unique_host = next(iter(host_names))
         nb_print(f"Unique host found: {unique_host}")
-        return (unique_host, host_names[unique_host]), None
+        return HostNameVerif(unique_host, host_names[unique_host], None)
 
     nb_print(f"Host not found: {host_name}")
-    return None, None
+    return HostNameVerif(None, None, None)
 
 
 # %%

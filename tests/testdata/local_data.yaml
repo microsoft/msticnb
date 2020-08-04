@@ -9,6 +9,7 @@ defaults:
     data_source: 'security_alert'
   parameters:
 sources:
+  # Alerts
   list_alerts:
     description: Retrieves list of alerts
     metadata:
@@ -23,13 +24,15 @@ sources:
     args:
       query: alerts_list.pkl
     parameters:
+  # Azure Sentinel tables
   list_bookmarks_for_entity:
     description: Retrieves list of related bookmarks.
     metadata:
       data_families: [AzureSentinel]
     args:
-      query: alerts_list.pkl
+      query: bookmarks.csv
     parameters:
+  # Windows
   list_host_processes:
     description: List processes on host
     metadata:
@@ -51,8 +54,15 @@ sources:
     args:
       query: failed_logons.pkl
     parameters:
+  list_logon_attempts_by_account:
+    description: Success and failed
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: win_logon_attempts.pkl
+    parameters:
   list_host_events:
-    description: List events failures on host
+    description: List events on host
     metadata:
       data_families: [WindowsSecurity]
     args:
@@ -65,6 +75,14 @@ sources:
     args:
       query: process_tree.pkl
     parameters:
+  list_all_logons_by_host:
+    description: Return Logon Events For A Host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: win_host_logons.pkl
+    parameters:
+  # AzureNetwork
   list_azure_network_flows_by_ip:
     description: List Azure Network flows by IP address
     metadata:
@@ -79,10 +97,36 @@ sources:
     args:
       query: az_net_comms_df.pkl
     parameters:
-  list_all_logons_by_host:
-    description: Return Logon Events For A Host
+  # AAD
+  list_aad_signins_for_account:
+    description: AAD Signin Logs
     metadata:
-      data_families: [WindowsSecurity]
+      data_families: [Azure]
     args:
-      query: win_host_logons.pkl
+      query: aad_signin_user.pkl
+    parameters:
+  # Azure Activity
+  list_azure_activity_for_account:
+    description: Azure Activity
+    metadata:
+      data_families: [Azure]
+    args:
+      # Note - replace this with real Azure Activity if needed
+      query: office_activity_user.pkl
+    parameters:
+  # O365
+  list_activity_for_account:
+    description: Azure Activity
+    metadata:
+      data_families: [Office365]
+    args:
+      query: office_activity_user.pkl
+    parameters:
+  # Linux
+  list_logons_for_account:
+    description: Azure Activity
+    metadata:
+      data_families: [LinuxSyslog]
+    args:
+      query: lx_host_logons.pkl
     parameters:
