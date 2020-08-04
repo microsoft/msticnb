@@ -10,7 +10,7 @@ QueryDefinitions:
   Default:
     - 'queries'
   Custom:
-    - 'testdata'
+    - 'tests/testdata'
 TIProviders:
   OTX:
     Args:
@@ -30,8 +30,7 @@ TIProviders:
     Provider: "XForce"
   OpenPageRank:
     Args:
-      AuthKey:
-        EnvironmentVar: "OPR_AUTH"
+      AuthKey: "OPR_AUTH"
     Primary: True
     Provider: "OPR"
   TorExitNodes:
