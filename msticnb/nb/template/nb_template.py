@@ -7,14 +7,15 @@
 Template notebooklet.
 
 Notebooklet modules have three main sections:
-- Result class definition
+
+- **Result class definition**:
   This defines the attributes and descriptions of the data that you
   want to return from the notebooklet.
-- Notebooklet class definition
+- **Notebooklet class definition**:
   This is the entry point for running the notebooklet. At minimum
   it should be a class derived from Notebooklet that implements
   a `run` method and returns your result class.
-- Functions
+- **Functions**:
   These do most of the work of the notebooklet and usually the code
   that is copied from or adapted from the original notebook.
 
@@ -252,18 +253,14 @@ class TemplateNB(Notebooklet):
 # %%
 # Get Windows Security Events
 def _get_all_events(qry_prov, host_name, timespan):
-    nb_data_wait("SecurityEvent")
-
     # Tell the user that you're fetching data
-    # (displays if nb.set_opt("verbose", True))
+    # (doesn't display if nb.set_opt("silent", True))
     nb_data_wait("SecurityEvent")
-    all_events_df = qry_prov.WindowsSecurity.list_host_events(
+    return qry_prov.WindowsSecurity.list_host_events(
         timespan,
         host_name=host_name,
         add_query_items="| where EventID != 4688 and EventID != 4624",
     )
-
-    return all_events_df
 
 
 # You can add title and/or text to individual functions as they run.

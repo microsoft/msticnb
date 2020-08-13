@@ -498,6 +498,8 @@ def _get_select_acct_dict(acct_index_df: pd.DataFrame) -> Dict[str, str]:
 
 def _create_account_index(all_acct_dfs):
     acct_activity_df = pd.concat(all_acct_dfs.values())
+    if acct_activity_df.empty:
+        return acct_activity_df[["AccountName", "Source", "TimeGenerated"]]
     return (
         acct_activity_df[["AccountName", "Source", "TimeGenerated"]]
         .groupby(["AccountName", "Source"])
