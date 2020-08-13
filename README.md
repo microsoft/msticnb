@@ -91,7 +91,7 @@ notebooklet with only 3 or 4 lines of code.
 
 <img src="https://github.com/microsoft/msticnb/blob/master/docs/source/_static/NBComparison.png"
 alt="Comparing a standard notebook with one using a notebooklet. The standard notebook on the left can require large amounts of code. The notebook on the right uses just 3 lines of code."
-title="With and without notebooklets" height="300" />
+title="With and without notebooklets" height="500" />
 
 
 ### Characteristics of Notebooklets
@@ -132,14 +132,14 @@ pip install msticnb
 
 <img src="https://github.com/microsoft/msticnb/blob/master/docs/source/_static/msticnb-import.png"
 alt="Python statement to import msticnb - 'import msticnb as nb'"
-title="Importing" height="300" />
+title="Importing" height="70" />
 
 The init method loads data drivers and data providers relevant to the
 the chosen data platform.
 
 <img src="https://github.com/microsoft/msticnb/blob/master/docs/source/_static/msticnb-init.png"
 alt="Python statement to initialize msticnb - nb.init('AzureSentinel')"
-title="Initializing msticnb" height="300" />
+title="Initializing msticnb" height="70" />
 
 ### Pick a notebooklet to use
 
@@ -153,7 +153,7 @@ sample code snippet for each.
 
 <img src="https://github.com/microsoft/msticnb/blob/master/docs/source/_static/msticnb-browser.png"
 alt="Notebooklet browser showing list of notebooklets and some details of the user documentation for the selected notebooklet."
-title="Notebooklet browser" height="300" />
+title="Notebooklet browser" height="500" />
 
 ### Instantiate the notebooklet and execute \"run\"
 
@@ -166,7 +166,7 @@ which to perform the operations.
 
 <img src="https://github.com/microsoft/msticnb/blob/master/docs/source/_static/msticnb-run-cell.png"
 alt="Python code cell showing the creation of a notebooklet instance from the WinHostevents notebooklet class. The notebooklet 'run' method is called with parameters supplying the name of the host and a time range."
-title="Running a notebooklet" height="300" />
+title="Running a notebooklet" height="100" />
 
 The notebooklet displays output directly to the notebook (although this
 can be suppressed) - showing text, data tables and visualizations. This
@@ -178,7 +178,7 @@ typing its name into and emtpy cell and running the cell.
 
 <img src="https://github.com/microsoft/msticnb/blob/master/docs/source/_static/msticnb-run.png"
 alt="The notebooklet displays output directly to th notebook. The output includes styled tables, text headings and descriptions and interactive timeline visualizations."
-title="Running a notebooklet" height="300" />
+title="Running a notebooklet" height="600" />
 
 ### View extended help for a notebooklet
 
@@ -193,7 +193,7 @@ shown earlier.
 
 <img src="https://github.com/microsoft/msticnb/blob/master/docs/source/_static/msticnb-help.png"
 alt="The notebooklet help displays a description, parameter and other usage information and available methods. It also describes the major output sections and the contents of the return results."
-title="Notebooklet help" height="300" />
+title="Notebooklet help" height="500" />
 
 ## Current Notebooklets
 

@@ -9,7 +9,7 @@ Notebooklets have two components:
 
 - A python module containing the code that does all of the processing
   work that you'd normally write directly into notebook cells.
-- A yaml file that contains configuration, documentation and text
+- A YAML file that contains configuration, documentation and text
   content that you want to display as part of your notebooklet's output.
 
 Custom notebooklets must be in a package of their own (although you
@@ -124,8 +124,8 @@ The first section of the the class definition contains the docstring.
 This documentation is used by the notebooklet browser and the
 show_help() function to provide extended user-friendly help.
 
-The first three lines of code handle assiging metadata and documentation
-data from the notebooklet yaml file (see below) so that the notebooklet
+The first three lines of code handle assigning metadata and documentation
+data from the notebooklet YAML file (see below) so that the notebooklet
 code can access it.
 
 .. warning:: Do not change these lines unless you know what you are doing.
@@ -201,7 +201,7 @@ The set_text decorator
 
 The ``@set_text`` decorator requires some explanation. This decorator
 gives you the ability to output display text every time ``run()`` is called.
-It references the _CELL_DOCS dictionary, which is read from the yaml metadata
+It references the _CELL_DOCS dictionary, which is read from the YAML metadata
 file, and specifies a key which is used to look up the exact section from the
 file to use.
 
@@ -224,7 +224,7 @@ The run method body
     )
 
 Calling the base class ``run`` method from your implementation is important.
-This does things like handle options and optionall convert and normalize the timespan
+This does things like handle options and convert and normalize the timespan
 parameter.
 
 The next section validates any input parameters that you require and creates
@@ -279,7 +279,7 @@ want to execute and in what order.
 You can call additional methods unconditionally or use the option logic to
 allow users to add additional operations or skip ones that they are not
 interested in. The available and default options for your notebooklet are defined in
-the notebooklet yaml file.
+the notebooklet YAML file.
 
 If you call run() without specifying the options parameter, the defaults will be
 used. You can specify a custom set of options as a list of option names (strings).
@@ -419,7 +419,7 @@ results class (shown earlier).
 Notebook YAML file
 ------------------
 
-The notebooklet yaml file should have the same name as the Python module but
+The notebooklet YAML file should have the same name as the Python module but
 with a "yaml" or "yml" extension.
 
 There are two main sections: ``metadata`` and ``output``.
@@ -459,7 +459,7 @@ include:
   that deal with hosts, IP addresses, etc.
 - req_providers - this is a list of data providers required for the notebooklet
   to run. You can provide alternates (as shown), which means that if one of the
-  providers is available the notebooklet will load succesfully.
+  providers is available the notebooklet will load successfully.
 
 
 .. code:: YAML

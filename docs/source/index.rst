@@ -27,8 +27,6 @@ packaged analytics) will take a pandas DataFrame as input.
 
 .. code:: ipython3
 
-   import msticnb as nb
-   nb.init(query_provider="AzureSentinel")
    host_summary = nb.nblts.azsent.host.HostSummary()
    host_sum_rslt = host_summary.run(value="Msticalertswin1", timespan=time_span)
 
@@ -36,7 +34,7 @@ packaged analytics) will take a pandas DataFrame as input.
 You can create your own notebooklets and use them in the same framework
 as the ones already in the package.
 
-Read on to find out more about using and creating notebooks.
+Read on to find out more about using and creating notebooklets.
 
 
 Introduction and Usage

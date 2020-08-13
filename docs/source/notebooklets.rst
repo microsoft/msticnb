@@ -51,6 +51,7 @@ Why did we create notebooklets?
 
 Why aren't these part of msticpy?
 ---------------------------------
+
 - Msticpy aims to be platform-independent, whereas most if not all notebooklets
   assume a data schema that is specific to their data provider/SIEM.
 - Msticpy is mostly for discrete functions such as data acquisition, analysis
@@ -179,7 +180,7 @@ description and usage information (parameters, available methods, options).
 It also describes the major output sections that will be displayed and the
 the contents of the return results.
 
-.. note:: the contents of this help are also displayed in the noteboolet
+.. note:: the contents of this help are also displayed in the notebooklet
    browser shown earlier.
 
 .. figure:: _static/msticnb-help.png
@@ -204,7 +205,7 @@ Main operations:
   that you can use to pick the account.
 - Selecting the account displays a summary of recent activity and
   retrieves any alerts and hunting bookmarks related to the account
-- The alerts and bookmarks are browseable using the browse_alerts and
+- The alerts and bookmarks are browsable using the browse_alerts and
   browse_bookmarks methods
 - You can call the find_additional_data method to retrieve and display
   more detailed activity information for the account.
@@ -227,15 +228,11 @@ Host Logons Summary Notebooket class.
 
 Queries and displays information about logons to a host including:
 
--  Summary of sucessfull logons
-
+-  Summary of successful logons
 -  Visualizations of logon event times
-
 -  Geolocation of remote logon sources
-
 -  Visualizations of various logon elements depending on host type
-
--  Data on users with failed and sucessful logons
+-  Data on users with failed and successful logons
 
  
 
@@ -247,11 +244,8 @@ HostSummary Notebooklet class.
 Queries and displays information about a host including:
 
 -  IP address assignment
-
 -  Related alerts
-
 -  Related hunting/investigation bookmarks
-
 -  Azure subscription/resource data.
 
  
@@ -264,11 +258,8 @@ Windows host Security Events Notebooklet class.
 Queries and displays Windows Security Events including:
 
 -  All security events summary
-
 -  Extracting and displaying account management events
-
 -  Account management event timeline
-
 -  Optionally parsing packed event data into DataFrame columns
 
 Process (4688) and Account Logon (4624, 4625) are not included in the
@@ -285,13 +276,9 @@ Queries network data and plots time lines for network traffic to/from a
 host or IP address.
 
 -  Plot flows events by protocol and direction
-
 -  Plot flow count by protocol
-
 -  Display flow summary table
-
 -  Display flow summary by ASN
-
 -  Display results on map
 
  
