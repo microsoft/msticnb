@@ -6,32 +6,30 @@
 """Notebooklet for Network Flow Summary."""
 from ipaddress import ip_address
 from itertools import chain
-from typing import Any, Optional, Iterable, Tuple, Dict
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 import attr
+import pandas as pd
 from bokeh.plotting.figure import Figure
 from IPython.display import display
-import pandas as pd
-
-from msticpy.nbtools import nbwidgets, nbdisplay
-from msticpy.nbtools import entities, foliummap
-from msticpy.sectools.ip_utils import get_whois_df, get_whois_info, get_ip_type
+from msticpy.common.timespan import TimeSpan
+from msticpy.datamodel import entities
+from msticpy.nbtools import foliummap, nbdisplay, nbwidgets
+from msticpy.sectools.ip_utils import get_ip_type, get_whois_df, get_whois_info
 from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
 
+from .... import nb_metadata
+from ...._version import VERSION
 from ....common import (
-    TimeSpan,
     MsticnbMissingParameterError,
     nb_data_wait,
-    set_text,
     nb_markdown,
     nb_warn,
+    set_text,
 )
 from ....data_providers import DataProviders
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from ....nblib.azsent.host import get_heartbeat, get_aznet_topology
-from .... import nb_metadata
-
-from ...._version import VERSION
+from ....nblib.azsent.host import get_aznet_topology, get_heartbeat
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -457,13 +455,13 @@ def _extract_flow_ips(flow_df):
 
     def get_source_ip(row):
         if row.FlowDirection == "O":
-            return row.VMIPAddress if row.VMIPAddress else row.SrcIP
-        return row.AllExtIPs if row.AllExtIPs else row.DestIP
+            return row.VMIPAddress or row.SrcIP
+        return row.AllExtIPs or row.DestIP
 
     def get_dest_ip(row):
         if row.FlowDirection == "O":
-            return row.AllExtIPs if row.AllExtIPs else row.DestIP
-        return row.VMIPAddress if row.VMIPAddress else row.SrcIP
+            return row.AllExtIPs or row.DestIP
+        return row.VMIPAddress or row.SrcIP
 
     flow_index["source"] = flow_index.apply(get_source_ip, axis=1)
     flow_index["dest"] = flow_index.apply(get_dest_ip, axis=1)
@@ -473,7 +471,7 @@ def _extract_flow_ips(flow_df):
 
 @set_text(docs=_CELL_DOCS, key="get_flow_index")
 def _get_flow_index(flow_summary_df):
-    flow_index_df = (
+    return (
         flow_summary_df[
             ["source", "dest", "L7Protocol", "FlowDirection", "TotalAllowedFlows"]
         ]
@@ -482,7 +480,6 @@ def _get_flow_index(flow_summary_df):
         .reset_index()
         .style.bar(subset=["TotalAllowedFlows"], color="#d65f5f")
     )
-    return flow_index_df
 
 
 # %%
@@ -517,7 +514,7 @@ def _get_flow_summary(flow_index):
         show_progress=True,
     )
 
-    flow_sum_df = (
+    return (
         flows_df.groupby(["DestASN", "SourceASN"])
         .agg(
             TotalAllowedFlows=pd.NamedAgg(column="TotalAllowedFlows", aggfunc="sum"),
@@ -531,7 +528,6 @@ def _get_flow_summary(flow_index):
         )
         .reset_index()
     )
-    return flow_sum_df
 
 
 # %%

@@ -8,14 +8,15 @@ from pathlib import Path
 
 import pandas as pd
 from bokeh.models import LayoutDOM
-from msticpy.nbtools import nbwidgets, entities
-from msticnb.common import TimeSpan
 from msticnb import nblts
 from msticnb.data_providers import init
+from msticpy.common.timespan import TimeSpan
+from msticpy.datamodel import entities
+from msticpy.nbtools import nbwidgets
 
 from ....unit_test_lib import TEST_DATA_PATH
 
-# pylint: disable=protected-access
+# pylint: disable=protected-access, no-member
 
 
 def test_account_summary_notebooklet():

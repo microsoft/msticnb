@@ -1,0 +1,49 @@
+metadata:
+  name: TemplateNB
+  description: Template YAML for Notebooklet
+  default_options:
+    - all_events: Gets all events about blah
+    - plot_events:
+        Display and summary and timeline of events.
+  other_options:
+    - get_metadata: fetches additional metadata about the entity
+  keywords:
+    - host
+    - computer
+    - heartbeat
+    - windows
+    - account
+  entity_types:
+    - host
+  req_providers:
+    - AzureSentinel|LocalData
+    - tilookup
+output:
+  run:
+    title: Title for the run method (main title)
+    hd_level: 1
+    text:
+      Write your introductory text here
+
+      Data and plots are stored in the result class returned by this function.
+
+      If you use **markdown** syntax in this block add the following
+      to use markdown processing.
+    md: True
+  display_event_timeline:
+    title: Display the timeline.
+    text: '
+      This may take some time to complete for large numbers of events.
+
+      It will do:
+      - Item one
+      - Item two
+
+      Since some groups will be undefined these can show up as `NaN`.
+
+      Note: use a quoted string if you want to include yaml reserved chars
+      such as ":"
+      '
+    md: True
+
+

@@ -34,32 +34,33 @@ functions will make it easier from them understand and work with
 the code.
 
 """
-from typing import Any, Optional, Iterable, Union, Dict
+from typing import Any, Dict, Iterable, Optional, Union
 
 import attr
-from bokeh.plotting.figure import Figure
 import pandas as pd
+from bokeh.plotting.figure import Figure
+from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools import nbdisplay
+
+from ... import nb_metadata
+
+# change the ".." to "...."
+from ..._version import VERSION
 
 # Note - when moved to the final location (e.g.
 # nb/environ/category/mynotebooklet.py)
 # you will need to change the "..." to "...." in these
 # imports because the relative path has changed.
 from ...common import (
-    TimeSpan,
     MsticnbMissingParameterError,
     nb_data_wait,
+    nb_markdown,
     nb_print,
     set_text,
-    nb_markdown,
 )
 
 # change the "..." to "...."
-from ...notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from ... import nb_metadata
-
-# change the ".." to "...."
-from ..._version import VERSION
+from ...notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Your name"

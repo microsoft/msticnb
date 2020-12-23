@@ -11,7 +11,7 @@ import unittest
 
 import pandas as pd
 
-from msticnb.common import TimeSpan
+from msticpy.common.timespan import TimeSpan
 from msticnb.data_providers import init
 from msticnb.nb.template.nb_template import TemplateNB
 from ...unit_test_lib import TEST_DATA_PATH

@@ -4,23 +4,22 @@
 # license information.
 # --------------------------------------------------------------------------
 """Test case for hostslogonsummary nblet."""
+from datetime import datetime
 from pathlib import Path
 
-from datetime import datetime
-import pytest
 import pandas as pd
-from bokeh.plotting import Figure
+import pytest
 from bokeh.layouts import Column
-from msticpy.nbtools.foliummap import FoliumMap
-
-from msticnb.data_providers import init
+from bokeh.plotting import Figure
 from msticnb import nblts
-from msticnb.common import TimeSpan
+from msticnb.data_providers import init
+from msticpy.common.timespan import TimeSpan
+from msticpy.nbtools.foliummap import FoliumMap
 
 from ....unit_test_lib import TEST_DATA_PATH
 
-
 # nosec
+# pylint: disable=no-member
 
 
 @pytest.fixture

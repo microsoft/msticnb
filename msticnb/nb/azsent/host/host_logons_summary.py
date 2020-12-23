@@ -4,33 +4,33 @@
 # license information.
 # --------------------------------------------------------------------------
 """logons_summary - provides overview of host logon events."""
-from typing import Any, Optional, Iterable, Dict
 import re
 from math import pi
+from typing import Any, Dict, Iterable, Optional
 
 import attr
 import pandas as pd
-from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
 from bokeh.palettes import viridis  # pylint: disable=no-name-in-module
+from bokeh.plotting import figure, show
 from bokeh.transform import cumsum
 from IPython.display import display
+from msticpy.common.timespan import TimeSpan
+from msticpy.nbtools import timeline
 from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities
-from msticpy.nbtools import timeline
 
+from ...._version import VERSION
 from ....common import (
-    TimeSpan,
-    nb_print,
     MsticnbDataProviderError,
     MsticnbMissingParameterError,
     nb_data_wait,
+    nb_print,
     set_text,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
-from ...._version import VERSION
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 pd.options.mode.chained_assignment = None
 
@@ -209,7 +209,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 @set_text(docs=_CELL_DOCS, key="logons_timeline")
 def _gen_timeline(data: pd.DataFrame, silent: bool):
     if silent:
-        time_line = timeline.display_timeline(
+        return timeline.display_timeline(
             data[data["LogonResult"] != "Unknown"],
             group_by="LogonResult",
             source_columns=[
@@ -222,7 +222,7 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
             hide=True,
         )
     else:
-        time_line = timeline.display_timeline(
+        return timeline.display_timeline(
             data[data["LogonResult"] != "Unknown"],
             group_by="LogonResult",
             source_columns=[
@@ -233,7 +233,6 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
                 "LogonResult",
             ],
         )
-    return time_line
 
 
 @set_text(docs=_CELL_DOCS, key="show_map")
@@ -242,17 +241,19 @@ def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     # Seperate out failed and sucessful logons and clean the data
     remote_logons = data[data["LogonResult"] == "Success"]
     failed_logons = data[data["LogonResult"] == "Failure"]
-    remote_logons.replace("", "NaN", inplace=True)
-    failed_logons.replace("", "NaN", inplace=True)
     ip_list = [
-        convert_to_ip_entities(ip)[0] for ip in remote_logons["SourceIP"] if ip != "NaN"
+        convert_to_ip_entities(ip)[0]
+        for ip in remote_logons["SourceIP"]
+        if ip not in ("", "-", "NaN")
     ]
     ip_fail_list = [
-        convert_to_ip_entities(ip)[0] for ip in failed_logons["SourceIP"] if ip != "NaN"
+        convert_to_ip_entities(ip)[0]
+        for ip in failed_logons["SourceIP"]
+        if ip not in ("", "-", "NaN")
     ]
     # Get center point of logons and build map acount that
-    location = get_center_ip_entities(ip_fail_list + ip_list)
-    folium_map = FoliumMap(location=location, zoom_start=4)
+    folium_map = FoliumMap(zoom_start=4)
+    folium_map.center_map()
     if ip_fail_list:
         icon_props = {"color": "red"}
         folium_map.add_ip_cluster(ip_entities=ip_fail_list, **icon_props)

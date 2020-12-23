@@ -116,7 +116,7 @@ sources:
     parameters:
   # O365
   list_activity_for_account:
-    description: Azure Activity
+    description: Office Activity
     metadata:
       data_families: [Office365]
     args:
@@ -124,7 +124,7 @@ sources:
     parameters:
   # Linux
   list_logons_for_account:
-    description: Azure Activity
+    description: Linux logon Activity
     metadata:
       data_families: [LinuxSyslog]
     args:

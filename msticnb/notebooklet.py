@@ -4,28 +4,29 @@
 # license information.
 # --------------------------------------------------------------------------
 """Notebooklet base classes."""
-from abc import ABC, abstractmethod
 import inspect
 import re
-from typing import Optional, Any, Iterable, List, Tuple, Dict
 import warnings
+from abc import ABC, abstractmethod
+from functools import wraps
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import attr
-from attr import Factory
 import bokeh.io
+import pandas as pd
+from attr import Factory
 from bokeh.models import LayoutDOM
 from bokeh.plotting.figure import Figure
 from IPython.core.getipython import get_ipython
-from IPython.display import display, HTML
-import pandas as pd
+from IPython.display import HTML, display
 from tqdm import tqdm
+from msticpy.common.timespan import TimeSpan
 
-from .common import TimeSpan, MsticnbDataProviderError, MsticnbError
+from ._version import VERSION
+from .common import MsticnbDataProviderError, MsticnbError
 from .data_providers import DataProviders
 from .nb_metadata import NBMetadata, read_mod_metadata
 from .options import get_opt, set_opt
-
-from ._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -51,11 +52,9 @@ class NotebookletResult:
     def __str__(self):
         """Return string representation of object."""
         return "\n".join(
-            [
-                f"{name}: {self._str_repr(val)}"
-                for name, val in attr.asdict(self).items()
-                if not name.startswith("_")
-            ]
+            f"{name}: {self._str_repr(val)}"
+            for name, val in attr.asdict(self).items()
+            if not name.startswith("_")
         )
 
     @staticmethod
@@ -302,6 +301,17 @@ class Notebooklet(ABC):
             self.timespan = TimeSpan(start=kwargs.get("start"), end=kwargs.get("end"))
         return NotebookletResult()
 
+    def get_pivot_run(self, get_timespan: Callable[[], TimeSpan]):
+        """Return Pivot-wrappable run function."""
+
+        @wraps
+        def pivot_run(*args, **kwargs):
+            result = self.run(*args, timespan=get_timespan(), **kwargs)
+            setattr(result, "notebooklet", self)
+            return result
+
+        return pivot_run
+
     def get_provider(self, provider_name: str):
         """
         Return data provider for the specified name.
@@ -514,13 +524,12 @@ class Notebooklet(ABC):
         """
         search_text = " ".join(cls.metadata.search_terms)
         search_text += cls.__doc__ or ""
-        match_count = 0
         terms = [
             subterm for term in search_terms.split(",") for subterm in term.split()
         ]
-        for term in terms:
-            if re.search(term, search_text, re.IGNORECASE):
-                match_count += 1
+        match_count = sum(
+            1 for term in terms if re.search(term, search_text, re.IGNORECASE)
+        )
 
         return (bool(match_count == len(terms)), match_count)
 

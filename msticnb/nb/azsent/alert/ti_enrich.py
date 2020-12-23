@@ -4,31 +4,32 @@
 # license information.
 # --------------------------------------------------------------------------
 """Alert TI encrichment - provides enrichment of alerts with threat intelligence."""
-from typing import Optional, Iterable, Dict, Any
 import json
+from typing import Any, Dict, Iterable, Optional
+
 import attr
 import pandas as pd
-from tqdm.notebook import tqdm
 from IPython.display import display
-from msticpy.nbtools.nbwidgets import SelectAlert
+from tqdm.notebook import tqdm
+
+from msticpy.common.timespan import TimeSpan
+from msticpy.common.utility import md
+from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
 from msticpy.nbtools.nbdisplay import format_alert
+from msticpy.nbtools.nbwidgets import SelectAlert
 from msticpy.nbtools.security_alert import SecurityAlert
 from msticpy.sectools.ip_utils import convert_to_ip_entities
-from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
-from msticpy.common.utility import md
 
+from ...._version import VERSION
 from ....common import (
-    TimeSpan,
-    MsticnbMissingParameterError,
     MsticnbDataProviderError,
+    MsticnbMissingParameterError,
     nb_data_wait,
     nb_print,
     set_text,
 )
-
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from ...._version import VERSION
 from ....nb_metadata import read_mod_metadata
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Pete Bryan"
@@ -143,42 +144,35 @@ class EnrichAlerts(Notebooklet):
         else:
             raise MsticnbDataProviderError("No TI providers avaliable")
 
-        if isinstance(data, pd.DataFrame) and not data.empty:
-            data["Entities"] = data["Entities"].apply(_entity_load)
-            tqdm.pandas(desc="TI lookup progress")
-            ti_sec = False
-            if "secondary" in self.options:
-                ti_sec = True
-            md(
-                """Alerts enriched with threat intelligence -
-                 TI Risk is the the hightest score provided by any of
-                 the configured providers."""
-            )
-            data["TI Risk"] = data.progress_apply(
-                lambda row: _lookup(row, ti_prov, secondary=ti_sec), axis=1
-            )
-            if not self.silent:
-                display(
-                    data[
-                        [
-                            "StartTimeUtc",
-                            "AlertName",
-                            "Severity",
-                            "TI Risk",
-                            "Description",
-                        ]
-                    ]
-                    .sort_values(by=["StartTimeUtc"])
-                    .style.applymap(_color_cells)
-                    .hide_index()
-                )
-            if "details" in self.options:
-                self._last_result.picker = _alert_picker(
-                    data, ti_prov, secondary=ti_sec, silent=self.silent
-                )
-        else:
+        if not isinstance(data, pd.DataFrame) or data.empty:
             raise MsticnbDataProviderError("No alerts avaliable")
 
+        data["Entities"] = data["Entities"].apply(_entity_load)
+        tqdm.pandas(desc="TI lookup progress")
+        ti_sec = False
+        if "secondary" in self.options:
+            ti_sec = True
+        md(
+            """Alerts enriched with threat intelligence -
+                 TI Risk is the the hightest score provided by any of
+                 the configured providers."""
+        )
+        data["TI Risk"] = data.progress_apply(
+            lambda row: _lookup(row, ti_prov, secondary=ti_sec), axis=1
+        )
+        if not self.silent:
+            display(
+                data[
+                    ["StartTimeUtc", "AlertName", "Severity", "TI Risk", "Description"]
+                ]
+                .sort_values(by=["StartTimeUtc"])
+                .style.applymap(_color_cells)
+                .hide_index()
+            )
+        if "details" in self.options:
+            self._last_result.picker = _alert_picker(
+                data, ti_prov, secondary=ti_sec, silent=self.silent
+            )
         self._last_result.enriched_results = data
 
         return self._last_result
@@ -257,16 +251,15 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
 def _get_all_alerts(qry_prov, timespan, filter_item=None):
     nb_data_wait("Alerts")
     if filter_item is not None:
-        alerts_df = qry_prov.SecurityAlert.list_alerts(
+        return qry_prov.SecurityAlert.list_alerts(
             start=timespan.start,
             end=timespan.end,
             add_query_items=f'| where Entities contains "{filter_item}"',
         )
     else:
-        alerts_df = qry_prov.SecurityAlert.list_alerts(
+        return qry_prov.SecurityAlert.list_alerts(
             start=timespan.start, end=timespan.end
         )
-    return alerts_df
 
 
 # Extract packed entity details
@@ -317,11 +310,10 @@ def _color_cells(val):
 
 def _sev_score(sev):
     if "high" in sev:
-        severity = "High"
+        return "High"
     elif "warning" in sev:
-        severity = "Warning"
+        return "Warning"
     elif "information" in sev:
-        severity = "Information"
+        return "Information"
     else:
-        severity = "None"
-    return severity
+        return "None"

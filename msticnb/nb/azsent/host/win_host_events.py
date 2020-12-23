@@ -4,31 +4,25 @@
 # license information.
 # --------------------------------------------------------------------------
 """Notebooklet for Windows Security Events."""
-import pkgutil
 import os
-from typing import Any, Optional, Iterable, Union, Dict
-from defusedxml import ElementTree
-from defusedxml.ElementTree import ParseError
+import pkgutil
+from typing import Any, Dict, Iterable, Optional, Union
 
 import attr
-from bokeh.plotting.figure import Figure
-from bokeh.models import LayoutDOM
-from IPython.display import display
 import numpy as np
 import pandas as pd
+from bokeh.models import LayoutDOM
+from bokeh.plotting.figure import Figure
+from defusedxml import ElementTree
+from defusedxml.ElementTree import ParseError
+from IPython.display import display
+from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools import nbdisplay
 
-from ....common import (
-    TimeSpan,
-    MsticnbMissingParameterError,
-    nb_data_wait,
-    set_text,
-    nb_markdown,
-)
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from .... import nb_metadata
-
 from ...._version import VERSION
+from ....common import MsticnbMissingParameterError, nb_data_wait, nb_markdown, set_text
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"

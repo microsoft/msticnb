@@ -4,17 +4,18 @@
 # license information.
 # --------------------------------------------------------------------------
 """
-Custom Notebooklet.
+Template notebooklet.
 
 Notebooklet modules have three main sections:
-- Result class definition
+
+- **Result class definition**:
   This defines the attributes and descriptions of the data that you
   want to return from the notebooklet.
-- Notebooklet class definition
+- **Notebooklet class definition**:
   This is the entry point for running the notebooklet. At minimum
   it should be a class derived from Notebooklet that implements
   a `run` method and returns your result class.
-- Functions
+- **Functions**:
   These do most of the work of the notebooklet and usually the code
   that is copied from or adapted from the original notebook.
 
@@ -38,14 +39,14 @@ from typing import Any, Optional, Iterable, Union, Dict
 import attr
 from bokeh.plotting.figure import Figure
 import pandas as pd
-from msticpy.nbtools import nbdisplay
 from msticpy.common.timespan import TimeSpan
+from msticpy.nbtools import nbdisplay
 
 # Note - when moved to the final location (e.g.
 # nb/environ/category/mynotebooklet.py)
 # you will need to change the "..." to "...." in these
 # imports because the relative path has changed.
-from msticnb.common import (
+from ....common import (
     MsticnbMissingParameterError,
     nb_data_wait,
     nb_print,
@@ -53,11 +54,13 @@ from msticnb.common import (
     nb_markdown,
 )
 
-# change the "..." to "...."
-from msticnb.notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from msticnb import nb_metadata
+from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from .... import nb_metadata
 
+# change the ".." to "...."
+from ...._version import VERSION
 
+__version__ = VERSION
 __author__ = "Your name"
 
 
@@ -70,7 +73,7 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 # pylint: disable=too-few-public-methods
 # Rename this class
 @attr.s(auto_attribs=True)
-class CustomResult(NotebookletResult):
+class TemplateResult(NotebookletResult):
     """
     Template Results.
 
@@ -100,7 +103,7 @@ class CustomResult(NotebookletResult):
 
 
 # Rename this class
-class CustomNB(Notebooklet):
+class TemplateNB(Notebooklet):
     """
     Template Notebooklet class.
 
@@ -112,7 +115,6 @@ class CustomNB(Notebooklet):
 
     Document the options that the Notebooklet takes, if any,
     Use these control which parts of the notebooklet get run.
-    <<Test Marker>>
 
     """
 
@@ -133,7 +135,7 @@ class CustomNB(Notebooklet):
         timespan: Optional[TimeSpan] = None,
         options: Optional[Iterable[str]] = None,
         **kwargs,
-    ) -> CustomResult:
+    ) -> TemplateResult:
         """
         Return XYZ summary.
 
@@ -250,18 +252,14 @@ class CustomNB(Notebooklet):
 # %%
 # Get Windows Security Events
 def _get_all_events(qry_prov, host_name, timespan):
-    nb_data_wait("SecurityEvent")
-
     # Tell the user that you're fetching data
-    # (displays if nb.set_opt("verbose", True))
+    # (doesn't display if nb.set_opt("silent", True))
     nb_data_wait("SecurityEvent")
-    all_events_df = qry_prov.WindowsSecurity.list_host_events(
+    return qry_prov.WindowsSecurity.list_host_events(
         timespan,
         host_name=host_name,
         add_query_items="| where EventID != 4688 and EventID != 4624",
     )
-
-    return all_events_df
 
 
 # You can add title and/or text to individual functions as they run.

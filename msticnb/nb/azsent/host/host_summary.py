@@ -13,11 +13,11 @@ from azure.common.exceptions import CloudError
 from bokeh.models import LayoutDOM
 from bokeh.plotting.figure import Figure
 from msticpy.nbtools import nbdisplay
-from msticpy.nbtools import entities
+from msticpy.common.timespan import TimeSpan
+from msticpy.datamodel import entities
 from msticpy.common.utility import md
 
 from ....common import (
-    TimeSpan,
     MsticnbMissingParameterError,
     nb_data_wait,
     set_text,

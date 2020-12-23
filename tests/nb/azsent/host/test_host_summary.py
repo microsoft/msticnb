@@ -4,19 +4,16 @@
 # license information.
 # --------------------------------------------------------------------------
 """Test the nb_template class."""
-from pathlib import Path
-
 # from contextlib import redirect_stdout
 import unittest
+from pathlib import Path
 
 import pandas as pd
-
-from msticnb.common import TimeSpan
 from msticnb import nblts
 from msticnb.data_providers import init
+from msticpy.common.timespan import TimeSpan
 
 from ....unit_test_lib import TEST_DATA_PATH
-
 
 # pylint: disable=no-member
 

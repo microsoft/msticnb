@@ -4,23 +4,22 @@
 # license information.
 # --------------------------------------------------------------------------
 """common test class."""
+# from contextlib import redirect_stdout
+import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 
-# from contextlib import redirect_stdout
-import unittest
-
+import pandas as pd
 from lxml import etree  # nosec
 from markdown import markdown
-import pandas as pd
-
-from msticpy.sectools import GeoLiteLookup
-from msticpy.common.exceptions import MsticpyUserConfigError
-from msticnb.common import MsticnbDataProviderError, TimeSpan
+from msticnb.common import MsticnbDataProviderError
 from msticnb.data_providers import init
-
-from msticnb.read_modules import Notebooklet, nblts
 from msticnb.nb.azsent.host.host_summary import HostSummaryResult
+from msticnb.read_modules import Notebooklet, nblts
+from msticpy.common.exceptions import MsticpyUserConfigError
+from msticpy.common.timespan import TimeSpan
+from msticpy.sectools import GeoLiteLookup
+
 from .nb_test import TstNBSummary
 
 

@@ -9,14 +9,13 @@ from functools import lru_cache
 from typing import Dict
 
 import pandas as pd
+from msticpy.common.timespan import TimeSpan
 from msticpy.data import QueryProvider
-from msticpy.nbtools import entities
+from msticpy.datamodel import entities
 from msticpy.sectools.ip_utils import convert_to_ip_entities
 
-from ...common import nb_data_wait, TimeSpan, MsticnbMissingParameterError, nb_print
-
-
 from ..._version import VERSION
+from ...common import MsticnbMissingParameterError, nb_data_wait, nb_print
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -86,11 +85,14 @@ def get_aznet_topology(
     if "AzureNetworkAnalytics_CL" not in qry_prov.schema_tables:
         return
     nb_data_wait("AzureNetworkAnalytics")
+    az_net_df = None
     if host_name:
         az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
     elif host_ip:
         az_net_df = qry_prov.Network.host_for_ip(ip_address=host_ip)
 
+    if az_net_df is None:
+        return
     if not az_net_df.empty:
         host_entity.private_ips = convert_to_ip_entities(
             az_net_df["PrivateIPAddresses"].iloc[0]

@@ -10,7 +10,8 @@ import attr
 import pandas as pd
 from msticpy.nbtools import entities
 
-from msticnb.common import TimeSpan, nb_print, set_text
+from msticpy.common.timespan import TimeSpan
+from msticnb.common import nb_print, set_text
 from msticnb.notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from msticnb import nb_metadata
 from msticnb._version import VERSION

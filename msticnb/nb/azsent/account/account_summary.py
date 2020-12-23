@@ -12,17 +12,17 @@ import pandas as pd
 from bokeh.io import show
 from bokeh.models import LayoutDOM
 from IPython.display import HTML
-
-from msticpy.nbtools import nbdisplay, nbwidgets, entities
+from msticpy.common.timespan import TimeSpan
+from msticpy.datamodel import entities
+from msticpy.nbtools import nbdisplay, nbwidgets
 
 from .... import nb_metadata
 from ...._version import VERSION
 from ....common import (
     MsticnbMissingParameterError,
-    TimeSpan,
     nb_data_wait,
-    nb_markdown,
     nb_display,
+    nb_markdown,
     set_text,
 )
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
