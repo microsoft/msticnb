@@ -35,16 +35,11 @@ the code.
 """
 from typing import Any, Optional, Iterable, Union, Dict
 
-import attr
 from bokeh.plotting.figure import Figure
 import pandas as pd
 from msticpy.nbtools import nbdisplay
 from msticpy.common.timespan import TimeSpan
 
-# Note - when moved to the final location (e.g.
-# nb/environ/category/mynotebooklet.py)
-# you will need to change the "..." to "...." in these
-# imports because the relative path has changed.
 from msticnb.common import (
     MsticnbMissingParameterError,
     nb_data_wait,
@@ -53,7 +48,6 @@ from msticnb.common import (
     nb_markdown,
 )
 
-# change the "..." to "...."
 from msticnb.notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from msticnb import nb_metadata
 
@@ -68,8 +62,6 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
-# Rename this class
-@attr.s(auto_attribs=True)
 class CustomResult(NotebookletResult):
     """
     Template Results.
@@ -175,9 +167,9 @@ class CustomNB(Notebooklet):
             raise MsticnbMissingParameterError("timespan.")
 
         # Create a result class
-        result = TemplateResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = CustomResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         # You might want to always do some tasks irrespective of
         # options sent

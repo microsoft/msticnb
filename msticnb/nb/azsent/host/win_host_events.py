@@ -8,7 +8,6 @@ import os
 import pkgutil
 from typing import Any, Dict, Iterable, Optional, Union
 
-import attr
 import numpy as np
 import pandas as pd
 from bokeh.models import LayoutDOM
@@ -34,7 +33,6 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
-@attr.s(auto_attribs=True)
 class WinHostEventsResult(NotebookletResult):
     """
     Windows Host Security Events Results.
@@ -61,13 +59,32 @@ class WinHostEventsResult(NotebookletResult):
 
     """
 
-    description: str = "Windows Host Security Events"
-    all_events: pd.DataFrame = None
-    event_pivot: pd.DataFrame = None
-    account_events: pd.DataFrame = None
-    account_pivot: pd.DataFrame = None
-    account_timeline: Union[Figure, LayoutDOM] = None
-    expanded_events: pd.DataFrame = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.description: str = "Windows Host Security Events"
+        self.all_events: pd.DataFrame = None
+        self.event_pivot: pd.DataFrame = None
+        self.account_events: pd.DataFrame = None
+        self.account_pivot: pd.DataFrame = None
+        self.account_timeline: Union[Figure, LayoutDOM] = None
+        self.expanded_events: pd.DataFrame = None
 
 
 class WinHostEvents(Notebooklet):
@@ -147,9 +164,9 @@ class WinHostEvents(Notebooklet):
         if not timespan:
             raise MsticnbMissingParameterError("timespan.")
 
-        result = WinHostEventsResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = WinHostEventsResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         all_events_df, event_pivot_df = _get_win_security_events(
             self.query_provider, host_name=value, timespan=self.timespan

@@ -1,6 +1,6 @@
 metadata:
-  name: TemplateNB
-  description: Template YAML for Notebooklet
+  name: Office365Activity
+  description: Office 365 activity for an account
   default_options:
     - all_events: Gets all events about blah
     - plot_events:
@@ -8,13 +8,11 @@ metadata:
   other_options:
     - get_metadata: fetches additional metadata about the entity
   keywords:
-    - host
-    - computer
-    - heartbeat
-    - windows
+    - office
+    - azure
     - account
   entity_types:
-    - host
+    - account
   req_providers:
     - AzureSentinel|LocalData
     - tilookup

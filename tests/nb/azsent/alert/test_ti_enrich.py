@@ -24,7 +24,7 @@ def nbltdata():
         Path.cwd().joinpath(TEST_DATA_PATH).joinpath("msticpyconfig-test.yaml")
     )
     init("LocalData", providers=["tilookup"])
-    test_nblt = nblts.azsent.alert.EnrichAlerts()
+    test_nblt = nblts.azsent.alert.EnrichAlerts()  # pylint: disable=no-member
     test_df = pd.read_pickle(test_file)
     test_df["Entities"] = ""
     return test_nblt.run(data=test_df, silent=True)

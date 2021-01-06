@@ -8,7 +8,6 @@ from ipaddress import ip_address
 from itertools import chain
 from typing import Any, Dict, Iterable, Optional, Tuple
 
-import attr
 import pandas as pd
 from bokeh.plotting.figure import Figure
 from IPython.display import display
@@ -41,7 +40,6 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
-@attr.s(auto_attribs=True)
 class NetworkFlowResult(NotebookletResult):
     """
     Network Flow Details Results.
@@ -76,17 +74,36 @@ class NetworkFlowResult(NotebookletResult):
 
     """
 
-    description: str = "Network flow results"
-    host_entity: entities.Host = None
-    network_flows: pd.DataFrame = None
-    plot_flows_by_protocol: Figure = None
-    plot_flows_by_direction: Figure = None
-    plot_flow_values: Figure = None
-    flow_index: pd.DataFrame = None
-    flow_index_data: pd.DataFrame = None
-    flow_summary: pd.DataFrame = None
-    ti_results: pd.DataFrame = None
-    geo_map: foliummap.FoliumMap = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.description: str = "Network flow results"
+        self.host_entity: entities.Host = None
+        self.network_flows: pd.DataFrame = None
+        self.plot_flows_by_protocol: Figure = None
+        self.plot_flows_by_direction: Figure = None
+        self.plot_flow_values: Figure = None
+        self.flow_index: pd.DataFrame = None
+        self.flow_index_data: pd.DataFrame = None
+        self.flow_summary: pd.DataFrame = None
+        self.ti_results: pd.DataFrame = None
+        self.geo_map: foliummap.FoliumMap = None
 
 
 class NetworkFlowSummary(Notebooklet):
@@ -193,9 +210,9 @@ class NetworkFlowSummary(Notebooklet):
         if not timespan:
             raise MsticnbMissingParameterError("timespan.")
 
-        result = NetworkFlowResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = NetworkFlowResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         if isinstance(value, entities.Host):
             host_name = value.HostName

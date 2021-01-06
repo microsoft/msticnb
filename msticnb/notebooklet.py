@@ -11,10 +11,8 @@ from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-import attr
 import bokeh.io
 import pandas as pd
-from attr import Factory
 from bokeh.models import LayoutDOM
 from bokeh.plotting.figure import Figure
 from IPython.core.getipython import get_ipython
@@ -33,27 +31,40 @@ __author__ = "Ian Hellen"
 
 
 # pylint: disable=too-few-public-methods
-@attr.s(auto_attribs=True)
 class NotebookletResult:
     """Base result class."""
 
-    description: str = "Notebooklet base class"
-    timespan: Optional[TimeSpan] = None
-    _attribute_desc: Dict[str, Tuple[str, str]] = Factory(dict)  # type: ignore
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
 
-    def __attrs_post_init__(self):
-        """Populate the `_attribute_desc` dictionary on init."""
-        if not self.description:
-            # pylint: disable=pointless-statement
-            self.description == self.__class__.__qualname__
-            # pylint: enable=pointless-statement
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+        """
+        self.description = description or self.__class__.__qualname__
+        self.timespan = timespan
+        self.notebooklet = notebooklet
+        self._attribute_desc: Dict[str, Tuple[str, str]] = {}
+
+        # Populate the `_attribute_desc` dictionary on init.
         self._populate_attr_desc()
 
     def __str__(self):
         """Return string representation of object."""
         return "\n".join(
             f"{name}: {self._str_repr(val)}"
-            for name, val in attr.asdict(self).items()
+            for name, val in self.__dict__.items()
             if not name.startswith("_")
         )
 
@@ -69,7 +80,7 @@ class NotebookletResult:
     def _repr_html_(self):
         """Display HTML represention for notebook."""
         attrib_lines = []
-        for name, val in attr.asdict(self).items():
+        for name, val in self.__dict__.items():
             if name.startswith("_"):
                 continue
             attr_desc = ""
@@ -137,7 +148,11 @@ class NotebookletResult:
     @property
     def properties(self):
         """Return names of all properties."""
-        return [name for name, val in attr.asdict(self).items() if val is not None]
+        return [
+            name
+            for name, val in self.__dict__.items()
+            if val is not None and not name.startswith("_")
+        ]
 
     def prop_doc(self, name) -> Tuple[str, str]:
         """Get the property documentation for the property."""
@@ -299,7 +314,7 @@ class Notebooklet(ABC):
             self.timespan = TimeSpan(timespan=timespan)
         elif "start" in kwargs and "end" in kwargs:
             self.timespan = TimeSpan(start=kwargs.get("start"), end=kwargs.get("end"))
-        return NotebookletResult()
+        return NotebookletResult(notebooklet=self)
 
     def get_pivot_run(self, get_timespan: Callable[[], TimeSpan]):
         """Return Pivot-wrappable run function."""

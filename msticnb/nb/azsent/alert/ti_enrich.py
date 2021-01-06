@@ -7,7 +7,6 @@
 import json
 from typing import Any, Dict, Iterable, Optional
 
-import attr
 import pandas as pd
 from IPython.display import display
 from tqdm.notebook import tqdm
@@ -42,7 +41,6 @@ _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 # pylint: disable=too-few-public-methods
 # Rename this class
-@attr.s(auto_attribs=True)
 class TIEnrichResult(NotebookletResult):
     """
     Template Results.
@@ -51,12 +49,33 @@ class TIEnrichResult(NotebookletResult):
     ----------
     enriched_results : pd.DataFrame
         Alerts with additional TI enrichment
+    picker : SelectAlert
+        Alert picker
 
     """
 
-    description: str = "Enriched Alerts"
-    enriched_results: pd.DataFrame = None
-    picker: SelectAlert = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.description: str = "Enriched Alerts"
+        self.enriched_results: pd.DataFrame = None
+        self.picker: SelectAlert = None
 
 
 # pylint: enable=too-few-public-methods
@@ -134,8 +153,9 @@ class EnrichAlerts(Notebooklet):
         # Create a result class
         # Add description to results for context
         self._last_result = TIEnrichResult(
-            description=f"""Enriched alerts,
-                            with the filter of {value}"""
+            description=f"""Enriched alerts with the filter of {value}""",
+            notebooklet=self,
+            timespan=timespan,
         )
 
         # Establish TI providers
@@ -256,10 +276,7 @@ def _get_all_alerts(qry_prov, timespan, filter_item=None):
             end=timespan.end,
             add_query_items=f'| where Entities contains "{filter_item}"',
         )
-    else:
-        return qry_prov.SecurityAlert.list_alerts(
-            start=timespan.start, end=timespan.end
-        )
+    return qry_prov.SecurityAlert.list_alerts(start=timespan.start, end=timespan.end)
 
 
 # Extract packed entity details
@@ -311,9 +328,8 @@ def _color_cells(val):
 def _sev_score(sev):
     if "high" in sev:
         return "High"
-    elif "warning" in sev:
+    if "warning" in sev:
         return "Warning"
-    elif "information" in sev:
+    if "information" in sev:
         return "Information"
-    else:
-        return "None"
+    return "None"

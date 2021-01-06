@@ -7,7 +7,6 @@
 from enum import Flag, auto
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
-import attr
 import pandas as pd
 from bokeh.io import show
 from bokeh.models import LayoutDOM
@@ -66,8 +65,6 @@ class AccountType(Flag):
 
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
-# Rename this class
-@attr.s(auto_attribs=True)
 class AccountSummaryResult(NotebookletResult):
     """
     Template Results.
@@ -101,20 +98,39 @@ class AccountSummaryResult(NotebookletResult):
 
     """
 
-    description: str = "Account Activity Summary"
-    account_entity: entities.Account = None
-    account_activity: pd.DataFrame = None
-    account_selector: nbwidgets.SelectItem = None
-    related_alerts: pd.DataFrame = None
-    alert_timeline: LayoutDOM = None
-    related_bookmarks: pd.DataFrame = None
-    host_logons: pd.DataFrame = None
-    host_logon_summary: pd.DataFrame = None
-    azure_activity: pd.DataFrame = None
-    azure_activity_summary: pd.DataFrame = None
-    azure_timeline_by_provider: LayoutDOM = None
-    account_timeline_by_ip: LayoutDOM = None
-    azure_timeline_by_operation: LayoutDOM = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.description: str = "Account Activity Summary"
+        self.account_entity: entities.Account = None
+        self.account_activity: pd.DataFrame = None
+        self.account_selector: nbwidgets.SelectItem = None
+        self.related_alerts: pd.DataFrame = None
+        self.alert_timeline: LayoutDOM = None
+        self.related_bookmarks: pd.DataFrame = None
+        self.host_logons: pd.DataFrame = None
+        self.host_logon_summary: pd.DataFrame = None
+        self.azure_activity: pd.DataFrame = None
+        self.azure_activity_summary: pd.DataFrame = None
+        self.azure_timeline_by_provider: LayoutDOM = None
+        self.account_timeline_by_ip: LayoutDOM = None
+        self.azure_timeline_by_operation: LayoutDOM = None
 
 
 # pylint: enable=too-few-public-methods
@@ -201,9 +217,9 @@ class AccountSummary(Notebooklet):
             raise MsticnbMissingParameterError("timespan.")
 
         # Create a result class
-        result = AccountSummaryResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = AccountSummaryResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
         self.timespan = timespan
         acc_types = kwargs.get("account_types")
         if acc_types is None:

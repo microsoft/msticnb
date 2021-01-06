@@ -155,10 +155,8 @@ def set_text(  # noqa: MC0001
         def print_text(*args, **kwargs):
             # "silent" can be global option or in the func kwargs
             # The latter is only applicable for the NB run() method.
-            if "silent" in kwargs:
-                run_silent = kwargs.get("silent")
-            else:
-                run_silent = get_opt("silent")
+            run_silent = kwargs.get("silent") or get_opt("silent")
+
             if not run_silent:
                 h_level = hd_level
                 out_title = title

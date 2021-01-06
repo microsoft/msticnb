@@ -7,7 +7,6 @@
 from functools import lru_cache
 from typing import Any, Optional, Iterable, Union, Dict
 
-import attr
 import pandas as pd
 from azure.common.exceptions import CloudError
 from bokeh.models import LayoutDOM
@@ -39,7 +38,6 @@ _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
-@attr.s(auto_attribs=True)
 class HostSummaryResult(NotebookletResult):
     """
     Host Details Results.
@@ -62,10 +60,29 @@ class HostSummaryResult(NotebookletResult):
 
     """
 
-    host_entity: entities.Host = None
-    related_alerts: pd.DataFrame = None
-    alert_timeline: Union[LayoutDOM, Figure] = None
-    related_bookmarks: pd.DataFrame = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.host_entity: entities.Host = None
+        self.related_alerts: pd.DataFrame = None
+        self.alert_timeline: Union[LayoutDOM, Figure] = None
+        self.related_bookmarks: pd.DataFrame = None
 
 
 # pylint: disable=too-few-public-methods
@@ -147,9 +164,9 @@ class HostSummary(Notebooklet):
         self.timespan = timespan
 
         # pylint: disable=attribute-defined-outside-init
-        result = HostSummaryResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = HostSummaryResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         host_verif = verify_host_name(self.query_provider, value, self.timespan)
         if host_verif.host_names:

@@ -31,6 +31,8 @@ To start using notebooklets:
 >>> # Interactive notebook browser
 >>> nb.browse()
 
+for more help see https://msticnb.readthedocs.org/
+
 """
 
 from .data_providers import DataProviders, init  # noqa:F401
