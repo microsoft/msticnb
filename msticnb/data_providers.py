@@ -88,7 +88,7 @@ class DataProviders:
 
     def __init__(
         self,
-        query_provider: str = "LogAnalytics",
+        query_provider: str = "AzureSentinel",
         providers: Optional[List[str]] = None,
         **kwargs,
     ):
@@ -98,26 +98,25 @@ class DataProviders:
         Parameters
         ----------
         query_provider : str, optional
-            DataEnvironment name of the primary query provider
+            DataEnvironment name of the primary query provider,
+            by default "AzureSentinel"
         providers : Optional[List[str]], optional
-            A list of provider names, by default "azure_sentinel"
+            A list of provider names to load.
             You can add addtional query providers by including them
             in the `providers` list.
 
         Other Parameters
         ----------------
         kwargs
-            You can pass parameters to individual providers using
-            the following notation:
+            Pass parameters to individual providers using the following notation:
             `{provider_name}_{param_name}="param_value"
             Where `provider_name` is the name of the data provider,
             `param_name` is the parameter name expected by the
             provider and `param_value` is the value to assign to
             `param_name`. `param_value` can be any type.
 
-            Depending on the provider, these parameters (with the
-            prefix stripped) are sent to either the constructor or
-            `connect` method.
+            Depending on the provider, these parameters (with the prefix stripped)
+            are sent to either the constructor or the `connect` method.
 
         Notes
         -----
@@ -141,13 +140,14 @@ class DataProviders:
         self.providers: Dict[str, Any] = {}
 
         self.provider_classes: Dict[str, ProviderDefn] = {
-            "loganalytics": ProviderDefn(QueryProvider, True, self._azsent_get_config),
+            "azuresentinel": ProviderDefn(QueryProvider, True, self._azsent_get_config),
             "queryprovider": ProviderDefn(QueryProvider, True, None),
             "azuredata": ProviderDefn(AzureData, True, None),
             "tilookup": ProviderDefn(TILookup, False, None),
             "geolitelookup": ProviderDefn(GeoLiteLookup, False, None),
             "ipstacklookup": ProviderDefn(IPStackLookup, False, None),
         }
+        self.provider_classes["loganalytics"] = self.provider_classes["azuresentinel"]
         self.query_provider = None
 
         for provider in sorted(self.provider_names):
@@ -367,11 +367,9 @@ class DataProviders:
     def _get_connect_args(func, **kwargs):
         """Get the arguments required by the `connect` function."""
         connect_params = inspect.signature(func).parameters
-        connect_args = {}
-        for name, arg_val in kwargs.items():
-            if name in connect_params:
-                connect_args[name] = arg_val
-        return connect_args
+        return {
+            name: arg_val for name, arg_val in kwargs.items() if name in connect_params
+        }
 
     # Provider get_config functions
     @staticmethod

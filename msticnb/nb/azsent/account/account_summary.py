@@ -67,7 +67,7 @@ class AccountType(Flag):
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
 class AccountSummaryResult(NotebookletResult):
     """
-    Template Results.
+    Account Summary Result.
 
     Attributes
     ----------
@@ -179,9 +179,9 @@ class AccountSummary(Notebooklet):
         Parameters
         ----------
         value : str
-            Host name - The key for searches - e.g. host, account, IPaddress
+            Account name to search for.
         data : Optional[pd.DataFrame], optional
-            Alternatively use a DataFrame as input.
+            Not used.
         timespan : TimeSpan
             Timespan for queries
         options : Optional[Iterable[str]], optional
@@ -196,7 +196,7 @@ class AccountSummary(Notebooklet):
 
         Returns
         -------
-        TemplateResult
+        AccountSummaryResult
             Result object with attributes for each result type.
 
         Raises

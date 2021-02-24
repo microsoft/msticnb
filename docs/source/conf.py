@@ -28,12 +28,12 @@ sys.path.insert(0, os.path.abspath("../.."))
 project = "msticnb"
 # pylint: disable=redefined-builtin
 copyright = "2020, (c) Microsoft Corporation."
-author = "Ian Hellen"
+author = "Ian Hellen, Pete Bryan"
 
 # The short X.Y version
 version = ""
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = "0.2.0"
 
 
 # -- General configuration ---------------------------------------------------
