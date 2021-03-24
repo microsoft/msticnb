@@ -5,7 +5,7 @@
 # --------------------------------------------------------------------------
 """Notebooklet Result base classes."""
 import inspect
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 from bokeh.models import LayoutDOM
@@ -29,7 +29,7 @@ class NotebookletResult:
         self,
         description: Optional[str] = None,
         timespan: Optional[TimeSpan] = None,
-        notebooklet: Optional["Notebooklet"] = None,  # type: ignore
+        notebooklet: Optional[Any] = None,  # type: ignore
     ):
         """
         Create new Notebooklet result instance.
@@ -40,7 +40,7 @@ class NotebookletResult:
             Result description, by default None
         timespan : Optional[TimeSpan], optional
             TimeSpan for the results, by default None
-        notebooklet : Optional[, optional
+        notebooklet : Optional[Notebooklet], optional
             Originating notebooklet, by default None
         """
         self.description = description or self.__class__.__qualname__
@@ -109,6 +109,7 @@ class NotebookletResult:
         """Proxy attributes of the notebooklet member."""
         if self.notebooklet:
             return getattr(self.notebooklet, name)
+        raise AttributeError(f"{self.__class__} has no attribute '{name}'")
 
     def _populate_attr_desc(self):
         indent = " " * 4

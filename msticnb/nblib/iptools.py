@@ -21,7 +21,7 @@ __author__ = "Ian Hellen"
 
 
 def get_ip_ti(
-    ti_lookup: "TILookup",  # type: ignore
+    ti_lookup,
     data: pd.DataFrame,
     ip_col: str,
 ) -> pd.DataFrame:
@@ -62,9 +62,7 @@ def _normalize_ip4(data, ip_col):
     )
 
 
-def get_geoip_whois(
-    geo_lookup: "GeoIpLookup", data: pd.DataFrame, ip_col: str
-):  # type: ignore
+def get_geoip_whois(geo_lookup, data: pd.DataFrame, ip_col: str):
     """
     Get GeoIP and WhoIs data for IPs.
 
@@ -94,7 +92,10 @@ def get_geoip_whois(
     return get_whois_df(geo_df, "IpAddress", whois_col="Whois_data")
 
 
-_VPS_URL = "https://raw.githubusercontent.com/Azure/Azure-Sentinel/master/Sample%20Data/Feeds/VPS_Networks.csv"
+_VPS_URL = (
+    "https://raw.githubusercontent.com/Azure/Azure-Sentinel/"
+    + "master/Sample%20Data/Feeds/VPS_Networks.csv"
+)
 _NET_DICT = defaultdict(list)
 
 

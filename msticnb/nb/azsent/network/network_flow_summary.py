@@ -26,7 +26,6 @@ from ....common import (
     nb_markdown,
     nb_warn,
     set_text,
-    df_has_data,
 )
 from ....data_providers import DataProviders
 from ....nblib.azsent.host import get_aznet_topology, get_heartbeat
@@ -697,7 +696,7 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
     return folium_map
 
 
-# pylint: disable=too-many-branches
+# pylint: disable=too-many-branches, too-many-locals
 @set_text(docs=_CELL_DOCS, key="display_geo_map")
 def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn):
     folium_map = foliummap.FoliumMap(zoom_start=4)

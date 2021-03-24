@@ -83,7 +83,7 @@ def get_aznet_topology(
 
     """
     if "AzureNetworkAnalytics_CL" not in qry_prov.schema_tables:
-        return
+        return None
     nb_data_wait("AzureNetworkAnalytics")
     az_net_df = None
     if host_name:

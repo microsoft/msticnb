@@ -1,13 +1,31 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:
     -   id: check-yaml
     -   id: check-json
     -   id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
--   repo: https://github.com/ambv/black
-    rev: stable
+  - repo: https://github.com/ambv/black
+    rev: 20.8b1
     hooks:
-    - id: black
-      language: python
+      - id: black
+        language: python
+        args:
+          - -t
+          - py36
+  - repo: https://github.com/pre-commit/mirrors-pylint
+    rev: v2.6.0
+    hooks:
+      - id: pylint
+        args:
+          - --disable=E0401
+          - --ignore-patterns=test_
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.8.4
+    hooks:
+      - id: flake8
+        args:
+          - --extend-ignore=E0401,E501
+          - --max-line-length=90
+          - --exclude=tests,test*.py

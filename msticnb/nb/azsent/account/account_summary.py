@@ -22,7 +22,6 @@ from ....common import (
     nb_display,
     nb_markdown,
     set_text,
-    show_bokeh,
     df_has_data,
 )
 from ....nblib.azsent.alert import browse_alerts

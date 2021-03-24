@@ -11,40 +11,44 @@ from msticpy.data import QueryProvider
 from msticpy.sectools.geoip import GeoLiteLookup
 from msticpy.sectools import TILookup
 
-from msticnb.data_providers import DataProviders, init
+from msticnb import data_providers
 
+from .unit_test_lib import GeoIPLiteMock
 
 # pylint: disable=no-member
 
 
-def test_init_data_providers():
+def test_init_data_providers(monkeypatch):
     """Test creating DataProviders instance."""
-    dprov = DataProviders(query_provider="LocalData")
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    dprov = data_providers.DataProviders(query_provider="LocalData")
 
     check.is_not_none(dprov)
-    check.equal(dprov, DataProviders.current())
+    check.equal(dprov, data_providers.DataProviders.current())
 
     check.is_in("LocalData", dprov.providers)
     check.is_in("geolitelookup", dprov.providers)
     check.is_in("tilookup", dprov.providers)
     check.is_instance(dprov.providers["LocalData"], QueryProvider)
-    check.is_instance(dprov.providers["geolitelookup"], GeoLiteLookup)
+    check.is_instance(dprov.providers["geolitelookup"], GeoIPLiteMock)
     check.is_instance(dprov.providers["tilookup"], TILookup)
 
 
-def test_new_init_data_providers():
+def test_new_init_data_providers(monkeypatch):
     """Test creating new provider with new provider list."""
-    init(query_provider="LocalData", providers=[])
-    dprov = DataProviders.current()
-    init(query_provider="LocalData", providers=[])
-    dprov2 = DataProviders.current()
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+
+    data_providers.init(query_provider="LocalData", providers=[])
+    dprov = data_providers.DataProviders.current()
+    data_providers.init(query_provider="LocalData", providers=[])
+    dprov2 = data_providers.DataProviders.current()
     check.equal(dprov2, dprov)
 
     # specify provider
-    dprov = DataProviders(query_provider="LocalData")
-    init(query_provider="LocalData", providers=["tilookup"])
+    dprov = data_providers.DataProviders(query_provider="LocalData")
+    data_providers.init(query_provider="LocalData", providers=["tilookup"])
     msticnb = sys.modules["msticnb"]
-    dprov2 = DataProviders.current()
+    dprov2 = data_providers.DataProviders.current()
     pkg_providers = getattr(msticnb, "data_providers")
     check.not_equal(dprov2, dprov)
     check.is_in("LocalData", dprov2.providers)
@@ -59,17 +63,21 @@ def test_new_init_data_providers():
     check.is_instance(dprov2.providers["tilookup"], TILookup)
 
 
-def test_add_sub_data_providers():
+def test_add_sub_data_providers(monkeypatch):
     """Test intializing adding and subtracting providers."""
-    dprov = DataProviders(query_provider="LocalData")
-    init(query_provider="LocalData", providers=["tilookup"])
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+
+    dprov = data_providers.DataProviders(query_provider="LocalData")
+    data_providers.init(query_provider="LocalData", providers=["tilookup"])
     msticnb = sys.modules["msticnb"]
-    dprov2 = DataProviders.current()
+    dprov2 = data_providers.DataProviders.current()
 
     # Add and remove a provider from defaults
-    init(query_provider="LocalData", providers=["+ipstacklookup", "-geolitelookup"])
+    data_providers.init(
+        query_provider="LocalData", providers=["+ipstacklookup", "-geolitelookup"]
+    )
 
-    dprov3 = DataProviders.current()
+    dprov3 = data_providers.DataProviders.current()
     pkg_providers = getattr(msticnb, "data_providers")
     check.not_equal(dprov3, dprov)
     check.not_equal(dprov3, dprov2)

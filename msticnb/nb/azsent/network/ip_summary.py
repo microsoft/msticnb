@@ -41,7 +41,7 @@ _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
-# pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods, too-many-instance-attributes
 # Rename this class
 class IpSummaryResult(NotebookletResult):
     """
@@ -154,7 +154,7 @@ class IpSummaryResult(NotebookletResult):
         self.passive_dns: pd.DataFrame = None
 
 
-# pylint: enable=too-few-public-methods
+# pylint: enable=too-few-public-methods, too-many-instance-attributes
 
 
 # Rename this class
@@ -178,10 +178,7 @@ class IpAddressSummary(Notebooklet):
     __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
 
-    # @set_text decorator will display the title and text every time
-    # this method is run.
-    # The key value refers to an entry in the `output` section of
-    # the notebooklet yaml file.
+    # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")
     def run(
         self,
@@ -311,19 +308,25 @@ class IpAddressSummary(Notebooklet):
             return ti_lookup.browse_results(self._last_result.ti_results)
         return None
 
-    def netflow_by_protocol(self,) -> Figure:
+    def netflow_by_protocol(
+        self,
+    ) -> Figure:
         """Display netflows grouped by protocol."""
         if not self.check_valid_result_data("az_network_flows"):
             return None
         return _plot_netflow_by_protocol(self._last_result)
 
-    def netflow_total_by_protocol(self,) -> Figure:
+    def netflow_total_by_protocol(
+        self,
+    ) -> Figure:
         """Display netflows grouped by protocol."""
         if not self.check_valid_result_data("az_network_flows"):
             return None
         return _plot_netflow_values_by_protocol(self._last_result)
 
-    def netflow_by_direction(self,) -> Figure:
+    def netflow_by_direction(
+        self,
+    ) -> Figure:
         """Display netflows grouped by direction."""
         if not self.check_valid_result_data("az_network_flows"):
             return None
@@ -381,8 +384,10 @@ class IpAddressSummary(Notebooklet):
 
         if self.check_table_exists("AzureActivity"):
             nb_data_wait("AzureActivity")
-            result.azure_activity = self.query_provider.Azure.list_azure_activity_for_ip(
-                timespan, ip_address_list=src_ip
+            result.azure_activity = (
+                self.query_provider.Azure.list_azure_activity_for_ip(
+                    timespan, ip_address_list=src_ip
+                )
             )
         _display_df_summary(result.azure_activity, "Azure Activity")
 
@@ -417,8 +422,10 @@ class IpAddressSummary(Notebooklet):
         self, src_ip, result, timespan: TimeSpan
     ) -> pd.DataFrame:
         nb_data_wait("Bookmarks")
-        result.related_bookmarks = self.query_provider.AzureSentinel.list_bookmarks_for_entity(
-            timespan, entity_id=src_ip
+        result.related_bookmarks = (
+            self.query_provider.AzureSentinel.list_bookmarks_for_entity(  # type: ignore
+                timespan, entity_id=src_ip
+            )
         )
         _display_df_summary(result.related_bookmarks, "related bookmarks")
 

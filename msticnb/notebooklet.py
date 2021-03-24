@@ -28,6 +28,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
+# pylint: disable=too-many-public-methods
 class Notebooklet(ABC):
     """Base class for Notebooklets."""
 
