@@ -40,7 +40,7 @@ stages:
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
         pip install --upgrade pytest pytest-azurepipelines
-        pip install --upgrade pytest-cov
+        pip install --upgrade pytest-cov pytest-check
         export MSTICPY_TEST_NOSKIP=1
         pytest tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
       continueOnError: true
