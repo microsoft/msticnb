@@ -92,6 +92,7 @@ class NetworkFlowResult(NotebookletResult):
             TimeSpan for the results, by default None
         notebooklet : Optional[, optional
             Originating notebooklet, by default None
+
         """
         super().__init__(description, timespan, notebooklet)
         self.description: str = "Network flow results"
@@ -648,6 +649,7 @@ def _format_ip_entity(ip_loc, row, ip_col):
     return ip_entity
 
 
+# pylint: disable=too-many-branches
 @set_text(docs=_CELL_DOCS, key="display_geo_map_all")
 def _display_geo_map_all(flow_index, ip_locator, host_entity):
     folium_map = foliummap.FoliumMap(zoom_start=4)
@@ -694,6 +696,9 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
     folium_map.add_ip_cluster(ip_entities=ips_in, **icon_props)
     folium_map.center_map()
     return folium_map
+
+
+# pylint: enable=too-many-branches
 
 
 # pylint: disable=too-many-branches, too-many-locals

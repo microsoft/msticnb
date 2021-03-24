@@ -474,7 +474,7 @@ def init(
     if Pivot.current:
         # We have to import add_pivot_functions here since it introduces
         # a circular import chain if imported at the module level.
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel, cyclic-import
         from .nb_pivot import add_pivot_funcs
 
         add_pivot_funcs(Pivot.current)

@@ -204,6 +204,8 @@ def populate_host_entity(
         A dataframe of heartbeat data for the host
     az_net_df : pd.DataFrame
         Optional dataframe of Azure network data for the host
+    vmcomputer_df : pd.DataFrame
+        Optional dataframe of VMComputer data for the host
     host_entity : Host
         Host entity in which to populate data. By default,
         a new host entity will be created.

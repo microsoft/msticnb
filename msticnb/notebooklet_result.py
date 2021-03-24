@@ -42,6 +42,7 @@ class NotebookletResult:
             TimeSpan for the results, by default None
         notebooklet : Optional[Notebooklet], optional
             Originating notebooklet, by default None
+
         """
         self.description = description or self.__class__.__qualname__
         self.timespan = timespan

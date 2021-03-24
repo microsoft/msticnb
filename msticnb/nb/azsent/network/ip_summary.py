@@ -119,6 +119,7 @@ class IpSummaryResult(NotebookletResult):
             TimeSpan for the results, by default None
         notebooklet : Optional[, optional
             Originating notebooklet, by default None
+
         """
         super().__init__(description, timespan, notebooklet)
         self.description: str = "IP Address Summary"
@@ -157,7 +158,6 @@ class IpSummaryResult(NotebookletResult):
 # pylint: enable=too-few-public-methods, too-many-instance-attributes
 
 
-# Rename this class
 class IpAddressSummary(Notebooklet):
     """
     IP Address Summary Notebooklet class.
@@ -179,7 +179,7 @@ class IpAddressSummary(Notebooklet):
     _cell_docs = _CELL_DOCS
 
     # pylint: disable=too-many-branches
-    @set_text(docs=_CELL_DOCS, key="run")
+    @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(
         self,
         value: Any = None,
