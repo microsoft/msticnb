@@ -12,15 +12,16 @@ import pytest_check as check
 import pandas as pd
 
 from msticpy.common.timespan import TimeSpan
-from msticnb.data_providers import init
+from msticnb import data_providers
 from msticnb.nb.template.nb_template import TemplateNB
-from ...unit_test_lib import TEST_DATA_PATH
+from ...unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 
-def test_template_notebooklet():
+def test_template_notebooklet(monkeypatch):
     """Test basic run of notebooklet."""
     test_data = str(Path(TEST_DATA_PATH).absolute())
-    init(
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],

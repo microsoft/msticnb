@@ -9,20 +9,21 @@ from pathlib import Path
 import pandas as pd
 from bokeh.models import LayoutDOM
 from msticnb import nblts
-from msticnb.data_providers import init
+from msticnb import data_providers
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel import entities
 from msticpy.nbtools import nbwidgets
 
-from ....unit_test_lib import TEST_DATA_PATH
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 # pylint: disable=protected-access, no-member
 
 
-def test_account_summary_notebooklet():
+def test_account_summary_notebooklet(monkeypatch):
     """Test basic run of notebooklet."""
     test_data = str(Path(TEST_DATA_PATH).absolute())
-    init(
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],

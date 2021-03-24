@@ -8,7 +8,6 @@ import sys
 
 import pytest_check as check
 from msticpy.data import QueryProvider
-from msticpy.sectools.geoip import GeoLiteLookup
 from msticpy.sectools import TILookup
 
 from msticnb import data_providers

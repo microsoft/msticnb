@@ -13,18 +13,19 @@ import pandas as pd
 
 from msticpy.common.timespan import TimeSpan
 from msticnb import nblts
-from msticnb.data_providers import init
+from msticnb import data_providers
 
-from ....unit_test_lib import TEST_DATA_PATH
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 
 # pylint: disable=no-member
 
 
-def test_winhostevents_notebooklet():
+def test_winhostevents_notebooklet(monkeypatch):
     """Test basic run of notebooklet."""
     test_data = str(Path(TEST_DATA_PATH).absolute())
-    init(
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],
