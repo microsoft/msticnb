@@ -7,7 +7,9 @@
 import functools
 from typing import Union, Optional, Iterable, Tuple, Any, List, Dict
 
+import bokeh.io
 from IPython.display import display, HTML
+from IPython import get_ipython
 from markdown import markdown
 
 from msticpy.common import utility as mp_utils
@@ -18,6 +20,9 @@ from ._version import VERSION
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
+
+
+_IP_AVAILABLE = get_ipython() is not None
 
 
 class NBContainer:
@@ -63,9 +68,9 @@ class NBContainer:
                 yield key, val
 
 
-def nb_print(mssg: Any):
+def nb_print(*args):
     """
-    Print a status message.
+    Print output but suppress if "silent".
 
     Parameters
     ----------
@@ -74,7 +79,7 @@ def nb_print(mssg: Any):
 
     """
     if get_opt("verbose") and not get_opt("silent"):
-        print(mssg)
+        print(*args)
 
 
 def nb_data_wait(source: str):
@@ -87,7 +92,7 @@ def nb_data_wait(source: str):
         The data source.
 
     """
-    nb_print(f"Getting data from {source}...")
+    nb_markdown(f"Getting data from {source}...")
 
 
 def nb_debug(*args):
@@ -101,13 +106,19 @@ def nb_debug(*args):
 def nb_markdown(*args, **kwargs):
     """Display Markdown/HTML text."""
     if not get_opt("silent"):
-        mp_utils.md(*args, **kwargs)
+        if _IP_AVAILABLE:
+            mp_utils.md(*args, **kwargs)
+        else:
+            nb_print(*args)
 
 
 def nb_warn(*args, **kwargs):
     """Display Markdown/HTML warning text."""
     if not get_opt("silent"):
-        mp_utils.md_warn(*args, **kwargs)
+        if _IP_AVAILABLE:
+            mp_utils.md_warn(*args, **kwargs)
+        else:
+            nb_print("WARNING:", *args)
 
 
 def nb_display(*args, **kwargs):
@@ -225,6 +236,22 @@ def add_result(result: Any, attr_name: Union[str, List[str]]):
         return add_results
 
     return result_wrapper
+
+
+def show_bokeh(plot):
+    """Display bokeh plot, resetting output."""
+    try:
+        bokeh.io.reset_output()
+        bokeh.io.output_notebook(hide_banner=True)
+        bokeh.io.show(plot)
+    except RuntimeError:
+        bokeh.io.output_notebook(hide_banner=True)
+        bokeh.io.show(plot)
+
+
+def df_has_data(data) -> bool:
+    """Return True if `data` DataFrame has data."""
+    return data is not None and not data.empty
 
 
 class MsticnbError(Exception):

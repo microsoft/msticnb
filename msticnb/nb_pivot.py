@@ -22,6 +22,7 @@ _ENTITY_MAP = {
     "host": {"Host": "HostName"},
     "account": {"Account": "Name"},
     "ip_address": {"IpAddress": "Address"},
+    "alert": {"Alert": "AlertType"},
 }
 
 
@@ -75,9 +76,6 @@ def _wrap_run_func(func: Callable[[Any], Any], get_time_span: Callable[[], TimeS
     def _wrapped_func(*args, **kwargs):
         time_span = get_time_span()
         kwargs.update({"timespan": time_span})
-        result = func(*args, **kwargs)
-        if isinstance(result, list) and len(list) == 1:
-            return result[0]
-        return result
+        return func(*args, **kwargs)
 
     return _wrapped_func

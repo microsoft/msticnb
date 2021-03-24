@@ -4,58 +4,52 @@
 # license information.
 # --------------------------------------------------------------------------
 """NB metadata test class."""
-import unittest
-
+import pytest_check as check
 from msticnb import init
 from msticnb.nb_metadata import NBMetadata, read_mod_metadata
 from msticnb.nb.azsent.host import host_summary
 
 
-class TestMetadata(unittest.TestCase):
-    """Unit test class."""
+def test_read_metadata():
+    """Tests reading metadata yaml file."""
+    nb_md, docs = read_mod_metadata(host_summary.__file__, host_summary.__name__)
+    check.is_instance(nb_md, NBMetadata)
+    check.is_instance(docs, dict)
 
-    def test_read_metadata(self):
-        """Tests reading metadata yaml file."""
-        nb_md, docs = read_mod_metadata(host_summary.__file__, host_summary.__name__)
-        self.assertIsInstance(nb_md, NBMetadata)
-        self.assertIsInstance(docs, dict)
+    opts = nb_md.get_options("all")
+    check.is_in("heartbeat", [opt[0] for opt in opts])
+    check.is_in("alerts", [opt[0] for opt in opts])
 
-        opts = nb_md.get_options("all")
-        self.assertIn("heartbeat", [opt[0] for opt in opts])
-        self.assertIn("alerts", [opt[0] for opt in opts])
+    for item in ("Default Options", "alerts", "azure_api"):
+        check.is_in(item, nb_md.options_doc)
 
-        for item in ("Default Options", "alerts", "azure_api"):
-            self.assertIn(item, nb_md.options_doc)
+    for item in ("Default Options", "alerts", "azure_api"):
+        check.is_in(item, nb_md.options_doc)
 
-        # try adding metadata to this class docstring
-        self.__class__.__doc__ += nb_md.options_doc
-        self.assertTrue(self.__class__.__doc__)
-        for item in ("Default Options", "alerts", "azure_api"):
-            self.assertIn(item, self.__class__.__doc__)
 
-    # pylint: disable=protected-access
-    def test_class_metadata(self):
-        """Test class correctly loads yaml metadata."""
-        init(query_provider="LocalData", providers=["tilookup"])
-        host_nb = host_summary.HostSummary()
+# pylint: disable=protected-access
+def test_class_metadata():
+    """Test class correctly loads yaml metadata."""
+    init(query_provider="LocalData", providers=["tilookup"])
+    host_nb = host_summary.HostSummary()
 
-        self.assertTrue(hasattr(host_summary, "_CLS_METADATA"))
-        self.assertIsInstance(host_summary._CLS_METADATA, NBMetadata)
-        self.assertTrue(hasattr(host_summary, "_CELL_DOCS"))
-        self.assertIsInstance(host_summary._CELL_DOCS, dict)
+    check.is_true(hasattr(host_summary, "_CLS_METADATA"))
+    check.is_instance(host_summary._CLS_METADATA, NBMetadata)
+    check.is_true(hasattr(host_summary, "_CELL_DOCS"))
+    check.is_instance(host_summary._CELL_DOCS, dict)
 
-        self.assertTrue(hasattr(host_nb, "metadata"))
-        self.assertIsInstance(host_nb.metadata, NBMetadata)
-        self.assertEqual(host_nb.metadata.mod_name, host_summary.__name__)
-        self.assertEqual(host_nb.description(), "Host summary")
-        self.assertEqual(host_nb.name(), "HostSummary")
-        self.assertIn("host", host_nb.entity_types())
-        self.assertIn("host", host_nb.keywords())
+    check.is_true(hasattr(host_nb, "metadata"))
+    check.is_instance(host_nb.metadata, NBMetadata)
+    check.equal(host_nb.metadata.mod_name, host_summary.__name__)
+    check.equal(host_nb.description(), "Host summary")
+    check.equal(host_nb.name(), "HostSummary")
+    check.is_in("host", host_nb.entity_types())
+    check.is_in("host", host_nb.keywords())
 
-        self.assertIn("heartbeat", host_nb.default_options())
-        self.assertIn("alerts", host_nb.default_options())
+    check.is_in("heartbeat", host_nb.default_options())
+    check.is_in("alerts", host_nb.default_options())
 
-        self.assertIn("alerts", host_nb.all_options())
+    check.is_in("alerts", host_nb.all_options())
 
-        for item in ("Default Options", "alerts", "azure_api"):
-            self.assertIn(item, host_nb.list_options())
+    for item in ("Default Options", "alerts", "azure_api"):
+        check.is_in(item, host_nb.list_options())

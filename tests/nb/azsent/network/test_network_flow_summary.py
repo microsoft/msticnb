@@ -7,45 +7,55 @@
 from pathlib import Path
 
 # from contextlib import redirect_stdout
-import unittest
+import pytest_check as check
 
 from bokeh.models import LayoutDOM
 import pandas as pd
 
 from msticpy.common.timespan import TimeSpan
 from msticnb import nblts
-from msticnb.data_providers import init
+from msticnb import data_providers
 
-from ....unit_test_lib import TEST_DATA_PATH
+from ....unit_test_lib import (
+    TEST_DATA_PATH,
+    DEF_PROV_TABLES,
+    GeoIPLiteMock,
+    TILookupMock,
+)
 
 
 # pylint: disable=no-member
 
 
-class TestNetworkFlowSummary(unittest.TestCase):
-    """Tests for nb_template."""
+def test_network_flow_summary_notebooklet(monkeypatch):
+    """Test basic run of notebooklet."""
+    test_data = str(Path(TEST_DATA_PATH).absolute())
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    data_providers.init(
+        query_provider="LocalData",
+        LocalData_data_paths=[test_data],
+        LocalData_query_paths=[test_data],
+    )
 
-    def test_network_flow_summary_notebooklet(self):
-        """Test basic run of notebooklet."""
-        test_data = str(Path(TEST_DATA_PATH).absolute())
-        init(
-            query_provider="LocalData",
-            LocalData_data_paths=[test_data],
-            LocalData_query_paths=[test_data],
-        )
+    test_nb = nblts.azsent.network.NetworkFlowSummary()
+    tspan = TimeSpan(period="1D")
 
-        test_nb = nblts.azsent.network.NetworkFlowSummary()
-        tspan = TimeSpan(period="1D")
+    test_nb.query_provider.schema.update({tab: {} for tab in DEF_PROV_TABLES})
+    options = ["+geo_map"]
+    result = test_nb.run(value="myhost", timespan=tspan, options=options)
+    check.is_not_none(result.host_entity)
+    check.is_not_none(result.network_flows)
+    check.is_instance(result.network_flows, pd.DataFrame)
+    check.is_not_none(result.plot_flows_by_protocol)
+    check.is_instance(result.plot_flows_by_protocol, LayoutDOM)
+    check.is_not_none(result.plot_flows_by_direction)
+    check.is_instance(result.plot_flows_by_direction, LayoutDOM)
+    check.is_not_none(result.plot_flow_values)
+    check.is_instance(result.plot_flow_values, LayoutDOM)
+    check.is_not_none(result.flow_index)
+    check.is_instance(result.flow_summary, pd.DataFrame)
 
-        result = test_nb.run(value="myhost", timespan=tspan)
-        self.assertIsNotNone(result.host_entity)
-        self.assertIsNotNone(result.network_flows)
-        self.assertIsInstance(result.network_flows, pd.DataFrame)
-        self.assertIsNotNone(result.plot_flows_by_protocol)
-        self.assertIsInstance(result.plot_flows_by_protocol, LayoutDOM)
-        self.assertIsNotNone(result.plot_flows_by_direction)
-        self.assertIsInstance(result.plot_flows_by_direction, LayoutDOM)
-        self.assertIsNotNone(result.plot_flow_values)
-        self.assertIsInstance(result.plot_flow_values, LayoutDOM)
-        self.assertIsNotNone(result.flow_index)
-        self.assertIsInstance(result.flow_summary, pd.DataFrame)
+    result.select_asns()
+    result.lookup_ti_for_asn_ips()
+    result.show_selected_asn_map()

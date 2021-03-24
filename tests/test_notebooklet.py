@@ -5,151 +5,155 @@
 # --------------------------------------------------------------------------
 """common test class."""
 # from contextlib import redirect_stdout
-import unittest
 from contextlib import redirect_stdout
 from io import StringIO
+
+import pytest
+import pytest_check as check
 
 import pandas as pd
 from lxml import etree  # nosec
 from markdown import markdown
 from msticnb.common import MsticnbDataProviderError
-from msticnb.data_providers import init
+from msticnb import data_providers
 from msticnb.nb.azsent.host.host_summary import HostSummaryResult
 from msticnb.read_modules import Notebooklet, nblts
-from msticpy.common.exceptions import MsticpyUserConfigError
 from msticpy.common.timespan import TimeSpan
-from msticpy.sectools import GeoLiteLookup
 
 from .nb_test import TstNBSummary
+from .unit_test_lib import GeoIPLiteMock
 
 
 # pylint: disable=c-extension-no-member, protected-access
-class TestNotebooklet(unittest.TestCase):
-    """Unit test class."""
 
-    def test_notebooklet_create(self):
-        """Test method."""
-        test_with_geop = True
-        try:
-            geoip = GeoLiteLookup()
-            if not geoip._api_key:
-                test_with_geop = False
-            del geoip
-        except MsticpyUserConfigError:
-            test_with_geop = False
 
-        if test_with_geop:
-            # Should run because required providers are loaded
-            init(query_provider="LocalData", providers=["tilookup", "geolitelookup"])
-            for _, nblt in nblts.iter_classes():
+def test_notebooklet_create(monkeypatch):
+    """Test method."""
+    # Should run because required providers are loaded
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
+        query_provider="LocalData", providers=["tilookup", "geolitelookup"]
+    )
+    for _, nblt in nblts.iter_classes():
+        new_nblt = nblt()
+        check.is_instance(new_nblt, Notebooklet)
+        check.is_none(new_nblt.result)
+
+    # Should throw a warning because of unrecognized provider
+    data_providers.init(query_provider="LocalData")
+    with pytest.raises(MsticnbDataProviderError) as err:
+        for _, nblt in nblts.iter_classes():
+            curr_provs = nblt.metadata.req_providers
+            bad_provs = [*curr_provs, "bad_provider"]
+            try:
+                nblt.metadata.req_providers = bad_provs
                 new_nblt = nblt()
-                self.assertIsInstance(new_nblt, Notebooklet)
-                self.assertIsNone(new_nblt.result)
+                check.is_instance(new_nblt, Notebooklet)
+                check.is_none(new_nblt.result)
+            finally:
+                nblt.metadata.req_providers = curr_provs
+    check.is_in("bad_provider", err.value.args[0])
+    test_nb = TstNBSummary()
+    check.is_not_none(test_nb.get_provider("LocalData"))
+    with pytest.raises(MsticnbDataProviderError):
+        test_nb.get_provider("otherprovider")
 
-        # Should throw a warning because of unrecognized provider
-        init(query_provider="LocalData")
-        with self.assertRaises(MsticnbDataProviderError) as err:
-            for _, nblt in nblts.iter_classes():
-                curr_provs = nblt.metadata.req_providers
-                bad_provs = [*curr_provs, "bad_provider"]
-                try:
-                    nblt.metadata.req_providers = bad_provs
-                    new_nblt = nblt()
-                    self.assertIsInstance(new_nblt, Notebooklet)
-                    self.assertIsNone(new_nblt.result)
-                finally:
-                    nblt.metadata.req_providers = curr_provs
-        self.assertIn("bad_provider", err.exception.args[0])
-        test_nb = TstNBSummary()
-        self.assertIsNotNone(test_nb.get_provider("LocalData"))
-        with self.assertRaises(MsticnbDataProviderError):
-            test_nb.get_provider("otherprovider")
 
-    def test_notebooklet_params(self):
-        """Test supplying timespan param."""
-        init(query_provider="LocalData", providers=["tilookup"])
-        test_nb = TstNBSummary()
+def test_notebooklet_params(monkeypatch):
+    """Test supplying timespan param."""
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
+        query_provider="LocalData", providers=["tilookup", "geolitelookup"]
+    )
+    test_nb = TstNBSummary()
 
-        tspan = TimeSpan(period="1D")
-        test_nb.run(timespan=tspan)
-        self.assertEqual(tspan, test_nb.timespan)
+    tspan = TimeSpan(period="1D")
+    test_nb.run(timespan=tspan)
+    check.equal(tspan, test_nb.timespan)
 
-        test_nb.run(start=tspan.start, end=tspan.end)
-        self.assertEqual(tspan, test_nb.timespan)
+    test_nb.run(start=tspan.start, end=tspan.end)
+    check.equal(tspan, test_nb.timespan)
 
-    def test_notebooklet_options(self):
-        """Test option logic for notebooklet."""
-        init(query_provider="LocalData")
-        nb_test = TstNBSummary()
 
-        # default options
-        nb_res = nb_test.run()
-        self.assertIsNotNone(nb_res.default_property)
-        self.assertIsNone(nb_res.optional_property)
+def test_notebooklet_options(monkeypatch):
+    """Test option logic for notebooklet."""
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
+        query_provider="LocalData", providers=["tilookup", "geolitelookup"]
+    )
+    nb_test = TstNBSummary()
 
-        # add optional option
-        nb_res = nb_test.run(options=["+optional_opt"])
-        self.assertIsNotNone(nb_res.default_property)
-        self.assertIsNotNone(nb_res.optional_property)
+    # default options
+    nb_res = nb_test.run()
+    check.is_not_none(nb_res.default_property)
+    check.is_none(nb_res.optional_property)
 
-        # remove default option
-        nb_res = nb_test.run(options=["-default_opt"])
-        self.assertIsNone(nb_res.default_property)
-        self.assertIsNone(nb_res.optional_property)
+    # add optional option
+    nb_res = nb_test.run(options=["+optional_opt"])
+    check.is_not_none(nb_res.default_property)
+    check.is_not_none(nb_res.optional_property)
 
-        # specific options
-        nb_res = nb_test.run(options=["heartbest", "azure_net"])
-        self.assertIsNone(nb_res.default_property)
-        self.assertIsNone(nb_res.optional_property)
+    # remove default option
+    nb_res = nb_test.run(options=["-default_opt"])
+    check.is_none(nb_res.default_property)
+    check.is_none(nb_res.optional_property)
 
-        # invalid option
-        f_stream = StringIO()
-        with redirect_stdout(f_stream):
-            nb_test.run(options=["invalid_opt"])
-        output = str(f_stream.getvalue())
-        self.assertIn("Invalid options ['invalid_opt']", output)
+    # specific options
+    nb_res = nb_test.run(options=["heartbest", "azure_net"])
+    check.is_none(nb_res.default_property)
+    check.is_none(nb_res.optional_property)
 
-    def test_class_doc(self):
-        """Test class documentation."""
-        for _, nblt in nblts.iter_classes():
-            html_doc = nblt.get_help()
-            self.assertNotEqual(html_doc, "No documentation available.")
-            self.assertGreater(len(html_doc), 100)
+    # invalid option
+    f_stream = StringIO()
+    with redirect_stdout(f_stream):
+        nb_test.run(options=["invalid_opt"])
+    output = str(f_stream.getvalue())
+    check.is_in("Invalid options ['invalid_opt']", output)
 
-            md_doc = nblt.get_help(fmt="md")
-            html_doc2 = markdown(md_doc)
-            self.assertEqual(html_doc, html_doc2)
 
-            _html_parser = etree.HTMLParser(recover=False)
-            elem_tree = etree.parse(StringIO(html_doc), _html_parser)
-            self.assertIsNotNone(elem_tree)
+def test_class_doc():
+    """Test class documentation."""
+    for _, nblt in nblts.iter_classes():
+        html_doc = nblt.get_help()
+        check.not_equal(html_doc, "No documentation available.")
+        check.greater(len(html_doc), 100)
 
-    def test_class_methods(self):
-        """Test method."""
-        for _, nblt in nblts.iter_classes():
-            self.assertIsNotNone(nblt.description())
-            self.assertIsNotNone(nblt.name())
-            self.assertGreater(len(nblt.all_options()), 0)
-            self.assertGreater(len(nblt.default_options()), 0)
-            self.assertGreater(len(nblt.keywords()), 0)
-            self.assertGreater(len(nblt.entity_types()), 0)
-            metadata = nblt.get_settings(print_settings=False)
-            self.assertIsNotNone(metadata)
-            self.assertIn("mod_name", metadata)
-            self.assertIn("default_options", metadata)
-            self.assertIn("keywords", metadata)
+        md_doc = nblt.get_help(fmt="md")
+        html_doc2 = markdown(md_doc)
+        check.equal(html_doc, html_doc2)
 
-    def test_nbresult(self):
-        """Test method."""
-        host_result = HostSummaryResult()
-        host_result.host_entity = {"host_name": "myhost"}
-        host_result.related_alerts = pd.DataFrame()
-        host_result.related_bookmarks = pd.DataFrame()
-        self.assertIn("host_entity:", str(host_result))
-        self.assertIn("DataFrame:", str(host_result))
-        self.assertIn("host_entity", host_result.properties)
-
-        html_doc = host_result._repr_html_()
         _html_parser = etree.HTMLParser(recover=False)
         elem_tree = etree.parse(StringIO(html_doc), _html_parser)
-        self.assertIsNotNone(elem_tree)
+        check.is_not_none(elem_tree)
+
+
+def test_class_methods():
+    """Test method."""
+    for _, nblt in nblts.iter_classes():
+        check.is_not_none(nblt.description())
+        check.is_not_none(nblt.name())
+        check.greater(len(nblt.all_options()), 0)
+        check.greater(len(nblt.default_options()), 0)
+        check.greater(len(nblt.keywords()), 0)
+        check.greater(len(nblt.entity_types()), 0)
+        metadata = nblt.get_settings(print_settings=False)
+        check.is_not_none(metadata)
+        check.is_in("mod_name", metadata)
+        check.is_in("default_options", metadata)
+        check.is_in("keywords", metadata)
+
+
+def test_nbresult():
+    """Test method."""
+    host_result = HostSummaryResult()
+    host_result.host_entity = {"host_name": "myhost"}
+    host_result.related_alerts = pd.DataFrame()
+    host_result.related_bookmarks = pd.DataFrame()
+    check.is_in("host_entity:", str(host_result))
+    check.is_in("DataFrame:", str(host_result))
+    check.is_in("host_entity", host_result.properties)
+
+    html_doc = host_result._repr_html_()
+    _html_parser = etree.HTMLParser(recover=False)
+    elem_tree = etree.parse(StringIO(html_doc), _html_parser)
+    check.is_not_none(elem_tree)

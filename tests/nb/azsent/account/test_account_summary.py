@@ -55,7 +55,7 @@ def test_account_summary_notebooklet():
         bm_select = test_nb.browse_bookmarks()
         assert isinstance(bm_select, nbwidgets.SelectItem)
 
-        test_nb.find_additional_data()
+        test_nb.get_additional_data()
 
         assert isinstance(result.account_timeline_by_ip, LayoutDOM)
         if "Windows" in acct_item or "Linux" in acct_item:
@@ -73,3 +73,12 @@ def test_account_summary_notebooklet():
             assert isinstance(result.azure_activity_summary, pd.DataFrame)
             assert isinstance(result.azure_timeline_by_provider, LayoutDOM)
             assert isinstance(result.azure_timeline_by_operation, LayoutDOM)
+
+        result.display_alert_timeline()
+        result.browse_accounts()
+        result.browse_alerts()
+        result.browse_bookmarks()
+        result.az_activity_timeline_by_provider()
+        result.az_activity_timeline_by_ip()
+        result.az_activity_timeline_by_operation()
+        result.host_logon_timeline()

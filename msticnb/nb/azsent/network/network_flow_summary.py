@@ -8,6 +8,7 @@ from ipaddress import ip_address
 from itertools import chain
 from typing import Any, Dict, Iterable, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 from bokeh.plotting.figure import Figure
 from IPython.display import display
@@ -25,6 +26,7 @@ from ....common import (
     nb_markdown,
     nb_warn,
     set_text,
+    df_has_data,
 )
 from ....data_providers import DataProviders
 from ....nblib.azsent.host import get_aznet_topology, get_heartbeat
@@ -225,15 +227,17 @@ class NetworkFlowSummary(Notebooklet):
             )
 
         result.description = (
-            "Network flow summary for " + host_name or host_ip  # type: ignore
-        )
+            f"Network flow summary for {host_name or host_ip or 'unknown'}"
+        )  # type: ignore
 
         flow_df = _get_az_net_flows(
             self.query_provider, self.timespan, host_ip, host_name
         )
         result.network_flows = flow_df
 
-        if "resolve_host" in self.options:
+        if "resolve_host" in self.options or not hasattr(
+            result.host_entity, "IpAddress"
+        ):
             result.host_entity = _get_host_details(
                 qry_prov=self.query_provider, host_entity=result.host_entity
             )
@@ -307,7 +311,7 @@ class NetworkFlowSummary(Notebooklet):
             flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector
         )
         ti_results = _lookup_ip_ti(
-            flows_df=self._last_result.flow_summary,
+            flows_df=self._last_result.flow_index_data,
             selected_ips=selected_ips,
             ti_lookup=self.data_providers["tilookup"],
         )
@@ -336,7 +340,7 @@ class NetworkFlowSummary(Notebooklet):
             )
             return None
         geo_map = _display_geo_map(
-            flow_index=self._last_result.flow_index_data,
+            flow_index=self._last_result.flow_summary,
             ip_locator=self.data_providers["geolitelookup"],
             host_entity=self._last_result.host_entity,
             ti_results=self._last_result.ti_results,
@@ -550,13 +554,15 @@ def _get_flow_summary(flow_index):
 # %%
 # ASN Selection
 def _get_source_host_asns(host_entity):
-    host_ips = getattr(host_entity, "public_ips", [])
+    host_ips = getattr(host_entity, "PublicIPAddresses", [])
     host_ips.append(getattr(host_entity, "IpAddress", None))
     host_asns = []
-    for host_ip in host_ips:
-        if get_ip_type(host_ip) == "Public":
-            host_ip.ASNDescription, host_ip.ASNDetails = get_whois_info(host_ip)
-            host_asns.append(host_ip.ASNDescription)
+    for ip_entity in host_ips:
+        if get_ip_type(ip_entity.Address) == "Public":
+            ip_entity.ASNDescription, ip_entity.ASNDetails = get_whois_info(
+                ip_entity.Address
+            )
+            host_asns.append(ip_entity.ASNDescription)
     return host_asns
 
 
@@ -634,7 +640,8 @@ def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
 def _format_ip_entity(ip_loc, row, ip_col):
     ip_entity = entities.IpAddress(Address=row[ip_col])
     ip_loc.lookup_ip(ip_entity=ip_entity)
-    ip_entity.AdditionalData["protocol"] = row.L7Protocol
+    if "L7Protocol" in row:
+        ip_entity.AdditionalData["protocol"] = row.L7Protocol
     if "severity" in row:
         ip_entity.AdditionalData["threat severity"] = row["severity"]
     if "Details" in row:
@@ -674,9 +681,14 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
         )
 
     icon_props = {"color": "green"}
-    for ips in host_entity.public_ips:
-        ips.AdditionalData["host"] = host_entity.HostName
-    folium_map.add_ip_cluster(ip_entities=host_entity.public_ips, **icon_props)
+    host_ips = getattr(host_entity, "PublicIPAddresses", [])
+    host_ip = getattr(host_entity, "IpAddress", None)
+    if host_ip:
+        host_ips.append(host_ip)
+    if host_ips:
+        for ips in host_ips:
+            ips.AdditionalData["host"] = host_entity.HostName or "unknown hostname"
+        folium_map.add_ip_cluster(ip_entities=host_ips, **icon_props)
     icon_props = {"color": "blue"}
     folium_map.add_ip_cluster(ip_entities=ips_out, **icon_props)
     icon_props = {"color": "purple"}
@@ -696,34 +708,41 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     # Get the flow records for all flows not in the TI results
     selected_out = flow_index[flow_index["DestASN"].isin(select_asn.selected_items)]
     selected_in = flow_index[flow_index["SourceASN"].isin(select_asn.selected_items)]
-    if ti_results is not None and not ti_results.empty:
-        selected_out = selected_out[~selected_out["dest"].isin(ti_results["Ioc"])]
-        selected_in = selected_in[~selected_in["source"].isin(ti_results["Ioc"])]
+    sel_out_exp = _list_to_rows(selected_out, "dest_ips")
+    sel_in_exp = _list_to_rows(selected_in, "source_ips")
+    sel_out_exp = sel_out_exp[~sel_out_exp["dest_ips"].isin(ti_results["Ioc"])]
+    sel_in_exp = sel_in_exp[~sel_in_exp["source_ips"].isin(ti_results["Ioc"])]
 
-    if selected_out.empty:
+    if sel_out_exp.empty:
         ips_out = []
     else:
+
         nb_data_wait("IP Geolocation")
         ips_out = list(
-            selected_out.apply(
-                lambda x: _format_ip_entity(ip_locator, x, "dest"), axis=1
+            sel_out_exp.apply(
+                lambda x: _format_ip_entity(ip_locator, x, "dest_ips"), axis=1
             )
         )
 
-    if selected_in.empty:
+    if sel_in_exp.empty:
         ips_in = []
     else:
         nb_data_wait("IP Geolocation")
         ips_in = list(
-            selected_in.apply(
-                lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1
+            sel_in_exp.apply(
+                lambda x: _format_ip_entity(ip_locator, x, "source_ips"), axis=1
             )
         )
 
     icon_props = {"color": "green"}
-    for ip_addr in host_entity.public_ips:
-        ip_addr.AdditionalData["host"] = host_entity.HostName
-    folium_map.add_ip_cluster(ip_entities=host_entity.public_ips, **icon_props)
+    host_ips = getattr(host_entity, "PublicIPAddresses", [])
+    host_ip = getattr(host_entity, "IpAddress", None)
+    if host_ip:
+        host_ips.append(host_ip)
+    if host_ips:
+        for ip_addr in host_ips:
+            ip_addr.AdditionalData["host"] = host_entity.HostName or "unknown hostname"
+        folium_map.add_ip_cluster(ip_entities=host_ips, **icon_props)
     icon_props = {"color": "blue"}
     folium_map.add_ip_cluster(ip_entities=ips_out, **icon_props)
     icon_props = {"color": "purple"}
@@ -737,3 +756,18 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     folium_map.center_map()
 
     return folium_map
+
+
+def _list_to_rows(data, col):
+    orig_cols = data.columns
+    item_col = f"{col}_list_item$$"
+    ren_col = {item_col: col}
+    return (
+        pd.DataFrame(data[col].to_list())
+        .replace([None], np.nan)  # convert any Nones to NaN
+        .merge(data, right_index=True, left_index=True)
+        .melt(id_vars=orig_cols, value_name=item_col)
+        .dropna(subset=[item_col])  # get rid of rows with NaNs in this col
+        .drop([col, "variable"], axis=1)
+        .rename(columns=ren_col)
+    )

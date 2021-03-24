@@ -4,18 +4,27 @@
 # license information.
 # --------------------------------------------------------------------------
 """IP Helper functions."""
-import pandas as pd
+import re
+from collections import defaultdict
+from ipaddress import AddressValueError, IPv4Address, IPv4Network, ip_address
+from typing import Optional
 
+import pandas as pd
+import requests
 from msticpy.sectools.ip_utils import get_whois_df
 
-from ..common import nb_markdown
 from .._version import VERSION
+from ..common import nb_markdown
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-def get_ip_ti(ti_lookup: "TILookup", data: pd.DataFrame, ip_col: str) -> pd.DataFrame:
+def get_ip_ti(
+    ti_lookup: "TILookup",  # type: ignore
+    data: pd.DataFrame,
+    ip_col: str,
+) -> pd.DataFrame:
     """
     Lookup Threat Intel for IPAddress.
 
@@ -53,7 +62,9 @@ def _normalize_ip4(data, ip_col):
     )
 
 
-def get_geoip_whois(geo_lookup: "GeoIpLookup", data: pd.DataFrame, ip_col: str):
+def get_geoip_whois(
+    geo_lookup: "GeoIpLookup", data: pd.DataFrame, ip_col: str
+):  # type: ignore
     """
     Get GeoIP and WhoIs data for IPs.
 
@@ -81,3 +92,63 @@ def get_geoip_whois(geo_lookup: "GeoIpLookup", data: pd.DataFrame, ip_col: str):
     nb_markdown(f"Querying WhoIs for {len(data)} ip addresses...")
     # Get the WhoIs results
     return get_whois_df(geo_df, "IpAddress", whois_col="Whois_data")
+
+
+_VPS_URL = "https://raw.githubusercontent.com/Azure/Azure-Sentinel/master/Sample%20Data/Feeds/VPS_Networks.csv"
+_NET_DICT = defaultdict(list)
+
+
+def _build_vps_dict():
+    resp = requests.get(_VPS_URL)
+
+    # get rid of unicode bytes
+    net_list = re.sub(r"[^\d./\n]", "", resp.text).split("\n")
+
+    # Build network dict - keyed by 16 bit prefix
+    for net in net_list:
+        pref, ip4_net = _to_ip4_net(net)
+        if pref:
+            _NET_DICT[pref].append(ip4_net)
+    return _NET_DICT
+
+
+def _get_prefix(ip_addr):
+    return ".".join(ip_addr.split(".", maxsplit=2)[:2])
+
+
+def _to_ip4_net(net):
+    try:
+        return _get_prefix(net), IPv4Network(net)
+    except AddressValueError as err:
+        print(err, type(err))
+        return None, None
+
+
+def is_in_vps_net(ip_addr: str) -> Optional[IPv4Network]:
+    """
+    Return IpV4 Network if `ip_addr` is in a found VPS network.
+
+    Parameters
+    ----------
+    ip_addr : str
+        IP Address
+
+    Returns
+    -------
+    Optional[IPv4Network]
+        IpV4 network if `ip_addr` is a member, else None
+
+    """
+    if not _NET_DICT:
+        print("Please wait. Getting VPS data...", end="")
+        _build_vps_dict()
+        print("done")
+    ip_pref = _get_prefix(ip_addr)
+    ip4_addr = ip_address(ip_addr)
+    if not isinstance(ip4_addr, IPv4Address):
+        return None
+    if ip_pref in _NET_DICT:
+        for net in _NET_DICT[ip_pref]:
+            if ip_addr in net:
+                return net
+    return None

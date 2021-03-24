@@ -7,8 +7,8 @@ metadata:
     - flow_summary:
         Create a summarization of all flows and all flows
         grouped by ASN.
-  other_options:
     - resolve_host: Try to resolve the host name before other operations.
+  other_options:
     - geo_map:
         Plot a map of all IP address locations in communication
         with the host (see the method below for plotting selected IPs only).

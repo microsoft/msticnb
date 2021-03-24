@@ -12,27 +12,28 @@ import pytest
 from bokeh.layouts import Column
 from bokeh.plotting import Figure
 from msticnb import nblts
-from msticnb.data_providers import init
+from msticnb import data_providers
 from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools.foliummap import FoliumMap
 
-from ....unit_test_lib import TEST_DATA_PATH
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 # nosec
 # pylint: disable=no-member
 
 
 @pytest.fixture
-def nbltdata():
+def nbltdata(monkeypatch):
     """Generate test nblt output."""
     test_file = Path.cwd().joinpath(TEST_DATA_PATH).joinpath("lx_host_logons.pkl")
-    init("LocalData", providers=["tilookup"])
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init("LocalData", providers=["tilookup", "geolitelookup"])
     test_nblt = nblts.azsent.host.HostLogonsSummary()
     test_df = pd.read_pickle(test_file)
     return test_nblt.run(data=test_df, options=["-map"], silent=True)
 
 
-def test_ouput_types(nbltdata):  # pylint: disable=redefined-outer-name
+def test_output_types(nbltdata):  # pylint: disable=redefined-outer-name
     """Test nblt output types."""
     assert isinstance(nbltdata.failed_success, pd.DataFrame)
     assert isinstance(nbltdata.logon_sessions, pd.DataFrame)
@@ -42,21 +43,22 @@ def test_ouput_types(nbltdata):  # pylint: disable=redefined-outer-name
     assert isinstance(nbltdata.timeline, Column)
 
 
-def test_ouput_values(nbltdata):  # pylint: disable=redefined-outer-name
+def test_output_values(nbltdata):  # pylint: disable=redefined-outer-name
     """Test nblt output values."""
     assert nbltdata.failed_success.iloc[0]["LogonResult"] == "Success"
     assert nbltdata.logon_sessions.iloc[0]["HostName"] == "VictimHost"
     assert nbltdata.logon_matrix.index[0] == ("peteb", "sshd")
 
 
-def test_local_data():
+def test_local_data(monkeypatch):
     """Test nblt output types and values using LocalData provider."""
     test_data = str(Path.cwd().joinpath(TEST_DATA_PATH))
-    init(
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],
-        providers=["tilookup"],
+        providers=["tilookup", "geolitelookup"],
     )
 
     test_nblt = nblts.azsent.host.HostLogonsSummary()

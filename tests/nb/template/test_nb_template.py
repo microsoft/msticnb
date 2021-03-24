@@ -7,7 +7,7 @@
 from pathlib import Path
 
 # from contextlib import redirect_stdout
-import unittest
+import pytest_check as check
 
 import pandas as pd
 
@@ -17,30 +17,25 @@ from msticnb.nb.template.nb_template import TemplateNB
 from ...unit_test_lib import TEST_DATA_PATH
 
 
-class TestTemplateNB(unittest.TestCase):
-    """Tests for nb_template."""
+def test_template_notebooklet():
+    """Test basic run of notebooklet."""
+    test_data = str(Path(TEST_DATA_PATH).absolute())
+    init(
+        query_provider="LocalData",
+        LocalData_data_paths=[test_data],
+        LocalData_query_paths=[test_data],
+    )
 
-    def test_template_notebooklet(self):
-        """Test basic run of notebooklet."""
-        test_data = str(Path(TEST_DATA_PATH).absolute())
-        init(
-            query_provider="LocalData",
-            LocalData_data_paths=[test_data],
-            LocalData_query_paths=[test_data],
-        )
+    test_nb = TemplateNB()
+    tspan = TimeSpan(period="1D")
 
-        test_nb = TemplateNB()
-        tspan = TimeSpan(period="1D")
+    result = test_nb.run(value="myhost", timespan=tspan)
+    check.is_not_none(result.all_events)
+    check.is_not_none(result.description)
+    check.is_not_none(result.plot)
 
-        result = test_nb.run(value="myhost", timespan=tspan)
-        self.assertIsNotNone(result.all_events)
-        self.assertIsNotNone(result.description)
-        self.assertIsNotNone(result.plot)
+    result = test_nb.run(value="myhost", timespan=tspan, options=["+get_metadata"])
+    check.is_not_none(result.additional_info)
 
-        result = test_nb.run(value="myhost", timespan=tspan, options=["+get_metadata"])
-        self.assertIsNotNone(result.additional_info)
-
-        evts = test_nb.run_additional_operation(
-            ["4679", "5058", "5061", "5059", "4776"]
-        )
-        self.assertIsInstance(evts, pd.DataFrame)
+    evts = test_nb.run_additional_operation(["4679", "5058", "5061", "5059", "4776"])
+    check.is_instance(evts, pd.DataFrame)

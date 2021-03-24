@@ -11,156 +11,21 @@ from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-import bokeh.io
 import pandas as pd
-from bokeh.models import LayoutDOM
-from bokeh.plotting.figure import Figure
 from IPython.core.getipython import get_ipython
 from IPython.display import HTML, display
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from msticpy.common.timespan import TimeSpan
 
 from ._version import VERSION
 from .common import MsticnbDataProviderError, MsticnbError
 from .data_providers import DataProviders
 from .nb_metadata import NBMetadata, read_mod_metadata
+from .notebooklet_result import NotebookletResult
 from .options import get_opt, set_opt
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
-
-
-# pylint: disable=too-few-public-methods
-class NotebookletResult:
-    """Base result class."""
-
-    def __init__(
-        self,
-        description: Optional[str] = None,
-        timespan: Optional[TimeSpan] = None,
-        notebooklet: Optional["Notebooklet"] = None,
-    ):
-        """
-        Create new Notebooklet result instance.
-
-        Parameters
-        ----------
-        description : Optional[str], optional
-            Result description, by default None
-        timespan : Optional[TimeSpan], optional
-            TimeSpan for the results, by default None
-        notebooklet : Optional[, optional
-            Originating notebooklet, by default None
-        """
-        self.description = description or self.__class__.__qualname__
-        self.timespan = timespan
-        self.notebooklet = notebooklet
-        self._attribute_desc: Dict[str, Tuple[str, str]] = {}
-
-        # Populate the `_attribute_desc` dictionary on init.
-        self._populate_attr_desc()
-
-    def __str__(self):
-        """Return string representation of object."""
-        return "\n".join(
-            f"{name}: {self._str_repr(val)}"
-            for name, val in self.__dict__.items()
-            if not name.startswith("_")
-        )
-
-    @staticmethod
-    def _str_repr(obj):
-        if isinstance(obj, pd.DataFrame):
-            return f"DataFrame: {len(obj)} rows"
-        if isinstance(obj, LayoutDOM):
-            return "Bokeh plot"
-        return str(obj)
-
-    # pylint: disable=unsubscriptable-object, no-member
-    def _repr_html_(self):
-        """Display HTML represention for notebook."""
-        attrib_lines = []
-        for name, val in self.__dict__.items():
-            if name.startswith("_"):
-                continue
-            attr_desc = ""
-            attr_type, attr_text = self._attribute_desc.get(
-                name, (None, None)
-            )  # type: ignore
-            if attr_type:
-                attr_desc += f"[{attr_type}]<br>"
-            if attr_text:
-                attr_desc += f"{attr_text}<br>"
-            attrib_lines.append(f"<h4>{name}</h4>{attr_desc}{self._html_repr(val)}")
-        return "<br>".join(attrib_lines)
-
-    # pylint: enable=unsubscriptable-object, no-member
-
-    # pylint: disable=protected-access
-    @staticmethod
-    def _html_repr(obj):
-        if isinstance(obj, pd.DataFrame):
-            return obj.head(5)._repr_html_()
-        if isinstance(obj, (LayoutDOM, Figure)):
-            bokeh.io.show(obj)
-        if hasattr(obj, "_repr_html_"):
-            return obj._repr_html_()
-        return str(obj).replace("\n", "<br>").replace(" ", "&nbsp;")
-
-    # pylint: enable=protected-access
-
-    def _populate_attr_desc(self):
-        indent = " " * 4
-        in_attribs = False
-        attr_name = None
-        attr_type = None
-        attr_dict = {}
-        attr_lines = []
-        doc_str = inspect.cleandoc(self.__doc__)
-        for line in doc_str.split("\n"):
-            if line.strip() == "Attributes":
-                in_attribs = True
-                continue
-            if (
-                line.strip() == "-" * len("Attributes")
-                or not in_attribs
-                or not line.strip()
-            ):
-                continue
-            if not line.startswith(indent):
-                # if existing attribute, add to dict
-                if attr_name:
-                    attr_dict[attr_name] = attr_type, " ".join(attr_lines)
-                attr_name, attr_type = [item.strip() for item in line.split(":")]
-                attr_lines = []
-            else:
-                attr_lines.append(line.strip())
-        attr_dict[attr_name] = attr_type, " ".join(attr_lines)
-        if "timespan" not in attr_dict:
-            attr_dict["timespan"] = (
-                "TimeSpan",
-                "Time span for the queried results data.",
-            )
-        # pylint: disable=no-member
-        self._attribute_desc.update(attr_dict)  # type: ignore
-        # pylint: enable=no-member
-
-    @property
-    def properties(self):
-        """Return names of all properties."""
-        return [
-            name
-            for name, val in self.__dict__.items()
-            if val is not None and not name.startswith("_")
-        ]
-
-    def prop_doc(self, name) -> Tuple[str, str]:
-        """Get the property documentation for the property."""
-        # pylint: disable=unsupported-membership-test, unsubscriptable-object
-        if name in self._attribute_desc:
-            return self._attribute_desc[name]
-        # pylint: enable=unsupported-membership-test, unsubscriptable-object
-        raise KeyError(f"Unknown property {name}.")
 
 
 class Notebooklet(ABC):
@@ -306,7 +171,7 @@ class Notebooklet(ABC):
             if sub_options:
                 self.options = list(set(def_options) - sub_options)
             if add_options:
-                self.options = list(set(self.options) | add_options)
+                self.options = list(set(def_options) | add_options)
             if not (add_options or sub_options):
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
@@ -603,3 +468,76 @@ class Notebooklet(ABC):
         """Return documentation func. placeholder."""
         del fmt
         return "No documentation available."
+
+    def check_valid_result_data(self, attrib: str = None) -> bool:
+        """
+        Check that the result is valid and `attrib` contains data.
+
+        Parameters
+        ----------
+        attrib : str
+            Name of the attribute to check, if None this function
+            only checks for a valid _last_result.
+
+        Returns
+        -------
+        bool
+            Returns True if valid data is available, else False.
+
+        """
+        if self._last_result is None:
+            print(
+                "No current result."
+                "Please use 'run()' to fetch the data before using this method."
+            )
+            return False
+        if not attrib:
+            return True
+        data_obj = getattr(self._last_result, attrib)
+        if data_obj is None or isinstance(data_obj, pd.DataFrame) and data_obj.empty:
+            print(f"No data is available for last_result.{attrib}.")
+            return False
+        return True
+
+    def check_table_exists(self, table: str) -> bool:
+        """
+        Check to see if the table exists in the provider.
+
+        Parameters
+        ----------
+        table : str
+            Table name
+
+        Returns
+        -------
+        bool
+            True if the table exists, otherwise False.
+
+        """
+        if not self.query_provider:
+            print(f"No query provider for table {table} is available.")
+            return False
+        if table not in self.query_provider.schema_tables:
+            print(f"table {table} is not available.")
+            return False
+        return True
+
+    def get_methods(self) -> Dict[str, Callable[[Any], Any]]:
+        """Return methods available for this class."""
+        meths = inspect.getmembers(self, inspect.ismethod)
+        cls_selector = f"bound method {self.__class__.__name__.rsplit('.')[0]}"
+        return {
+            meth[0]: meth[1]
+            for meth in meths
+            if cls_selector in str(meth[1]) and not meth[0].startswith("_")
+        }
+
+    def list_methods(self) -> List[str]:
+        """Return list of methods with descriptions."""
+        methods = self.get_methods()
+        method_desc: List[str] = []
+        for name, method in methods.items():
+            f_doc = inspect.getdoc(method)
+            desc = f_doc.split("\n", maxsplit=1)[0] if f_doc else ""
+            method_desc.append(f"{name} - '{desc}'")
+        return method_desc

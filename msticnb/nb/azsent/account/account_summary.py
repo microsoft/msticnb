@@ -8,7 +8,6 @@ from enum import Flag, auto
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 import pandas as pd
-from bokeh.io import show
 from bokeh.models import LayoutDOM
 from IPython.display import HTML
 from msticpy.common.timespan import TimeSpan
@@ -23,7 +22,10 @@ from ....common import (
     nb_display,
     nb_markdown,
     set_text,
+    show_bokeh,
+    df_has_data,
 )
+from ....nblib.azsent.alert import browse_alerts
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
@@ -39,12 +41,14 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 class AccountType(Flag):
     """Account types."""
 
+    # pylint: disable=invalid-name
     AzureActiveDirectory = auto()
     AzureActivity = auto()
     Office365 = auto()
     Windows = auto()
     Linux = auto()
     Azure = AzureActiveDirectory | AzureActivity | Office365
+    # pylint: enable=invalid-name
 
     def in_list(self, acct_types: Iterable[Union["AccountType", str]]):
         """Is the current value in the `acct_types` list."""
@@ -253,6 +257,10 @@ class AccountSummary(Notebooklet):
                 self.display_alert_timeline()
         else:
             # if multiple, create a selector
+            nb_markdown("<hr>")
+            nb_markdown(
+                "Multiple matching accounts found, select one to see details.", "large"
+            )
             result.account_selector = _get_account_selector(
                 qry_prov=self.query_provider,
                 all_acct_dfs=all_acct_dfs,
@@ -262,6 +270,15 @@ class AccountSummary(Notebooklet):
             )
             nb_display(result.account_selector)
 
+        if not acct_index_df.empty:
+            nb_markdown("<hr>")
+            nb_markdown(
+                "<h3>Use <i>result.notebooklet.get_additional_data()</i>"
+                + " to retrieve more data."
+            )
+            nb_markdown(
+                f"Additional methods for this class:<br>{'<br>'.join(self.list_methods())}"
+            )
         # Assign the result to the _last_result attribute
         # so that you can get to it without having to re-run the operation
         self._last_result = result  # pylint: disable=attribute-defined-outside-init
@@ -272,51 +289,62 @@ class AccountSummary(Notebooklet):
 
     def display_alert_timeline(self):
         """Display the alert timeline."""
-        if (
-            self._last_result is not None
-            and self._last_result.alert_timeline is not None
-        ):
-            show(self._last_result.alert_timeline)
+        if self.check_valid_result_data("related_alerts"):
+            return _get_alerts_timeline(self._last_result.related_alerts, silent=False)
+        return None
 
     def browse_accounts(self) -> nbwidgets.SelectItem:
         """Return the accounts browser/viewer."""
-        if (
-            self._last_result is not None
-            and self._last_result.account_selector is not None
-        ):
+        if self.check_valid_result_data("account_selector"):
             return self._last_result.account_selector
         return None
 
     def browse_alerts(self) -> nbwidgets.SelectAlert:
         """Return alert browser/viewer."""
-        if (
-            self._last_result is not None
-            and self._last_result.related_alerts is not None
-            and not self._last_result.related_alerts.empty
-        ):
-            if "CompromisedEntity" not in self._last_result.related_alerts:
-                self._last_result.related_alerts["CompromisedEntity"] = "n/a"
-            if "StartTimeUtc" not in self._last_result.related_alerts:
-                self._last_result.related_alerts[
-                    "StartTimeUtc"
-                ] = self._last_result.related_alerts["TimeGenerated"]
-            return nbwidgets.SelectAlert(
-                alerts=self._last_result.related_alerts, action=nbdisplay.format_alert
-            )
+        if self.check_valid_result_data("related_alerts"):
+            return browse_alerts(self._last_result)
         return None
 
     def browse_bookmarks(self) -> nbwidgets.SelectItem:
         """Return bookmark browser/viewer."""
-        if (
-            self._last_result is not None
-            and self._last_result.related_bookmarks is not None
-            and not self._last_result.related_bookmarks.empty
-        ):
+        if self.check_valid_result_data("related_bookmarks"):
             return _get_bookmark_select(self._last_result.related_bookmarks)
         return None
 
+    def az_activity_timeline_by_provider(self):
+        """Display Azure activity timeline by provider."""
+        if self.check_valid_result_data("azure_activity"):
+            return _plot_timeline_by_provider(self._last_result.azure_activity)
+        return None
+
+    def az_activity_timeline_by_ip(self):
+        """Display Azure activity timeline by IP address."""
+        if self.check_valid_result_data("azure_activity"):
+            return _plot_timeline_by_ip(self._last_result.azure_activity)
+        return None
+
+    def az_activity_timeline_by_operation(self):
+        """Display Azure activity timeline by operation."""
+        if self.check_valid_result_data("azure_activity"):
+            return _plot_timeline_by_operation(self._last_result.azure_activity)
+        return None
+
+    def host_logon_timeline(self):
+        """Display Azure activity timeline by operation."""
+        if self.check_valid_result_data("host_logons"):
+            _, source = self._get_selected_account()
+            ip_col = (
+                "SourceIP"
+                if AccountType.parse(source) == AccountType.Linux
+                else "IpAddress"
+            )
+            return _create_host_timeline(
+                self._last_result.host_logons, ip_col=ip_col, silent=False
+            )
+        return None
+
     @set_text(docs=_CELL_DOCS, key="find_additional_data")
-    def find_additional_data(self) -> pd.DataFrame:
+    def get_additional_data(self) -> pd.DataFrame:
         """
         Find additional data for the selected account.
 
@@ -326,11 +354,7 @@ class AccountSummary(Notebooklet):
             Results with expanded columns.
 
         """
-        if self._last_result is None:
-            print(
-                "Please use 'run()' to fetch the data before using this method.",
-                "\nThen select an account to examine and run 'find_additional_data()'",
-            )
+        if not self.check_valid_result_data():
             return
         acct, source = self._get_selected_account()
         if not acct or not source:
@@ -476,7 +500,7 @@ def _get_matching_accounts(qry_prov, timespan, account, account_types):
         nb_markdown(f"  {len(linux_logon_df)} records in Linux logon data")
         account_dfs[AccountType.Linux] = linux_logon_df
 
-    nb_markdown(f"Found {rec_count} total recordsmsticnb.")
+    nb_markdown(f"Found {rec_count} total records.")
 
     return account_dfs
 
@@ -560,7 +584,7 @@ def _create_display_callback(
 
         # Create entity
         acct_entity = _create_account_entity(account_name, acct_type, all_acct_dfs)
-        outputs.append(HTML("<h3>Alert Entity</h3>"))
+        outputs.append(HTML("<h3>Account Entity</h3>"))
         result.account_entity = acct_entity
         outputs.append(acct_entity)
         # Add account activity
@@ -573,7 +597,7 @@ def _create_display_callback(
             related_alerts = _get_related_alerts(qry_prov, account_name, timespan)
             result.related_alerts = related_alerts
             outputs.append(_get_related_alerts_summary(related_alerts))
-            if related_alerts is not None and not related_alerts.empty:
+            if df_has_data(related_alerts):
                 result.alert_timeline = _get_alerts_timeline(related_alerts)
         if "get_bookmarks" in options:
             related_bkmarks = _get_related_bookmarks(qry_prov, account_name, timespan)
@@ -695,14 +719,14 @@ def _get_related_alerts(
     )
 
 
-def _get_alerts_timeline(related_alerts: pd.DataFrame) -> LayoutDOM:
+def _get_alerts_timeline(related_alerts: pd.DataFrame, silent=True) -> LayoutDOM:
     """Return alert timeline."""
     return nbdisplay.display_timeline(
         data=related_alerts,
         title="Alerts",
         source_columns=["AlertName"],
         height=300,
-        hide=True,
+        hide=silent,
     )
 
 
@@ -721,11 +745,15 @@ def _get_related_alerts_summary(related_alerts: pd.DataFrame):
         f"related to this account</b>",
     ]
 
+    total_alerts = 0
     for (name, count) in alert_items.items():
         output.append(f"- {name}, # Alerts: {count}")
-    output.append(
-        "<br>To show the alert timeline call the <b>display_alert_time()</b> method."
-    )
+        total_alerts += count
+
+    if total_alerts > 1:
+        output.append(
+            "<br>To show the alert timeline call the <b>display_alert_timeline()</b> method."
+        )
     output.append("To browse the alerts call the <b>browse_alerts()</b> method.")
     return HTML("<br>".join(output))
 
@@ -872,29 +900,46 @@ def _get_azure_add_activity(qry_prov, acct, timespan):
 
 @set_text(docs=_CELL_DOCS, key="create_az_timelines")
 def _create_azure_timelines(az_all_data: pd.DataFrame, silent: bool = False):
-    timeline_by_provider = nbdisplay.display_timeline(
+    return (
+        _plot_timeline_by_provider(az_all_data, silent),
+        _plot_timeline_by_ip(az_all_data, silent),
+        _plot_timeline_by_operation(az_all_data, silent),
+    )
+
+
+def _plot_timeline_by_provider(az_all_data, silent=False):
+    return nbdisplay.display_timeline(
         data=az_all_data,
         group_by="AppResourceProvider",
         source_columns=["Operation", "IPAddress", "AppResourceProvider"],
         title="Azure account activity by Provider",
         hide=silent,
     )
-    timeline_by_ip = nbdisplay.display_timeline(
+
+
+def _plot_timeline_by_ip(az_all_data, silent=False):
+    return nbdisplay.display_timeline(
         data=az_all_data,
         group_by="IPAddress",
-        source_columns=["Operation", "IPAddress", "AppResourceProvider"],
+        source_columns=[
+            "AppResourceProvider",
+            "Operation",
+            "IPAddress",
+            "AppResourceProvider",
+        ],
         title="Azure Operations by Source IP",
         hide=silent,
     )
-    timeline_by_operation = nbdisplay.display_timeline(
+
+
+def _plot_timeline_by_operation(az_all_data, silent=False):
+    return nbdisplay.display_timeline(
         data=az_all_data,
         group_by="Operation",
-        source_columns=["Operation", "IPAddress", "AppResourceProvider"],
+        source_columns=["AppResourceProvider", "Operation", "IPAddress"],
         title="Azure Operations by Operation",
         hide=silent,
     )
-
-    return (timeline_by_provider, timeline_by_ip, timeline_by_operation)
 
 
 @set_text(docs=_CELL_DOCS, key="summarize_azure_activity")
