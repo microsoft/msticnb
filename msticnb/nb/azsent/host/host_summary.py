@@ -77,6 +77,7 @@ class HostSummaryResult(NotebookletResult):
             TimeSpan for the results, by default None
         notebooklet : Optional[, optional
             Originating notebooklet, by default None
+
         """
         super().__init__(description, timespan, notebooklet)
         self.host_entity: entities.Host = None
