@@ -41,7 +41,6 @@ stages:
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
         pip install --upgrade pytest pytest-azurepipelines
         pip install --upgrade pytest-cov pytest-check
-        export MSTICPY_TEST_NOSKIP=1
         pytest tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
       continueOnError: true
       condition: succeededOrFailed()
@@ -50,6 +49,7 @@ stages:
         MSTICPYCONFIG: $(Build.SourcesDirectory)/tests/testdata/msticpyconfig-test.yaml
         MAXMIND_AUTH: $(maxmind_auth)
         IPSTACK_AUTH: $(ipstack_auth)
+        MSTICPY_TEST_NOSKIP: 1
     - script: |
         pip install --upgrade black
         black -t py36 --check --exclude venv . 
