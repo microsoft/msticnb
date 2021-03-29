@@ -60,7 +60,7 @@ class NBContainer:
         return obj_str
 
     def iter_classes(self) -> Iterable[Tuple[str, Any]]:
-        """Iterate through all notebooklet classes."""
+        """Return iterator through all notebooklet classes."""
         for key, val in self.__dict__.items():
             if isinstance(val, NBContainer):
                 yield from val.iter_classes()

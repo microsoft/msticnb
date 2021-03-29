@@ -470,7 +470,7 @@ class Notebooklet(ABC):
         del fmt
         return "No documentation available."
 
-    def check_valid_result_data(self, attrib: str = None) -> bool:
+    def check_valid_result_data(self, attrib: str = None, silent: bool = False) -> bool:
         """
         Check that the result is valid and `attrib` contains data.
 
@@ -479,6 +479,8 @@ class Notebooklet(ABC):
         attrib : str
             Name of the attribute to check, if None this function
             only checks for a valid _last_result.
+        silent : bool
+            If True, suppress output.
 
         Returns
         -------
@@ -487,16 +489,18 @@ class Notebooklet(ABC):
 
         """
         if self._last_result is None:
-            print(
-                "No current result."
-                "Please use 'run()' to fetch the data before using this method."
-            )
+            if not silent:
+                print(
+                    "No current result."
+                    "Please use 'run()' to fetch the data before using this method."
+                )
             return False
         if not attrib:
             return True
         data_obj = getattr(self._last_result, attrib)
         if data_obj is None or isinstance(data_obj, pd.DataFrame) and data_obj.empty:
-            print(f"No data is available for last_result.{attrib}.")
+            if not silent:
+                print(f"No data is available for last_result.{attrib}.")
             return False
         return True
 

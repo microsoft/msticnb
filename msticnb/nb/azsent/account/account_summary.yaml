@@ -34,8 +34,7 @@ output:
       cloud activity for the account.
 
       For further investigation use the host_logons_summary notebooklet
-      for Windows and Linux host logons. Or use the azure_account_summary
-      for cloud accounts.
+      for Windows and Linux host logons.
     md: True
   get_matching_accounts:
     title: Querying for account matches.
@@ -85,4 +84,13 @@ output:
       These timelines show combined Azure activity
       grouped by Application Resource Provider, IP Address and
       Operation respectively.
+      '
+  get_ip_summary:
+    title: IP Address details summary
+    hd_level: 3
+    text: '
+      Number of operations detected by IP Address.
+      The table shows WhoIs ASN Description and Country Code. If
+      UserAgent is contained in the data, operations are also
+      grouped by this.
       '

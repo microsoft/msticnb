@@ -86,7 +86,7 @@ class GeoIPLiteMock(GeoIpLookup):
         if ip_address:
             geo = _get_geo_loc()
             ip_ent = IpAddress(Address=ip_address, Location=geo)
-            return [str(geo)], [ip_ent]
+            return str(geo), [ip_ent]
         if ip_entity:
             geo = _get_geo_loc()
             ip_entity.Location = geo
@@ -115,6 +115,8 @@ def _get_geo_loc():
     )
 
 
+# Need to keep same signatire as mocked class
+# pylint: disable=no-self-use
 class TILookupMock:
     """Test class for TILookup."""
 

@@ -14,7 +14,6 @@ from msticpy.common.wsconfig import WorkspaceConfig
 from msticpy.data import QueryProvider
 from msticpy.data.azure_data import AzureData
 from msticpy.data.query_defns import DataEnvironment
-from msticpy.datamodel.pivot import Pivot
 from msticpy.sectools import GeoLiteLookup, IPStackLookup, TILookup
 
 from ._version import VERSION
@@ -470,11 +469,3 @@ def init(
     print(f"Notebooklets: Loaded providers: {', '.join(d_provs.providers.keys())}")
     msticnb = sys.modules["msticnb"]
     setattr(msticnb, "data_providers", d_provs.providers)
-
-    if Pivot.current:
-        # We have to import add_pivot_functions here since it introduces
-        # a circular import chain if imported at the module level.
-        # pylint: disable=import-outside-toplevel, cyclic-import
-        from .nb_pivot import add_pivot_funcs
-
-        add_pivot_funcs(Pivot.current)

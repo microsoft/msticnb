@@ -31,16 +31,20 @@ def _to_py_name(name: str) -> str:
     return func_name.strip("_")
 
 
-def add_pivot_funcs(pivot: Pivot):
+def add_pivot_funcs(pivot: Pivot = None, **kwargs):
     """
     Add notebooklet run functions as pivot methods.
 
     Parameters
     ----------
-    pivot : Pivot
+    pivot : Pivot, optional
         Pivot instance.
+    kwargs : Dict[str, Any]
+        Optional keyword arguments to pass to Pivot init.
 
     """
+    if not pivot:
+        pivot = Pivot.current or Pivot(**kwargs)
     for nb_name, nb_class in nblts.iter_classes():
         if not issubclass(nb_class, Notebooklet) or nb_name == "TemplateNB":
             continue

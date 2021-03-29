@@ -6,17 +6,16 @@
 """host_network_summary notebooklet."""
 from collections import namedtuple
 from functools import lru_cache
-from typing import Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Set
 
 import pandas as pd
 from msticpy.common.timespan import TimeSpan
 from msticpy.data import QueryProvider
 from msticpy.datamodel import entities
-from msticpy.datamodel.entities import IpAddress
-from msticpy.sectools.ip_utils import convert_to_ip_entities
 
 from ..._version import VERSION
 from ...common import MsticnbMissingParameterError, nb_data_wait, nb_print, df_has_data
+from ..iptools import convert_to_ip_entities
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -195,6 +194,7 @@ def populate_host_entity(
     az_net_df: pd.DataFrame = None,
     vmcomputer_df: pd.DataFrame = None,
     host_entity: entities.Host = None,
+    geo_lookup: Any = None,
 ) -> entities.Host:
     """
     Populate host with IP and other data.
@@ -210,6 +210,8 @@ def populate_host_entity(
     host_entity : Host
         Host entity in which to populate data. By default,
         a new host entity will be created.
+    geo_lookup : Any
+        GeoIP Provider to use, if needed.
 
     Returns
     -------
@@ -232,12 +234,16 @@ def populate_host_entity(
     if df_has_data(vmcomputer_df):
         ip_vm = vmcomputer_df.iloc[0]  # type: ignore
         _extract_vmcomputer(ip_vm, host_entity)
-        ip_ents = _convert_to_ip_entities(data=vmcomputer_df, ip_col="Ipv4Addresses")
+        ip_ents = convert_to_ip_entities(
+            data=vmcomputer_df, ip_col="Ipv4Addresses", geo_lookup=geo_lookup
+        )
         ip_entities.extend(
             ip_ent for ip_ent in ip_ents if ip_ent.Address not in ip_unique
         )
         ip_unique |= {ip_ent.Address for ip_ent in ip_ents}
-        ip_ents = _convert_to_ip_entities(data=vmcomputer_df, ip_col="Ipv6Addresses")
+        ip_ents = convert_to_ip_entities(
+            data=vmcomputer_df, ip_col="Ipv6Addresses", geo_lookup=geo_lookup
+        )
         ip_entities.extend(
             ip_ent for ip_ent in ip_ents if ip_ent.Address not in ip_unique
         )
@@ -247,22 +253,26 @@ def populate_host_entity(
     if df_has_data(az_net_df):
         if not host_entity.HostName:
             host_entity.HostName = az_net_df.iloc[0].Computer  # type: ignore
-        ip_priv = _convert_to_ip_entities(data=az_net_df, ip_col="PrivateIPAddresses")
-        ip_pub = _convert_to_ip_entities(data=az_net_df, ip_col="PublicIPAddresses")
-        host_entity["PrivateIPAddresses"] = []
-        host_entity["PrivateIPAddresses"].extend(
+        ip_priv = convert_to_ip_entities(
+            data=az_net_df, ip_col="PrivateIPAddresses", geo_lookup=geo_lookup
+        )
+        ip_pub = convert_to_ip_entities(
+            data=az_net_df, ip_col="PublicIPAddresses", geo_lookup=geo_lookup
+        )
+        host_entity["PrivateIpAddresses"] = []
+        host_entity["PrivateIpAddresses"].extend(
             ip_ent for ip_ent in ip_priv if ip_ent.Address not in ip_unique
         )
-        host_entity["PublicIPAddresses"] = []
-        host_entity["PublicIPAddresses"].extend(
+        host_entity["PublicIpAddresses"] = []
+        host_entity["PublicIpAddresses"].extend(
             ip_ent for ip_ent in ip_pub if ip_ent.Address not in ip_unique
         )
-        ip_entities.extend(host_entity["PrivateIPAddresses"])
-        ip_entities.extend(host_entity["PublicIPAddresses"])
+        ip_entities.extend(host_entity["PrivateIpAddresses"])
+        ip_entities.extend(host_entity["PublicIpAddresses"])
 
-    host_entity["IPAddresses"] = ip_entities
+    host_entity["IpAddresses"] = ip_entities
     if not hasattr(host_entity, "IpAddress") and len(ip_entities) == 1:
-        host_entity["IPAddress"] = ip_entities[0]
+        host_entity["IpAddress"] = ip_entities[0]
 
     return host_entity
 
@@ -325,99 +335,3 @@ def _extract_vmcomputer(ip_vm, host_entity):
             "ResourceGroup": ip_vm["AzureResourceGroup"],
             "ResourceId": ip_vm["_ResourceId"],
         }
-
-
-# TODO - temporary workaround until iputils.convert_to_ip_entities
-# is fixed in MSTICPY
-def _convert_to_ip_entities(
-    ip_str: Optional[str] = None,
-    data: Optional[pd.DataFrame] = None,
-    ip_col: Optional[str] = None,
-    geo_lookup: bool = True,
-) -> List[IpAddress]:
-    """
-    Take in an IP Address string and converts it to an IP Entity.
-
-    Parameters
-    ----------
-    ip_str : str
-        A string with a single IP Address or multiple addresses
-        delimited by comma or space
-    data : pd.DataFrame
-        Use DataFrame as input
-    ip_col : str
-        Column containing IP addresses
-    geo_lookup : bool
-        If true, do geolocation lookup on IPs,
-        by default, True
-
-    Returns
-    -------
-    List
-        The populated IP entities including address and geo-location
-
-    Raises
-    ------
-    ValueError
-        If neither ip_string or data/column provided as input
-
-    """
-    try:
-        return convert_to_ip_entities(
-            ip_str=ip_str, data=data, ip_col=ip_col, geo_lookup=geo_lookup
-        )
-    except AttributeError:
-        pass
-    ip_entities: List[IpAddress] = []
-    all_ips: Set[str] = set()
-
-    if ip_str:
-        addrs = arg_to_list(ip_str)
-    elif data is not None and ip_col:
-        addrs = data[ip_col].values
-    else:
-        raise ValueError("Must specify either ip_str or data + ip_col parameters.")
-
-    for addr in addrs:
-        if isinstance(addr, list):
-            ip_list = set(addr)
-        elif isinstance(addr, str) and "," in addr:
-            ip_list = {ip.strip() for ip in addr.split(",")}
-        else:
-            ip_list = {addr}
-        ip_list = ip_list - all_ips  # remove IP addresses we've seen
-        ip_entities.extend(IpAddress(Address=ip) for ip in ip_list)
-
-    return ip_entities
-
-
-def arg_to_list(arg: Union[str, List[str]], delims=",; ") -> List[str]:
-    """
-    Convert an optional list/str/str with delims into a list.
-
-    Parameters
-    ----------
-    arg : Union[str, List[str]]
-        A string, delimited string or list
-    delims : str, optional
-        The default delimiters to use, by default ",; "
-
-    Returns
-    -------
-    List[str]
-        List of string components
-
-    Raises
-    ------
-    TypeError
-        If `arg` is not a string or list
-
-    """
-    if isinstance(arg, list):
-        return arg
-    if isinstance(arg, str):
-        for char in delims:
-            if char in arg:
-                return [item.strip() for item in arg.split(char)]
-        return [arg]
-    raise TypeError("`arg` must be a string or a list.")

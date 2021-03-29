@@ -257,9 +257,12 @@ class NetworkFlowSummary(Notebooklet):
                 display(result.flow_summary)
             result.flow_index_data = flow_index
         if "geo_map" in self.options and flow_index is not None:
+            geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
+                "ipstacklookup"
+            )
             result.geo_map = _display_geo_map_all(
                 flow_index=flow_index,
-                ip_locator=self.data_providers["geolitelookup"],
+                ip_locator=geo_lookup,
                 host_entity=result.host_entity,
             )
             if not self.silent:
@@ -310,12 +313,11 @@ class NetworkFlowSummary(Notebooklet):
         selected_ips = _get_ips_from_selected_asn(
             flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector
         )
-        ti_results = _lookup_ip_ti(
+        self._last_result.ti_results = _lookup_ip_ti(
             flows_df=self._last_result.flow_index_data,
             selected_ips=selected_ips,
             ti_lookup=self.data_providers["tilookup"],
         )
-        self._last_result.ti_results = ti_results
 
     def show_selected_asn_map(self) -> foliummap.FoliumMap:
         """
@@ -339,9 +341,12 @@ class NetworkFlowSummary(Notebooklet):
                 "\nThen call 'show_selected_asn_map()'",
             )
             return None
+        geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
+            "ipstacklookup"
+        )
         geo_map = _display_geo_map(
             flow_index=self._last_result.flow_summary,
-            ip_locator=self.data_providers["geolitelookup"],
+            ip_locator=geo_lookup,
             host_entity=self._last_result.host_entity,
             ti_results=self._last_result.ti_results,
             select_asn=self.asn_selector,
@@ -554,7 +559,7 @@ def _get_flow_summary(flow_index):
 # %%
 # ASN Selection
 def _get_source_host_asns(host_entity):
-    host_ips = getattr(host_entity, "PublicIPAddresses", [])
+    host_ips = getattr(host_entity, "PublicIpAddresses", [])
     host_ips.append(getattr(host_entity, "IpAddress", None))
     host_asns = []
     for ip_entity in host_ips:
@@ -632,7 +637,7 @@ def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
             "bold, large",
         )
         return ti_ip_results
-    return None
+    return pd.DataFrame(columns=["Ioc"])
 
 
 # %%
@@ -682,7 +687,7 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
         )
 
     icon_props = {"color": "green"}
-    host_ips = getattr(host_entity, "PublicIPAddresses", [])
+    host_ips = getattr(host_entity, "PublicIpAddresses", [])
     host_ip = getattr(host_entity, "IpAddress", None)
     if host_ip:
         host_ips.append(host_ip)
@@ -739,7 +744,7 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
         )
 
     icon_props = {"color": "green"}
-    host_ips = getattr(host_entity, "PublicIPAddresses", [])
+    host_ips = getattr(host_entity, "PublicIpAddresses", [])
     host_ip = getattr(host_entity, "IpAddress", None)
     if host_ip:
         host_ips.append(host_ip)

@@ -25,29 +25,29 @@ from ....common import (
     df_has_data,
 )
 from ....nblib.azsent.alert import browse_alerts
+from ....nblib.iptools import get_geoip_whois, map_ips
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
-
+# pylint: disable=too-many-lines
 # Read module metadata from YAML
 _CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
+# pylint: disable=invalid-name
 class AccountType(Flag):
     """Account types."""
 
-    # pylint: disable=invalid-name
     AzureActiveDirectory = auto()
     AzureActivity = auto()
     Office365 = auto()
     Windows = auto()
     Linux = auto()
     Azure = AzureActiveDirectory | AzureActivity | Office365
-    # pylint: enable=invalid-name
 
     def in_list(self, acct_types: Iterable[Union["AccountType", str]]):
         """Is the current value in the `acct_types` list."""
@@ -66,6 +66,8 @@ class AccountType(Flag):
         except KeyError:
             return None
 
+
+# pylint: enable=invalid-name
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
 class AccountSummaryResult(NotebookletResult):
@@ -98,6 +100,12 @@ class AccountSummaryResult(NotebookletResult):
         Host or Azure activity timeline by IP Address.
     azure_timeline_by_operation : LayoutDOM
         Azure activity timeline grouped by operation
+    ip_address_summary : pd.DataFrame
+        Summary of IP address properties and usage for
+        the current activity.
+    ip_all_data : pd.DataFrame
+        Full details of operations with IP WhoIs and GeoIP
+        data.
 
     """
 
@@ -135,6 +143,8 @@ class AccountSummaryResult(NotebookletResult):
         self.azure_timeline_by_provider: LayoutDOM = None
         self.account_timeline_by_ip: LayoutDOM = None
         self.azure_timeline_by_operation: LayoutDOM = None
+        self.ip_summary: pd.DataFrame = None
+        self.ip_all_data: pd.DataFrame = None
 
 
 # pylint: enable=too-few-public-methods
@@ -165,6 +175,11 @@ class AccountSummary(Notebooklet):
     _cell_docs = _CELL_DOCS
 
     ACCOUNT_TYPE = AccountType
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the Account Summary notebooklet."""
+        super().__init__(*args, **kwargs)
+        self._geo_lookup = None
 
     # pylint: disable=too-many-branches
 
@@ -237,6 +252,10 @@ class AccountSummary(Notebooklet):
             account_types=acc_types,
         )
 
+        self._geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
+            "ipstacklookup"
+        )
+
         acct_index_df = _create_account_index(all_acct_dfs)
         if acct_index_df.empty:
             nb_markdown("No accounts matching that name.")
@@ -248,6 +267,7 @@ class AccountSummary(Notebooklet):
                 result=result,
                 timespan=timespan,
                 options=self.options,
+                geoip=self._geo_lookup,
             )
             acct_row = acct_index_df.iloc[0]
             outputs = disp_func(f"{acct_row.AccountName} {acct_row.Source}")
@@ -267,6 +287,7 @@ class AccountSummary(Notebooklet):
                 result=result,
                 timespan=timespan,
                 options=self.options,
+                geoip=self._geo_lookup,
             )
             nb_display(result.account_selector)
 
@@ -290,7 +311,11 @@ class AccountSummary(Notebooklet):
     def display_alert_timeline(self):
         """Display the alert timeline."""
         if self.check_valid_result_data("related_alerts"):
-            return _get_alerts_timeline(self._last_result.related_alerts, silent=False)
+            if len(self._last_result.related_alerts) > 1:
+                return _get_alerts_timeline(
+                    self._last_result.related_alerts, silent=False
+                )
+            print("Cannot plot timeline with 0 or 1 event.")
         return None
 
     def browse_accounts(self) -> nbwidgets.SelectItem:
@@ -329,8 +354,13 @@ class AccountSummary(Notebooklet):
             return _plot_timeline_by_operation(self._last_result.azure_activity)
         return None
 
-    def host_logon_timeline(self):
+    def show_ip_summary(self):
         """Display Azure activity timeline by operation."""
+        if self.check_valid_result_data("ip_summary"):
+            nb_display(self._last_result.ip_summary)
+
+    def host_logon_timeline(self):
+        """Display IP address summary."""
         if self.check_valid_result_data("host_logons"):
             _, source = self._get_selected_account()
             ip_col = (
@@ -341,6 +371,34 @@ class AccountSummary(Notebooklet):
             return _create_host_timeline(
                 self._last_result.host_logons, ip_col=ip_col, silent=False
             )
+        return None
+
+    def get_geoip_map(self):
+        """Return Folium map of IP activity."""
+        if self.check_valid_result_data("azure_activity", silent=True):
+            return map_ips(
+                data=self._last_result.azure_activity,
+                ip_col="IPAddress",
+                summary_cols=["SourceSystem", "Operation"],
+                geo_lookup=self._geo_lookup,
+            )
+        if self.check_valid_result_data("host_logons", silent=True):
+            ip_col = (
+                "SourceIP"
+                if "SourceIP" in self._last_result.host_logons.columns
+                else "IpAddress"
+            )
+            return map_ips(
+                data=self._last_result.host_logons,
+                ip_col=ip_col,
+                summary_cols=["Source", "Computer", "Operation"],
+                geo_lookup=self._geo_lookup,
+            )
+
+        print(
+            "Please ensure that you have run the 'run()'",
+            "and 'get_additional_data()' methods before calling this.",
+        )
         return None
 
     @set_text(docs=_CELL_DOCS, key="find_additional_data")
@@ -368,6 +426,7 @@ class AccountSummary(Notebooklet):
         self._last_result.account_timeline_by_ip = None
         self._last_result.azure_timeline_by_operation = None
         self._last_result.azure_activity_summary = None
+        self._last_result.ip_summary = None
 
         acct_type = AccountType.parse(source)
         if acct_type == AccountType.Linux:
@@ -380,6 +439,15 @@ class AccountSummary(Notebooklet):
             self._last_result.account_timeline_by_ip = _create_host_timeline(
                 self._last_result.host_logons, ip_col="SourceIP", silent=self.silent
             )
+            (
+                self._last_result.ip_summary,
+                self._last_result.ip_all_data,
+            ) = _create_ip_summary(
+                self._last_result.host_logons,
+                ip_col="SourceIP",
+                geoip=self._geo_lookup,
+            )
+            nb_display(self._last_result.ip_summary)
         if acct_type == AccountType.Windows:
             self._last_result.host_logons = _get_windows_add_activity(
                 self.query_provider, acct, self.timespan
@@ -390,6 +458,15 @@ class AccountSummary(Notebooklet):
             self._last_result.account_timeline_by_ip = _create_host_timeline(
                 self._last_result.host_logons, ip_col="IpAddress", silent=self.silent
             )
+            (
+                self._last_result.ip_summary,
+                self._last_result.ip_all_data,
+            ) = _create_ip_summary(
+                self._last_result.host_logons,
+                ip_col="IpAddress",
+                geoip=self._geo_lookup,
+            )
+            nb_display(self._last_result.ip_summary)
         if acct_type in [
             AccountType.AzureActiveDirectory,
             AccountType.AzureActivity,
@@ -406,6 +483,15 @@ class AccountSummary(Notebooklet):
             self._last_result.azure_activity_summary = _summarize_azure_activity(
                 az_activity
             )
+            (
+                self._last_result.ip_summary,
+                self._last_result.ip_all_data,
+            ) = _create_ip_summary(
+                self._last_result.azure_activity,
+                ip_col="IPAddress",
+                geoip=self._geo_lookup,
+            )
+            nb_display(self._last_result.ip_summary)
 
     def _get_selected_account(self):
         if (
@@ -454,7 +540,14 @@ def _get_matching_accounts(qry_prov, timespan, account, account_types):
         summarize_clause = f"""
         | extend UserId = tolower(UserId)
         | summarize arg_max(TimeGenerated, *)
+        | extend IPAddress = case(
+            isnotempty(Client_IPAddress), Client_IPAddress,
+            isnotempty(ClientIP), ClientIP,
+            isnotempty(ClientIP_), ClientIP_,
+            Client_IPAddress
+        )
         | extend AccountName = UserId,
+          UserPrincipalName = UserId,
           Source = '{AccountType.Office365.name}'
         """
 
@@ -550,7 +643,7 @@ def _create_account_index(all_acct_dfs):
 
 
 def _get_account_selector(
-    qry_prov, all_acct_dfs: pd.DataFrame, result, timespan, options
+    qry_prov, all_acct_dfs: pd.DataFrame, result, timespan, options, geoip
 ):
     """Build and return the Account Select list."""
     action_func = _create_display_callback(
@@ -559,6 +652,7 @@ def _get_account_selector(
         result=result,
         timespan=timespan,
         options=options,
+        geoip=geoip,
     )
 
     acct_index_df = _create_account_index(all_acct_dfs)
@@ -573,7 +667,7 @@ def _get_account_selector(
 
 
 def _create_display_callback(
-    qry_prov, all_acct_dfs, result, timespan, options
+    qry_prov, all_acct_dfs, result, timespan, options, geoip
 ) -> Callable[[str], Iterable[Any]]:
     """Create closure for display_acct callback."""
 
@@ -583,7 +677,9 @@ def _create_display_callback(
         outputs = []
 
         # Create entity
-        acct_entity = _create_account_entity(account_name, acct_type, all_acct_dfs)
+        acct_entity = _create_account_entity(
+            account_name, acct_type, all_acct_dfs, geoip
+        )
         outputs.append(HTML("<h3>Account Entity</h3>"))
         result.account_entity = acct_entity
         outputs.append(acct_entity)
@@ -611,24 +707,24 @@ def _create_display_callback(
 # %%
 # Account entity from data
 def _create_account_entity(
-    account_name, acct_type, acct_activity_dfs
+    account_name, acct_type, acct_activity_dfs, geoip
 ) -> entities.Account:
 
     if acct_type == AccountType.Windows:
         acct_activity_df = acct_activity_dfs[AccountType.Windows]
-        return _create_win_account_entity(account_name, acct_activity_df)
+        return _create_win_account_entity(account_name, acct_activity_df, geoip)
 
     if acct_type == AccountType.Linux:
         acct_activity_df = acct_activity_dfs[AccountType.Linux]
-        return _create_lx_account_entity(account_name, acct_activity_df)
+        return _create_lx_account_entity(account_name, acct_activity_df, geoip)
 
     if acct_type == AccountType.AzureActiveDirectory:
         acct_activity_df = acct_activity_dfs[AccountType.AzureActiveDirectory]
-        return _create_aad_account_entity(account_name, acct_activity_df)
+        return _create_aad_account_entity(account_name, acct_activity_df, geoip)
 
     if acct_type == AccountType.Office365:
         acct_activity_df = acct_activity_dfs[AccountType.Office365]
-        return _create_o365_account_entity(account_name, acct_activity_df)
+        return _create_o365_account_entity(account_name, acct_activity_df, geoip)
 
     acc_entity = entities.Account()
     acc_entity.Name = account_name
@@ -636,76 +732,154 @@ def _create_account_entity(
 
 
 def _create_win_account_entity(
-    account_name: str, acct_activity_df: pd.DataFrame
+    account_name: str, acct_activity_df: pd.DataFrame, geoip
 ) -> entities.Account:
-    account_event = acct_activity_df[
-        acct_activity_df["AccountName"] == account_name
-    ].iloc[0]
+    account_events = acct_activity_df[acct_activity_df["AccountName"] == account_name]
+    account_event = account_events.iloc[0]
     acc_entity = entities.Account(src_event=account_event)
-    host = entities.Host(src_event=account_event)
-    acc_entity.Host = host
-    acc_entity.IpAddress = entities.IpAddress(address=account_event["IpAddress"])
     acc_entity.LogonType = account_event["LogonTypeName"]
     acc_entity.AadTenantId = account_event["TenantId"]
+
+    host_grp = _create_host_ip_group(
+        account_events, host_column="Computer", ip_column="IpAddress"
+    )
+    acc_hosts = list(_create_host_entities(host_grp, geoip))
+    if len(acc_hosts) == 1:
+        acc_entity.Host = acc_hosts[0]
+    else:
+        acc_entity.Hosts = acc_hosts
     return acc_entity
 
 
 def _create_lx_account_entity(
-    account_name: str, acct_activity_df: pd.DataFrame
+    account_name: str, acct_activity_df: pd.DataFrame, geoip
 ) -> entities.Account:
     acc_entity = entities.Account()
-    account_event = acct_activity_df[
-        acct_activity_df["AccountName"] == account_name
-    ].iloc[0]
+    account_events = acct_activity_df[acct_activity_df["AccountName"] == account_name]
+    account_event = account_events.iloc[0]
     acc_entity.Name = account_event["AccountName"]
-    host = entities.Host(HostName=account_event["Computer"])
-    host.IpAddress = entities.IpAddress(address=account_event["HostIP"])
-    acc_entity.Host = host
-    acc_entity.IpAddress = entities.IpAddress(address=account_event["SourceIP"])
     acc_entity.LogonType = account_event["LogonType"]
     acc_entity.Sid = account_event["UID"]
     acc_entity.AadTenantId = account_event["TenantId"]
+    host_grp = _create_host_ip_group(
+        account_events, host_column="Computer", ip_column="SourceIP"
+    )
+    acc_hosts = list(_create_host_entities(host_grp, geoip))
+    if len(acc_hosts) == 1:
+        acc_entity.Host = acc_hosts[0]
+    else:
+        acc_entity.Hosts = acc_hosts
     return acc_entity
 
 
+def _create_host_ip_group(data, host_column, ip_column):
+    """Group data by Host."""
+    return data.groupby([host_column, ip_column]).agg(
+        FirstSeen=pd.NamedAgg(column="TimeGenerated", aggfunc="min"),
+        LastSeen=pd.NamedAgg(column="TimeGenerated", aggfunc="max"),
+    )
+
+
+def _create_host_entities(data, geoip):
+    """Create Host and IP Entities with GeoIP info."""
+    for row in data.itertuples():
+        host, ip_addr = row.Index
+        if host:
+            host_ent = entities.Host(HostName=host)
+            if ip_addr:
+                _, ip_entities = geoip.lookup_ip(ip_addr) if geoip else (None, [])
+                if not ip_entities:
+                    host_ent.IpAddress = entities.IpAddress(Address=ip_addr)
+                    host_ent.IpAddress.FirstSeen = row.FirstSeen
+                    host_ent.IpAddress.LastSeen = row.LastSeen
+                elif len(ip_entities) == 1:
+                    host_ent.IpAddress = ip_entities[0]
+                    host_ent.IpAddress.FirstSeen = row.FirstSeen
+                    host_ent.IpAddress.LastSeen = row.LastSeen
+                else:
+                    host_ent.IpAddresses = []
+                    for ip_ent in ip_entities:
+                        ip_ent.FirstSeen = row.FirstSeen
+                        ip_ent.LastSeen = row.LastSeen
+                        host_ent.IpAddresses.append(ip_ent)
+
+            yield host_ent
+
+
 def _create_aad_account_entity(
-    account_name: str, acct_activity_df: pd.DataFrame
+    account_name: str, acct_activity_df: pd.DataFrame, geoip
 ) -> entities.Account:
     acc_entity = entities.Account()
-    account_event = acct_activity_df[
-        acct_activity_df["UserPrincipalName"] == account_name
-    ].iloc[0]
+    account_events = acct_activity_df[
+        (acct_activity_df["AccountName"] == account_name)
+        & (acct_activity_df["Source"] == AccountType.AzureActiveDirectory.name)
+    ]
+    account_event = account_events.iloc[0]
     acc_entity.Name = account_event["UserPrincipalName"]
     if "@" in account_event["UserPrincipalName"]:
         acc_entity.UPNSuffix = account_event["UserPrincipalName"].split("@")[1]
     acc_entity.AadTenantId = account_event["AADTenantId"]
     acc_entity.AadUserId = account_event["UserId"]
     acc_entity.DisplayName = account_event["UserDisplayName"]
-    acc_entity.IpAddress = entities.IpAddress(Address=account_event["IPAddress"])
     acc_entity.DeviceDetail = account_event["DeviceDetail"]
     acc_entity.Location = account_event["LocationDetails"]
     acc_entity.UserAgent = account_event["UserAgent"]
+
+    ip_grp = _create_ip_group(account_events, "IPAddress")
+    ip_addrs = list(_create_ip_entities(ip_grp, geoip))
+    if len(ip_addrs) == 1:
+        acc_entity.IpAddress = ip_addrs[0]
+    else:
+        acc_entity.IpAddresses = ip_addrs
     return acc_entity
 
 
-def _create_o365_account_entity(account_name, acct_activity_df):
+def _create_o365_account_entity(account_name, acct_activity_df, geoip):
     acc_entity = entities.Account()
-    account_event = acct_activity_df[acct_activity_df["UserId"] == account_name].iloc[0]
-    acc_entity.Name = account_event["UserId"]
-    if "@" in account_event["UserId"]:
-        acc_entity.UPNSuffix = account_event["UserId"].split("@")[1]
+    o365_events = acct_activity_df[
+        (acct_activity_df["AccountName"] == account_name)
+        & (acct_activity_df["Source"] == AccountType.Office365.name)
+    ]
+    account_event = o365_events.iloc[0]
+    acc_entity.Name = account_event["UserPrincipalName"]
+    if "@" in account_event["UserPrincipalName"]:
+        acc_entity.UPNSuffix = account_event["UserPrincipalName"].split("@")[1]
     acc_entity.AadTenantId = account_event["TenantId"]
     acc_entity.OrganizationId = account_event["OrganizationId"]
-    client_ip = ""
-    if "ClientIP" in account_event:
-        client_ip = account_event["ClientIP"]
-    elif "ClientIP_" in account_event:
-        client_ip = account_event["ClientIP_"]
-    elif "IPAddress" in account_event:
-        client_ip = account_event["IPAddress"]
-    if client_ip:
-        acc_entity.IpAddress = entities.IpAddress(Address=client_ip)
+
+    ip_grp = _create_ip_group(o365_events, "IPAddress")
+    ip_addrs = list(_create_ip_entities(ip_grp, geoip))
+    if len(ip_addrs) == 1:
+        acc_entity.IpAddress = ip_addrs[0]
+    else:
+        acc_entity.IpAddresses = ip_addrs
+
     return acc_entity
+
+
+def _create_ip_group(data, ip_column):
+    """Group data by IP Address."""
+    return data.groupby(ip_column).agg(
+        FirstSeen=pd.NamedAgg(column="TimeGenerated", aggfunc="min"),
+        LastSeen=pd.NamedAgg(column="TimeGenerated", aggfunc="max"),
+    )
+
+
+def _create_ip_entities(data, geoip):
+    """Create IP Entities with GeoIP info."""
+    for row in data.itertuples():
+        if row.Index:
+            if not geoip:
+                ip_ent = entities.IpAddress(Address=row.Index)
+                ip_ent.FirstSeen = row.FirstSeen
+                ip_ent.LastSeen = row.LastSeen
+                yield ip_ent
+            else:
+                _, ip_entities = geoip.lookup_ip(row.Index)
+                for ip_ent in ip_entities:
+                    ip_ent.FirstSeen = row.FirstSeen
+                    ip_ent.LastSeen = row.LastSeen
+                    yield ip_ent
 
 
 # %%
@@ -815,7 +989,10 @@ def _get_bookmark_select(bookmarks_df):
 # Get Linux logon activity
 def _get_linux_add_activity(qry_prov, acct, timespan):
     nb_data_wait("LinuxSyslog")
-    return qry_prov.LinuxSyslog.list_logons_for_account(timespan, account_name=acct)
+    ext_logon_result = "| extend Operation = strcat('Logon-', LogonResult)"
+    return qry_prov.LinuxSyslog.list_logons_for_account(
+        timespan, account_name=acct, add_query_items=ext_logon_result
+    )
 
 
 @set_text(docs=_CELL_DOCS, key="summarize_host_activity")
@@ -826,7 +1003,7 @@ def _summarize_host_activity(all_logons: pd.DataFrame, ip_col="SourceIP"):
         FailedLogons=pd.NamedAgg(
             column="LogonResult", aggfunc=lambda x: x.value_counts().to_dict()
         ),
-        IPAddresses=pd.NamedAgg(column=ip_col, aggfunc=lambda x: x.unique().tolist()),
+        IpAddresses=pd.NamedAgg(column=ip_col, aggfunc=lambda x: x.unique().tolist()),
         LogonTypeCount=pd.NamedAgg(
             column="LogonType", aggfunc=lambda x: x.value_counts().to_dict()
         ),
@@ -854,9 +1031,10 @@ def _create_host_timeline(
 # Get Windows logon activity
 def _get_windows_add_activity(qry_prov, acct, timespan):
     nb_data_wait("WindowsSecurity")
-    ext_logon_result = (
-        "| extend LogonResult = iff(EventID == 4624, 'Success', 'Failed')"
-    )
+    ext_logon_result = """
+        | extend LogonResult = iff(EventID == 4624, 'Success', 'Failed')
+        | extend Operation = strcat("Logon-", LogonResult)
+    """
     return qry_prov.WindowsSecurity.list_logon_attempts_by_account(
         timespan, account_name=acct, add_query_items=ext_logon_result
     )
@@ -867,8 +1045,9 @@ def _get_windows_add_activity(qry_prov, acct, timespan):
 def _get_azure_add_activity(qry_prov, acct, timespan):
     """Get Azure additional data for account."""
     nb_data_wait("AADSignin")
-    aad_sum_qry = """
+    aad_sum_qry = f"""
         | extend UserPrincipalName=tolower(UserPrincipalName)
+        | extend Source = '{AccountType.AzureActiveDirectory.name}'
         | project-rename Operation=OperationName, AppResourceProvider=AppDisplayName
     """
     aad_logons = qry_prov.Azure.list_aad_signins_for_account(
@@ -876,8 +1055,9 @@ def _get_azure_add_activity(qry_prov, acct, timespan):
     )
 
     nb_data_wait("AzureActivity")
-    az_sum_qry = """
+    az_sum_qry = f"""
         | extend UserPrincipalName=tolower(Caller)
+        | extend Source = '{AccountType.AzureActivity.name}'
         | project-rename IPAddress=CallerIpAddress, Operation=OperationName,
         AppResourceProvider=ResourceProvider
     """
@@ -886,16 +1066,24 @@ def _get_azure_add_activity(qry_prov, acct, timespan):
     )
 
     nb_data_wait("Office365Activity")
-    o365_sum_qry = """
+    o365_sum_qry = f"""
         | extend UserPrincipalName=tolower(UserId)
-        | project-rename IPAddress=ClientIP, ResourceId=OfficeObjectId,
-        AppResourceProvider=OfficeWorkload
+        | extend Source = '{AccountType.Office365.name}'
+        | extend IPAddress = case(
+            isnotempty(Client_IPAddress), Client_IPAddress,
+            isnotempty(ClientIP), ClientIP,
+            isnotempty(ClientIP_), ClientIP_,
+            Client_IPAddress
+        )
+        | project-rename ResourceId=OfficeObjectId, AppResourceProvider=OfficeWorkload
     """
     o365_activity = qry_prov.Office365.list_activity_for_account(
         timespan, account_name=acct, add_query_items=o365_sum_qry
     )
 
-    return pd.concat([aad_logons, az_activity, o365_activity], sort=False)
+    return pd.concat(
+        [aad_logons, az_activity, o365_activity], ignore_index=True, sort=False
+    ).sort_values("TimeGenerated")
 
 
 @set_text(docs=_CELL_DOCS, key="create_az_timelines")
@@ -957,3 +1145,27 @@ def _summarize_azure_activity(az_all_data: pd.DataFrame):
     )
     nb_display(summary)
     return summary
+
+
+@set_text(docs=_CELL_DOCS, key="get_ip_summary")
+def _create_ip_summary(data, ip_col, geoip):
+    group_cols1 = ["Source", "Operation"]
+    group_cols2 = ["IpAddress", "AsnDescription", "CountryCode"]
+    if "UserAgent" in data.columns:
+        group_cols1.append("UserAgent")
+    group_cols = group_cols1 + group_cols2
+    all_data = (
+        data[[ip_col]]  # the property and the column we want
+        .drop_duplicates()  # drop duplicates
+        .pipe(
+            (get_geoip_whois, "data"), geo_lookup=geoip, ip_col=ip_col
+        )  # get geoip and whois
+        .merge(data, left_on="IpAddress", right_on=ip_col)
+    )
+    ip_summary = all_data.groupby(group_cols).agg(
+        Count=pd.NamedAgg("Operation", "count"),
+        FirstOperation=pd.NamedAgg("TimeGenerated", "min"),
+        LastOperation=pd.NamedAgg("TimeGenerated", "max"),
+    )
+
+    return ip_summary, all_data

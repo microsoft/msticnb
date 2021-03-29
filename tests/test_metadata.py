@@ -5,9 +5,11 @@
 # --------------------------------------------------------------------------
 """NB metadata test class."""
 import pytest_check as check
-from msticnb import init
+from msticnb import data_providers
 from msticnb.nb_metadata import NBMetadata, read_mod_metadata
 from msticnb.nb.azsent.host import host_summary
+
+from .unit_test_lib import GeoIPLiteMock
 
 
 def test_read_metadata():
@@ -28,9 +30,12 @@ def test_read_metadata():
 
 
 # pylint: disable=protected-access
-def test_class_metadata():
+def test_class_metadata(monkeypatch):
     """Test class correctly loads yaml metadata."""
-    init(query_provider="LocalData", providers=["tilookup"])
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init(
+        query_provider="LocalData", providers=["tilookup", "geolitelookip"]
+    )
     host_nb = host_summary.HostSummary()
 
     check.is_true(hasattr(host_summary, "_CLS_METADATA"))

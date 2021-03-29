@@ -17,7 +17,6 @@ from IPython.display import display
 from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools import timeline
 from msticpy.nbtools.foliummap import FoliumMap
-from msticpy.sectools.ip_utils import convert_to_ip_entities
 
 from ...._version import VERSION
 from ....common import (
@@ -29,6 +28,7 @@ from ....common import (
 )
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
+from ....nblib.iptools import convert_to_ip_entities
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 pd.options.mode.chained_assignment = None
@@ -255,21 +255,24 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
 
 
 @set_text(docs=_CELL_DOCS, key="show_map")
-def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
+def _map_logons(data: pd.DataFrame, silent: bool, geo_lookup: Any = None) -> FoliumMap:
     """Produce a map of source IP logon locations."""
     # Seperate out failed and sucessful logons and clean the data
     remote_logons = data[data["LogonResult"] == "Success"]
     failed_logons = data[data["LogonResult"] == "Failure"]
     ip_list = [
-        convert_to_ip_entities(ip)[0]
+        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
         for ip in remote_logons["SourceIP"]
         if ip not in ("", "-", "NaN")
     ]
+    ip_list = [ip for ip_ents in ip_list for ip in ip_ents]
     ip_fail_list = [
-        convert_to_ip_entities(ip)[0]
+        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
         for ip in failed_logons["SourceIP"]
         if ip not in ("", "-", "NaN")
     ]
+    ip_fail_list = [ip for ip_ents in ip_fail_list for ip in ip_ents]
+
     # Get center point of logons and build map acount that
     folium_map = FoliumMap(zoom_start=4)
     folium_map.center_map()

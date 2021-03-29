@@ -35,8 +35,9 @@ To start using notebooklets:
 for more help see https://msticnb.readthedocs.org/
 
 """
+import sys
 
-from .data_providers import DataProviders, init  # noqa:F401
+from .data_providers import DataProviders, init as dp_init  # noqa:F401
 from .read_modules import discover_modules, nblts, nb_index, find  # noqa:F401
 from .options import get_opt, set_opt  # noqa:F401
 from .nb_browser import NBBrowser  # noqa:F401
@@ -50,3 +51,16 @@ __version__ = VERSION
 browse = NBBrowser
 discover_modules()
 print(f"Notebooklets: {len(list(nblts.iter_classes()))} notebooklets loaded.")
+
+
+def init(namespace: dict = None, **kwargs):
+    """Initialize notebooklets dataproviders and pivots."""
+    query_provider = kwargs.pop("query_provider", None)
+    providers = kwargs.pop("providers", None)
+    dp_init(query_provider=query_provider, providers=providers, **kwargs)
+    if not namespace:
+        # Try to get the globals namespace from top-level caller
+        # pylint: disable=protected-access
+        namespace = sys._getframe(1).f_globals
+        # pylint: enable=protected-access
+    add_pivot_funcs(namespace=namespace, **kwargs)

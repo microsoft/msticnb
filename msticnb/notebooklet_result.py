@@ -14,13 +14,14 @@ from msticpy.common.timespan import TimeSpan
 
 from ._version import VERSION
 from .common import show_bokeh
+from .data_viewers import DFViewer
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
 # pylint: disable=too-few-public-methods
-class NotebookletResult:
+class NotebookletResult(DFViewer):
     """Base result class."""
 
     _TITLE_STYLE = "background-color:lightgray; padding:5px;"
@@ -97,7 +98,10 @@ class NotebookletResult:
     @staticmethod
     def _html_repr(obj):
         if isinstance(obj, pd.DataFrame):
-            return obj.head(5)._repr_html_()
+            suffix = ""
+            if len(obj) > 5:
+                suffix = f"<br>(showing top 5 of {len(obj)} rows)"
+            return obj.head(5)._repr_html_() + suffix
         if isinstance(obj, (LayoutDOM, Figure)):
             show_bokeh(obj)
         if hasattr(obj, "_repr_html_"):

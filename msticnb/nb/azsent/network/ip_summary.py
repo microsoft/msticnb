@@ -247,7 +247,10 @@ class IpAddressSummary(Notebooklet):
             _get_heartbeat(qry_prov=self.query_provider, src_ip=value, result=result)
         if "vmcomputer" in self.options and self.check_table_exists("VMComputer"):
             _get_vmcomputer(qry_prov=self.query_provider, src_ip=value, result=result)
-        _populate_host_entity(result)
+        geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
+            "ipstacklookup"
+        )
+        _populate_host_entity(result, geo_lookup=geo_lookup)
         if not result.host_entity:
             result.host_entity = Host(HostName="unknown")
 
@@ -620,13 +623,14 @@ def _get_vmcomputer(qry_prov, src_ip, result):
         nb_markdown("Could not get VMComputer record")
 
 
-def _populate_host_entity(result):
+def _populate_host_entity(result, geo_lookup=None):
     """Populate host entity and IP address details."""
     result.host_entity = populate_host_entity(
         heartbeat_df=result.heartbeat,
         az_net_df=result.az_network_if,
         vmcomputer_df=result.vmcomputer,
         host_entity=result.host_entity,
+        geo_lookup=geo_lookup,
     )
 
 

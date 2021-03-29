@@ -17,7 +17,6 @@ from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
 from msticpy.nbtools.nbdisplay import format_alert
 from msticpy.nbtools.nbwidgets import SelectAlert
 from msticpy.nbtools.security_alert import SecurityAlert
-from msticpy.sectools.ip_utils import convert_to_ip_entities
 
 from ...._version import VERSION
 from ....common import (
@@ -29,6 +28,7 @@ from ....common import (
 )
 from ....nb_metadata import read_mod_metadata
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
+from ....nblib.iptools import convert_to_ip_entities
 
 __version__ = VERSION
 __author__ = "Pete Bryan"
@@ -191,8 +191,15 @@ class EnrichAlerts(Notebooklet):
                 .hide_index()
             )
         if "details" in self.options:
+            geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
+                "ipstacklookup"
+            )
             self._last_result.picker = _alert_picker(
-                data, ti_prov, secondary=ti_sec, silent=self.silent
+                data,
+                ti_prov,
+                secondary=ti_sec,
+                silent=self.silent,
+                geo_lookup=geo_lookup,
             )
         self._last_result.enriched_results = data
 
@@ -202,7 +209,7 @@ class EnrichAlerts(Notebooklet):
 # %%
 # Display Alert Picker
 @set_text(docs=_CELL_DOCS, key="select_alert")
-def _alert_picker(data, ti_prov, secondary, silent: bool):
+def _alert_picker(data, ti_prov, secondary, silent: bool, geo_lookup: Any = None):
     ti_provs = "primary"
     if secondary is True:
         ti_provs = "all"
@@ -233,7 +240,11 @@ def _alert_picker(data, ti_prov, secondary, silent: bool):
                 # If we have IP entities try and plot these on a map
                 if not ti_ips.empty:
                     ip_ents = [
-                        convert_to_ip_entities(i)[0] for i in ti_ips["Ioc"].unique()
+                        convert_to_ip_entities(i, geo_lookup=geo_lookup)
+                        for i in ti_ips["Ioc"].unique()
+                    ]
+                    ip_ents = [
+                        ip_ent for ip_ent_list in ip_ents for ip_ent in ip_ent_list
                     ]
                     center = get_center_ip_entities(ip_ents)
                     ip_map = FoliumMap(location=center, zoom_start=4)
