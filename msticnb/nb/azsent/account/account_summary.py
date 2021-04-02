@@ -788,6 +788,7 @@ def _create_host_ip_group(data, host_column, ip_column):
     )
 
 
+# pylint: disable=too-many-branches
 def _create_host_entities(data, geoip):
     """Create Host and IP Entities with GeoIP info."""
     for row in data.itertuples():
@@ -816,6 +817,9 @@ def _create_host_entities(data, geoip):
                 host_ent.IpAddresses.append(ip_ent)
 
         yield host_ent
+
+
+# pylint: enable=too-many-branches
 
 
 def _create_aad_account_entity(
