@@ -163,10 +163,18 @@ class AccountSummary(Notebooklet):
       retrieves any alerts and hunting bookmarks related to the account
     - The alerts and bookmarks are browseable using the `browse_alerts`
       and `browse_bookmarks` methods
-    - You can call the `find_additional_data` method to retrieve and
+    - You can call the `get_additional_data` method to retrieve and
       display more detailed activity information for the account.
 
-    All of these data items are
+    All of the returned data items are stored in the results class
+    as entities, pandas DataFrames or Bokeh visualizations.
+    Run help(nblt) on the notebooklet class to see usage.
+    Run help(result) on the result class to see documentation of its
+    properties.
+    Run the print_options() method on either the notebooklet or
+    results class to see information about the `options` parameter
+    for the run() method.
+
     """
 
     # assign metadata from YAML to class variable
@@ -784,26 +792,30 @@ def _create_host_entities(data, geoip):
     """Create Host and IP Entities with GeoIP info."""
     for row in data.itertuples():
         host, ip_addr = row.Index
-        if host:
-            host_ent = entities.Host(HostName=host)
-            if ip_addr:
-                _, ip_entities = geoip.lookup_ip(ip_addr) if geoip else (None, [])
-                if not ip_entities:
-                    host_ent.IpAddress = entities.IpAddress(Address=ip_addr)
-                    host_ent.IpAddress.FirstSeen = row.FirstSeen
-                    host_ent.IpAddress.LastSeen = row.LastSeen
-                elif len(ip_entities) == 1:
-                    host_ent.IpAddress = ip_entities[0]
-                    host_ent.IpAddress.FirstSeen = row.FirstSeen
-                    host_ent.IpAddress.LastSeen = row.LastSeen
-                else:
-                    host_ent.IpAddresses = []
-                    for ip_ent in ip_entities:
-                        ip_ent.FirstSeen = row.FirstSeen
-                        ip_ent.LastSeen = row.LastSeen
-                        host_ent.IpAddresses.append(ip_ent)
-
+        if not host:
+            continue
+        host_ent = entities.Host(HostName=host)
+        if not ip_addr:
             yield host_ent
+            continue
+        # If we have an IP address - get the IpAddress entity(ies)
+        _, ip_entities = geoip.lookup_ip(ip_addr) if geoip else (None, [])
+        if not ip_entities:
+            host_ent.IpAddress = entities.IpAddress(Address=ip_addr)
+            host_ent.IpAddress.FirstSeen = row.FirstSeen
+            host_ent.IpAddress.LastSeen = row.LastSeen
+        elif len(ip_entities) == 1:
+            host_ent.IpAddress = ip_entities[0]
+            host_ent.IpAddress.FirstSeen = row.FirstSeen
+            host_ent.IpAddress.LastSeen = row.LastSeen
+        else:
+            host_ent.IpAddresses = []
+            for ip_ent in ip_entities:
+                ip_ent.FirstSeen = row.FirstSeen
+                ip_ent.LastSeen = row.LastSeen
+                host_ent.IpAddresses.append(ip_ent)
+
+        yield host_ent
 
 
 def _create_aad_account_entity(

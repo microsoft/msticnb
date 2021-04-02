@@ -169,7 +169,8 @@ class IpAddressSummary(Notebooklet):
     - WhoIs and Geo-location
     - Azure activity and network data (optional)
     - Office activity summary (optional)
-    - TODO
+    - Threat intelligence reports
+    - Related alerts and hunting bookmarks
 
     """
 

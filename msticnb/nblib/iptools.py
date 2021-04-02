@@ -270,10 +270,14 @@ def convert_to_ip_entities(  # noqa: MC0001
             ip_entity = IpAddress(Address=ip_addr)
 
             if geo_lookup:
+                # pylint: disable=broad-except
+                # lookup_ip might raise a number of exception types
+                # we - just want to ignore here
                 try:
                     geo_lookup.lookup_ip(ip_entity=ip_entity)
-                except Exception:  # pylint: disable=broad-except
+                except Exception:  # nosec
                     pass
+                # pylint: disable=broad-except
             ip_entities.append(ip_entity)
     return ip_entities
 

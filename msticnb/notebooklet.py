@@ -321,7 +321,7 @@ class Notebooklet(ABC):
     @classmethod
     def list_options(cls) -> str:
         """
-        Return default options for Notebooklet run function.
+        Return options document for Notebooklet run function.
 
         Returns
         -------
@@ -330,6 +330,11 @@ class Notebooklet(ABC):
 
         """
         return cls.metadata.options_doc
+
+    @classmethod
+    def print_options(cls):
+        """Print options for Notebooklet run function."""
+        print(cls.metadata.options_doc)
 
     @classmethod
     def keywords(cls) -> List[str]:
