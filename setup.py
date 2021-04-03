@@ -9,21 +9,8 @@ import re
 import setuptools
 
 
-INSTALL_REQUIRES = [
-    "attrs>=18.2.0",
-    "deprecated>=1.2.4",
-    "ipython>=7.2.0",
-    "ipywidgets>=7.4.2",
-    "markdown",
-    "msticpy>=0.4.0",
-    "numpy>=1.15.4",
-    "pandas>=0.25.0",
-    "pyyaml>=3.13",
-    "requests>=2.21.1",
-    "setuptools>=40.6.3",
-    "typing>=3.6.6",
-]
-
+with open("requirements.txt", "r") as fh:
+    INSTALL_REQUIRES = fh.readlines()
 
 # pylint: disable=locally-disabled, invalid-name
 with open("README.md", "r") as fh:

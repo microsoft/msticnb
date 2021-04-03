@@ -6,17 +6,16 @@
 """host_network_summary notebooklet."""
 from collections import namedtuple
 from functools import lru_cache
-from typing import Dict
+from typing import Any, Dict, List, Set
 
 import pandas as pd
+from msticpy.common.timespan import TimeSpan
 from msticpy.data import QueryProvider
-from msticpy.nbtools import entities
-from msticpy.sectools.ip_utils import convert_to_ip_entities
-
-from ...common import nb_data_wait, TimeSpan, MsticnbMissingParameterError, nb_print
-
+from msticpy.datamodel import entities
 
 from ..._version import VERSION
+from ...common import MsticnbMissingParameterError, nb_data_wait, nb_print, df_has_data
+from ..iptools import convert_to_ip_entities
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -52,7 +51,7 @@ def get_heartbeat(
             host_hb_df = qry_prov.Network.get_heartbeat_for_host(host_name=host_name)
         elif host_ip:
             host_hb_df = qry_prov.Network.get_heartbeat_for_ip(ip_address=host_ip)
-        if host_hb_df is not None and not host_hb_df.empty:
+        if df_has_data(host_hb_df):
             host_entity = populate_host_entity(heartbeat_df=host_hb_df)
 
     return host_entity
@@ -84,26 +83,17 @@ def get_aznet_topology(
 
     """
     if "AzureNetworkAnalytics_CL" not in qry_prov.schema_tables:
-        return
+        return None
     nb_data_wait("AzureNetworkAnalytics")
+    az_net_df = None
     if host_name:
         az_net_df = qry_prov.Network.get_ips_for_host(host_name=host_name)
     elif host_ip:
         az_net_df = qry_prov.Network.host_for_ip(ip_address=host_ip)
 
-    if not az_net_df.empty:
-        host_entity.private_ips = convert_to_ip_entities(
-            az_net_df["PrivateIPAddresses"].iloc[0]
-        )
-        host_entity.public_ips = convert_to_ip_entities(
-            az_net_df["PublicIPAddresses"].iloc[0]
-        )
-
-    else:
-        if "private_ips" not in host_entity:
-            host_entity.private_ips = []
-        if "public_ips" not in host_entity:
-            host_entity.public_ips = []
+    if df_has_data(az_net_df):
+        host_entity = populate_host_entity(az_net_df=az_net_df, host_entity=host_entity)
+    return host_entity
 
 
 HostNameVerif = namedtuple("HostNameVerif", "host_name, host_type, host_names")
@@ -200,9 +190,11 @@ def verify_host_name(
 # %%
 # Populate or create a host entity from Heartbeat and Azure Topology information
 def populate_host_entity(
-    heartbeat_df: pd.DataFrame,
+    heartbeat_df: pd.DataFrame = None,
     az_net_df: pd.DataFrame = None,
+    vmcomputer_df: pd.DataFrame = None,
     host_entity: entities.Host = None,
+    geo_lookup: Any = None,
 ) -> entities.Host:
     """
     Populate host with IP and other data.
@@ -213,9 +205,13 @@ def populate_host_entity(
         A dataframe of heartbeat data for the host
     az_net_df : pd.DataFrame
         Optional dataframe of Azure network data for the host
+    vmcomputer_df : pd.DataFrame
+        Optional dataframe of VMComputer data for the host
     host_entity : Host
         Host entity in which to populate data. By default,
         a new host entity will be created.
+    geo_lookup : Any
+        GeoIP Provider to use, if needed.
 
     Returns
     -------
@@ -226,16 +222,75 @@ def populate_host_entity(
     if host_entity is None:
         host_entity = entities.Host()
 
+    ip_entities: List[entities.IpAddress] = []
+    ip_unique: Set[str] = set()
     # Extract data from available dataframes
-    ip_hb = heartbeat_df.iloc[0]
+    if df_has_data(heartbeat_df):
+        ip_hb = heartbeat_df.iloc[0]  # type: ignore
+        ip_entity = _extract_heartbeat(ip_hb, host_entity)
+        ip_entities.append(ip_entity)
+        ip_unique.add(ip_entity.Address)
+
+    if df_has_data(vmcomputer_df):
+        ip_vm = vmcomputer_df.iloc[0]  # type: ignore
+        _extract_vmcomputer(ip_vm, host_entity)
+        ip_ents = convert_to_ip_entities(
+            data=vmcomputer_df, ip_col="Ipv4Addresses", geo_lookup=geo_lookup
+        )
+        ip_entities.extend(
+            ip_ent for ip_ent in ip_ents if ip_ent.Address not in ip_unique
+        )
+        ip_unique |= {ip_ent.Address for ip_ent in ip_ents}
+        ip_ents = convert_to_ip_entities(
+            data=vmcomputer_df, ip_col="Ipv6Addresses", geo_lookup=geo_lookup
+        )
+        ip_entities.extend(
+            ip_ent for ip_ent in ip_ents if ip_ent.Address not in ip_unique
+        )
+        ip_unique |= {ip_ent.Address for ip_ent in ip_ents}
+
+    # If Azure network data present add this to host record
+    if df_has_data(az_net_df):
+        if not host_entity.HostName:
+            host_entity.HostName = az_net_df.iloc[0].Computer  # type: ignore
+        ip_priv = convert_to_ip_entities(
+            data=az_net_df, ip_col="PrivateIPAddresses", geo_lookup=geo_lookup
+        )
+        ip_pub = convert_to_ip_entities(
+            data=az_net_df, ip_col="PublicIPAddresses", geo_lookup=geo_lookup
+        )
+        host_entity["PrivateIpAddresses"] = []
+        host_entity["PrivateIpAddresses"].extend(
+            ip_ent for ip_ent in ip_priv if ip_ent.Address not in ip_unique
+        )
+        host_entity["PublicIpAddresses"] = []
+        host_entity["PublicIpAddresses"].extend(
+            ip_ent for ip_ent in ip_pub if ip_ent.Address not in ip_unique
+        )
+        ip_entities.extend(host_entity["PrivateIpAddresses"])
+        ip_entities.extend(host_entity["PublicIpAddresses"])
+
+    host_entity["IpAddresses"] = ip_entities
+    if not hasattr(host_entity, "IpAddress") and len(ip_entities) == 1:
+        host_entity["IpAddress"] = ip_entities[0]
+
+    return host_entity
+
+
+def _extract_heartbeat(ip_hb, host_entity):
     if not host_entity.HostName:
         host_entity.HostName = ip_hb["Computer"]  # type: ignore
     host_entity.SourceComputerId = ip_hb["SourceComputerId"]  # type: ignore
-    host_entity.OSType = ip_hb["OSType"]  # type: ignore
+    host_entity.OSFamily = (
+        entities.OSFamily.Windows
+        if ip_hb["OSType"] == "Windows"
+        else entities.OSFamily.Linux
+    )
     host_entity.OSName = ip_hb["OSName"]  # type: ignore
     host_entity.OSVMajorVersion = ip_hb["OSMajorVersion"]  # type: ignore
     host_entity.OSVMinorVersion = ip_hb["OSMinorVersion"]  # type: ignore
     host_entity.Environment = ip_hb["ComputerEnvironment"]  # type: ignore
+    host_entity.AgentId = ip_hb["SourceComputerId"]
     host_entity.OmsSolutions = [  # type: ignore
         sol.strip() for sol in ip_hb["Solutions"].split(",")
     ]
@@ -247,7 +302,6 @@ def populate_host_entity(
             "ResourceType": ip_hb["ResourceType"],
             "ResourceGroup": ip_hb["ResourceGroup"],
             "ResourceId": ip_hb["ResourceId"],
-            "Solutions": ip_hb["Solutions"],
         }
 
     # Populate IP data
@@ -257,19 +311,27 @@ def populate_host_entity(
     geoloc_entity.Longitude = ip_hb["RemoteIPLongitude"]  # type: ignore
     geoloc_entity.Latitude = ip_hb["RemoteIPLatitude"]  # type: ignore
     ip_entity.Location = geoloc_entity  # type: ignore
-    host_entity.IPAddress = ip_entity  # type: ignore
+    host_entity.IpAddress = ip_entity  # type: ignore
+    return ip_entity
 
-    # If Azure network data present add this to host record
-    if az_net_df is not None and not az_net_df.empty:
-        if len(az_net_df) == 1:
-            priv_addr_str = az_net_df["PrivateIPAddresses"].loc[0]
-            ip_entity["private_ips"] = convert_to_ip_entities(priv_addr_str)
-            pub_addr_str = az_net_df["PublicIPAddresses"].loc[0]
-            ip_entity["public_ips"] = convert_to_ip_entities(pub_addr_str)
-        else:
-            if "private_ips" not in ip_entity:
-                host_entity["private_ips"] = []
-            if "public_ips" not in ip_entity:
-                host_entity["public_ips"] = []
 
-    return host_entity
+def _extract_vmcomputer(ip_vm, host_entity):
+    if not host_entity.HostName:
+        host_entity.HostName = ip_vm["Computer"]  # type: ignore
+    host_entity.OSFamily = (
+        entities.OSFamily.Windows
+        if ip_vm["OperatingSystemFamily"].casefold() == "windows"
+        else entities.OSFamily.Linux
+    )
+    host_entity.OSName = ip_vm["OperatingSystemFullName"]  # type: ignore
+    host_entity.Environment = "Azure"  # type: ignore
+    host_entity.AgentId = ip_vm["AgentId"]
+    host_entity.VMUUID = ip_vm["AzureVmId"]  # type: ignore
+    if host_entity.Environment == "Azure":
+        host_entity.AzureDetails = {  # type: ignore
+            "SubscriptionId": ip_vm["AzureSubscriptionId"],
+            "ResourceProvider": ip_vm["HostingProvider"],
+            "ResourceType": ip_vm["VirtualMachineType"],
+            "ResourceGroup": ip_vm["AzureResourceGroup"],
+            "ResourceId": ip_vm["_ResourceId"],
+        }

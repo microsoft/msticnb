@@ -5,52 +5,50 @@
 # --------------------------------------------------------------------------
 """read_modules test class."""
 from pathlib import Path
-import unittest
 
+import pytest_check as check
 from msticnb.read_modules import discover_modules, Notebooklet, find, nblts, nb_index
 from .unit_test_lib import TEST_DATA_PATH
 
 
-class TestReadModules(unittest.TestCase):
-    """Unit test class."""
+def test_read_modules():
+    """Test method."""
+    nbklts = discover_modules()
+    check.greater_equal(len(list(nbklts.iter_classes())), 4)
 
-    def test_read_modules(self):
-        """Test method."""
-        nbklts = discover_modules()
-        self.assertGreaterEqual(len(list(nbklts.iter_classes())), 4)
+    # pylint: disable=no-member
+    match, m_count = nblts.azsent.host.HostSummary.match_terms("host, linux, azure")
+    check.is_true(match)
+    check.equal(m_count, 3)
 
-        # pylint: disable=no-member
-        match, m_count = nblts.azsent.host.HostSummary.match_terms("host, linux, azure")
-        self.assertTrue(match)
-        self.assertEqual(m_count, 3)
+    for key, value in nbklts.iter_classes():
+        check.is_instance(key, str)
+        check.is_true(issubclass(value, Notebooklet))
 
-        for key, value in nbklts.iter_classes():
-            self.assertIsInstance(key, str)
-            self.assertTrue(issubclass(value, Notebooklet))
+    find_res = find("host windows azure")
+    check.greater(len(find_res), 0)
+    not_found = find("monkey stew")
+    check.equal(len(not_found), 0)
 
-        find_res = find("host windows azure")
-        self.assertGreater(len(find_res), 0)
-        not_found = find("monkey stew")
-        self.assertEqual(len(not_found), 0)
 
-    def test_read_custom_path(self):
-        """Test method."""
-        cust_nb_path = Path(TEST_DATA_PATH) / "custom_nb"
-        nbklts = discover_modules(nb_path=str(cust_nb_path))
-        self.assertGreaterEqual(len(list(nbklts.iter_classes())), 5)
+def test_read_custom_path():
+    """Test method."""
+    cust_nb_path = Path(TEST_DATA_PATH) / "custom_nb"
+    nbklts = discover_modules(nb_path=str(cust_nb_path))
+    check.greater_equal(len(list(nbklts.iter_classes())), 5)
 
-        # pylint: disable=no-member
-        match, m_count = nblts.custom_nb.host.CustomNB.match_terms("Custom")
-        self.assertTrue(match)
-        self.assertEqual(m_count, 1)
+    # pylint: disable=no-member
+    match, m_count = nblts.custom_nb.host.CustomNB.match_terms("Custom")
+    check.is_true(match)
+    check.equal(m_count, 1)
 
-        for key, value in nbklts.iter_classes():
-            self.assertIsInstance(key, str)
-            self.assertTrue(issubclass(value, Notebooklet))
+    for key, value in nbklts.iter_classes():
+        check.is_instance(key, str)
+        check.is_true(issubclass(value, Notebooklet))
 
-        find_res = find("banana")
-        self.assertEqual(len(find_res), 1)
-        find_res = find("<<Test Marker>>")
-        self.assertEqual(len(find_res), 1)
-        self.assertEqual(find_res[0][0], "CustomNB")
-        self.assertIn("nblts.host.CustomNB", nb_index)
+    find_res = find("banana")
+    check.equal(len(find_res), 1)
+    find_res = find("<<Test Marker>>")
+    check.equal(len(find_res), 1)
+    check.equal(find_res[0][0], "CustomNB")
+    check.is_in("nblts.host.CustomNB", nb_index)

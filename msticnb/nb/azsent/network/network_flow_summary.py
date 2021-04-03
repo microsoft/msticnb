@@ -6,32 +6,30 @@
 """Notebooklet for Network Flow Summary."""
 from ipaddress import ip_address
 from itertools import chain
-from typing import Any, Optional, Iterable, Tuple, Dict
+from typing import Any, Dict, Iterable, Optional, Tuple
 
-import attr
+import numpy as np
+import pandas as pd
 from bokeh.plotting.figure import Figure
 from IPython.display import display
-import pandas as pd
-
-from msticpy.nbtools import nbwidgets, nbdisplay
-from msticpy.nbtools import entities, foliummap
-from msticpy.sectools.ip_utils import get_whois_df, get_whois_info, get_ip_type
+from msticpy.common.timespan import TimeSpan
+from msticpy.datamodel import entities
+from msticpy.nbtools import foliummap, nbdisplay, nbwidgets
+from msticpy.sectools.ip_utils import get_ip_type, get_whois_df, get_whois_info
 from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
 
+from .... import nb_metadata
+from ...._version import VERSION
 from ....common import (
-    TimeSpan,
     MsticnbMissingParameterError,
     nb_data_wait,
-    set_text,
     nb_markdown,
     nb_warn,
+    set_text,
 )
 from ....data_providers import DataProviders
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from ....nblib.azsent.host import get_heartbeat, get_aznet_topology
-from .... import nb_metadata
-
-from ...._version import VERSION
+from ....nblib.azsent.host import get_aznet_topology, get_heartbeat
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -43,7 +41,6 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
-@attr.s(auto_attribs=True)
 class NetworkFlowResult(NotebookletResult):
     """
     Network Flow Details Results.
@@ -78,17 +75,37 @@ class NetworkFlowResult(NotebookletResult):
 
     """
 
-    description: str = "Network flow results"
-    host_entity: entities.Host = None
-    network_flows: pd.DataFrame = None
-    plot_flows_by_protocol: Figure = None
-    plot_flows_by_direction: Figure = None
-    plot_flow_values: Figure = None
-    flow_index: pd.DataFrame = None
-    flow_index_data: pd.DataFrame = None
-    flow_summary: pd.DataFrame = None
-    ti_results: pd.DataFrame = None
-    geo_map: foliummap.FoliumMap = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.description: str = "Network flow results"
+        self.host_entity: entities.Host = None
+        self.network_flows: pd.DataFrame = None
+        self.plot_flows_by_protocol: Figure = None
+        self.plot_flows_by_direction: Figure = None
+        self.plot_flow_values: Figure = None
+        self.flow_index: pd.DataFrame = None
+        self.flow_index_data: pd.DataFrame = None
+        self.flow_summary: pd.DataFrame = None
+        self.ti_results: pd.DataFrame = None
+        self.geo_map: foliummap.FoliumMap = None
 
 
 class NetworkFlowSummary(Notebooklet):
@@ -195,9 +212,9 @@ class NetworkFlowSummary(Notebooklet):
         if not timespan:
             raise MsticnbMissingParameterError("timespan.")
 
-        result = NetworkFlowResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = NetworkFlowResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         if isinstance(value, entities.Host):
             host_name = value.HostName
@@ -210,15 +227,17 @@ class NetworkFlowSummary(Notebooklet):
             )
 
         result.description = (
-            "Network flow summary for " + host_name or host_ip  # type: ignore
-        )
+            f"Network flow summary for {host_name or host_ip or 'unknown'}"
+        )  # type: ignore
 
         flow_df = _get_az_net_flows(
             self.query_provider, self.timespan, host_ip, host_name
         )
         result.network_flows = flow_df
 
-        if "resolve_host" in self.options:
+        if "resolve_host" in self.options or not hasattr(
+            result.host_entity, "IpAddress"
+        ):
             result.host_entity = _get_host_details(
                 qry_prov=self.query_provider, host_entity=result.host_entity
             )
@@ -238,9 +257,12 @@ class NetworkFlowSummary(Notebooklet):
                 display(result.flow_summary)
             result.flow_index_data = flow_index
         if "geo_map" in self.options and flow_index is not None:
+            geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
+                "ipstacklookup"
+            )
             result.geo_map = _display_geo_map_all(
                 flow_index=flow_index,
-                ip_locator=self.data_providers["geolitelookup"],
+                ip_locator=geo_lookup,
                 host_entity=result.host_entity,
             )
             if not self.silent:
@@ -291,12 +313,11 @@ class NetworkFlowSummary(Notebooklet):
         selected_ips = _get_ips_from_selected_asn(
             flow_sum_df=self._last_result.flow_summary, select_asn=self.asn_selector
         )
-        ti_results = _lookup_ip_ti(
-            flows_df=self._last_result.flow_summary,
+        self._last_result.ti_results = _lookup_ip_ti(
+            flows_df=self._last_result.flow_index_data,
             selected_ips=selected_ips,
             ti_lookup=self.data_providers["tilookup"],
         )
-        self._last_result.ti_results = ti_results
 
     def show_selected_asn_map(self) -> foliummap.FoliumMap:
         """
@@ -320,9 +341,12 @@ class NetworkFlowSummary(Notebooklet):
                 "\nThen call 'show_selected_asn_map()'",
             )
             return None
+        geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
+            "ipstacklookup"
+        )
         geo_map = _display_geo_map(
-            flow_index=self._last_result.flow_index_data,
-            ip_locator=self.data_providers["geolitelookup"],
+            flow_index=self._last_result.flow_summary,
+            ip_locator=geo_lookup,
             host_entity=self._last_result.host_entity,
             ti_results=self._last_result.ti_results,
             select_asn=self.asn_selector,
@@ -457,13 +481,13 @@ def _extract_flow_ips(flow_df):
 
     def get_source_ip(row):
         if row.FlowDirection == "O":
-            return row.VMIPAddress if row.VMIPAddress else row.SrcIP
-        return row.AllExtIPs if row.AllExtIPs else row.DestIP
+            return row.VMIPAddress or row.SrcIP
+        return row.AllExtIPs or row.DestIP
 
     def get_dest_ip(row):
         if row.FlowDirection == "O":
-            return row.AllExtIPs if row.AllExtIPs else row.DestIP
-        return row.VMIPAddress if row.VMIPAddress else row.SrcIP
+            return row.AllExtIPs or row.DestIP
+        return row.VMIPAddress or row.SrcIP
 
     flow_index["source"] = flow_index.apply(get_source_ip, axis=1)
     flow_index["dest"] = flow_index.apply(get_dest_ip, axis=1)
@@ -473,7 +497,7 @@ def _extract_flow_ips(flow_df):
 
 @set_text(docs=_CELL_DOCS, key="get_flow_index")
 def _get_flow_index(flow_summary_df):
-    flow_index_df = (
+    return (
         flow_summary_df[
             ["source", "dest", "L7Protocol", "FlowDirection", "TotalAllowedFlows"]
         ]
@@ -482,7 +506,6 @@ def _get_flow_index(flow_summary_df):
         .reset_index()
         .style.bar(subset=["TotalAllowedFlows"], color="#d65f5f")
     )
-    return flow_index_df
 
 
 # %%
@@ -517,7 +540,7 @@ def _get_flow_summary(flow_index):
         show_progress=True,
     )
 
-    flow_sum_df = (
+    return (
         flows_df.groupby(["DestASN", "SourceASN"])
         .agg(
             TotalAllowedFlows=pd.NamedAgg(column="TotalAllowedFlows", aggfunc="sum"),
@@ -531,19 +554,20 @@ def _get_flow_summary(flow_index):
         )
         .reset_index()
     )
-    return flow_sum_df
 
 
 # %%
 # ASN Selection
 def _get_source_host_asns(host_entity):
-    host_ips = getattr(host_entity, "public_ips", [])
+    host_ips = getattr(host_entity, "PublicIpAddresses", [])
     host_ips.append(getattr(host_entity, "IpAddress", None))
     host_asns = []
-    for host_ip in host_ips:
-        if get_ip_type(host_ip) == "Public":
-            host_ip.ASNDescription, host_ip.ASNDetails = get_whois_info(host_ip)
-            host_asns.append(host_ip.ASNDescription)
+    for ip_entity in host_ips:
+        if get_ip_type(ip_entity.Address) == "Public":
+            ip_entity.ASNDescription, ip_entity.ASNDetails = get_whois_info(
+                ip_entity.Address
+            )
+            host_asns.append(ip_entity.ASNDescription)
     return host_asns
 
 
@@ -613,7 +637,7 @@ def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
             "bold, large",
         )
         return ti_ip_results
-    return None
+    return pd.DataFrame(columns=["Ioc"])
 
 
 # %%
@@ -621,7 +645,8 @@ def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
 def _format_ip_entity(ip_loc, row, ip_col):
     ip_entity = entities.IpAddress(Address=row[ip_col])
     ip_loc.lookup_ip(ip_entity=ip_entity)
-    ip_entity.AdditionalData["protocol"] = row.L7Protocol
+    if "L7Protocol" in row:
+        ip_entity.AdditionalData["protocol"] = row.L7Protocol
     if "severity" in row:
         ip_entity.AdditionalData["threat severity"] = row["severity"]
     if "Details" in row:
@@ -629,6 +654,7 @@ def _format_ip_entity(ip_loc, row, ip_col):
     return ip_entity
 
 
+# pylint: disable=too-many-branches
 @set_text(docs=_CELL_DOCS, key="display_geo_map_all")
 def _display_geo_map_all(flow_index, ip_locator, host_entity):
     folium_map = foliummap.FoliumMap(zoom_start=4)
@@ -661,9 +687,14 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
         )
 
     icon_props = {"color": "green"}
-    for ips in host_entity.public_ips:
-        ips.AdditionalData["host"] = host_entity.HostName
-    folium_map.add_ip_cluster(ip_entities=host_entity.public_ips, **icon_props)
+    host_ips = getattr(host_entity, "PublicIpAddresses", [])
+    host_ip = getattr(host_entity, "IpAddress", None)
+    if host_ip:
+        host_ips.append(host_ip)
+    if host_ips:
+        for ips in host_ips:
+            ips.AdditionalData["host"] = host_entity.HostName or "unknown hostname"
+        folium_map.add_ip_cluster(ip_entities=host_ips, **icon_props)
     icon_props = {"color": "blue"}
     folium_map.add_ip_cluster(ip_entities=ips_out, **icon_props)
     icon_props = {"color": "purple"}
@@ -672,7 +703,10 @@ def _display_geo_map_all(flow_index, ip_locator, host_entity):
     return folium_map
 
 
-# pylint: disable=too-many-branches
+# pylint: enable=too-many-branches
+
+
+# pylint: disable=too-many-branches, too-many-locals
 @set_text(docs=_CELL_DOCS, key="display_geo_map")
 def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn):
     folium_map = foliummap.FoliumMap(zoom_start=4)
@@ -683,34 +717,41 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     # Get the flow records for all flows not in the TI results
     selected_out = flow_index[flow_index["DestASN"].isin(select_asn.selected_items)]
     selected_in = flow_index[flow_index["SourceASN"].isin(select_asn.selected_items)]
-    if ti_results is not None and not ti_results.empty:
-        selected_out = selected_out[~selected_out["dest"].isin(ti_results["Ioc"])]
-        selected_in = selected_in[~selected_in["source"].isin(ti_results["Ioc"])]
+    sel_out_exp = _list_to_rows(selected_out, "dest_ips")
+    sel_in_exp = _list_to_rows(selected_in, "source_ips")
+    sel_out_exp = sel_out_exp[~sel_out_exp["dest_ips"].isin(ti_results["Ioc"])]
+    sel_in_exp = sel_in_exp[~sel_in_exp["source_ips"].isin(ti_results["Ioc"])]
 
-    if selected_out.empty:
+    if sel_out_exp.empty:
         ips_out = []
     else:
+
         nb_data_wait("IP Geolocation")
         ips_out = list(
-            selected_out.apply(
-                lambda x: _format_ip_entity(ip_locator, x, "dest"), axis=1
+            sel_out_exp.apply(
+                lambda x: _format_ip_entity(ip_locator, x, "dest_ips"), axis=1
             )
         )
 
-    if selected_in.empty:
+    if sel_in_exp.empty:
         ips_in = []
     else:
         nb_data_wait("IP Geolocation")
         ips_in = list(
-            selected_in.apply(
-                lambda x: _format_ip_entity(ip_locator, x, "source"), axis=1
+            sel_in_exp.apply(
+                lambda x: _format_ip_entity(ip_locator, x, "source_ips"), axis=1
             )
         )
 
     icon_props = {"color": "green"}
-    for ip_addr in host_entity.public_ips:
-        ip_addr.AdditionalData["host"] = host_entity.HostName
-    folium_map.add_ip_cluster(ip_entities=host_entity.public_ips, **icon_props)
+    host_ips = getattr(host_entity, "PublicIpAddresses", [])
+    host_ip = getattr(host_entity, "IpAddress", None)
+    if host_ip:
+        host_ips.append(host_ip)
+    if host_ips:
+        for ip_addr in host_ips:
+            ip_addr.AdditionalData["host"] = host_entity.HostName or "unknown hostname"
+        folium_map.add_ip_cluster(ip_entities=host_ips, **icon_props)
     icon_props = {"color": "blue"}
     folium_map.add_ip_cluster(ip_entities=ips_out, **icon_props)
     icon_props = {"color": "purple"}
@@ -724,3 +765,18 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     folium_map.center_map()
 
     return folium_map
+
+
+def _list_to_rows(data, col):
+    orig_cols = data.columns
+    item_col = f"{col}_list_item$$"
+    ren_col = {item_col: col}
+    return (
+        pd.DataFrame(data[col].to_list())
+        .replace([None], np.nan)  # convert any Nones to NaN
+        .merge(data, right_index=True, left_index=True)
+        .melt(id_vars=orig_cols, value_name=item_col)
+        .dropna(subset=[item_col])  # get rid of rows with NaNs in this col
+        .drop([col, "variable"], axis=1)
+        .rename(columns=ren_col)
+    )

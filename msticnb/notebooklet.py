@@ -4,151 +4,31 @@
 # license information.
 # --------------------------------------------------------------------------
 """Notebooklet base classes."""
-from abc import ABC, abstractmethod
 import inspect
 import re
-from typing import Optional, Any, Iterable, List, Tuple, Dict
 import warnings
+from abc import ABC, abstractmethod
+from functools import wraps
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-import attr
-from attr import Factory
-import bokeh.io
-from bokeh.models import LayoutDOM
-from bokeh.plotting.figure import Figure
-from IPython.core.getipython import get_ipython
-from IPython.display import display, HTML
 import pandas as pd
-from tqdm import tqdm
-
-from .common import TimeSpan, MsticnbDataProviderError, MsticnbError
-from .data_providers import DataProviders
-from .nb_metadata import NBMetadata, read_mod_metadata
-from .options import get_opt, set_opt
+from IPython.core.getipython import get_ipython
+from IPython.display import HTML, display
+from tqdm.auto import tqdm
+from msticpy.common.timespan import TimeSpan
 
 from ._version import VERSION
+from .common import MsticnbDataProviderError, MsticnbError
+from .data_providers import DataProviders
+from .nb_metadata import NBMetadata, read_mod_metadata
+from .notebooklet_result import NotebookletResult
+from .options import get_opt, set_opt
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-# pylint: disable=too-few-public-methods
-@attr.s(auto_attribs=True)
-class NotebookletResult:
-    """Base result class."""
-
-    description: str = "Notebooklet base class"
-    timespan: Optional[TimeSpan] = None
-    _attribute_desc: Dict[str, Tuple[str, str]] = Factory(dict)  # type: ignore
-
-    def __attrs_post_init__(self):
-        """Populate the `_attribute_desc` dictionary on init."""
-        if not self.description:
-            # pylint: disable=pointless-statement
-            self.description == self.__class__.__qualname__
-            # pylint: enable=pointless-statement
-        self._populate_attr_desc()
-
-    def __str__(self):
-        """Return string representation of object."""
-        return "\n".join(
-            [
-                f"{name}: {self._str_repr(val)}"
-                for name, val in attr.asdict(self).items()
-                if not name.startswith("_")
-            ]
-        )
-
-    @staticmethod
-    def _str_repr(obj):
-        if isinstance(obj, pd.DataFrame):
-            return f"DataFrame: {len(obj)} rows"
-        if isinstance(obj, LayoutDOM):
-            return "Bokeh plot"
-        return str(obj)
-
-    # pylint: disable=unsubscriptable-object, no-member
-    def _repr_html_(self):
-        """Display HTML represention for notebook."""
-        attrib_lines = []
-        for name, val in attr.asdict(self).items():
-            if name.startswith("_"):
-                continue
-            attr_desc = ""
-            attr_type, attr_text = self._attribute_desc.get(
-                name, (None, None)
-            )  # type: ignore
-            if attr_type:
-                attr_desc += f"[{attr_type}]<br>"
-            if attr_text:
-                attr_desc += f"{attr_text}<br>"
-            attrib_lines.append(f"<h4>{name}</h4>{attr_desc}{self._html_repr(val)}")
-        return "<br>".join(attrib_lines)
-
-    # pylint: enable=unsubscriptable-object, no-member
-
-    # pylint: disable=protected-access
-    @staticmethod
-    def _html_repr(obj):
-        if isinstance(obj, pd.DataFrame):
-            return obj.head(5)._repr_html_()
-        if isinstance(obj, (LayoutDOM, Figure)):
-            bokeh.io.show(obj)
-        if hasattr(obj, "_repr_html_"):
-            return obj._repr_html_()
-        return str(obj).replace("\n", "<br>").replace(" ", "&nbsp;")
-
-    # pylint: enable=protected-access
-
-    def _populate_attr_desc(self):
-        indent = " " * 4
-        in_attribs = False
-        attr_name = None
-        attr_type = None
-        attr_dict = {}
-        attr_lines = []
-        doc_str = inspect.cleandoc(self.__doc__)
-        for line in doc_str.split("\n"):
-            if line.strip() == "Attributes":
-                in_attribs = True
-                continue
-            if (
-                line.strip() == "-" * len("Attributes")
-                or not in_attribs
-                or not line.strip()
-            ):
-                continue
-            if not line.startswith(indent):
-                # if existing attribute, add to dict
-                if attr_name:
-                    attr_dict[attr_name] = attr_type, " ".join(attr_lines)
-                attr_name, attr_type = [item.strip() for item in line.split(":")]
-                attr_lines = []
-            else:
-                attr_lines.append(line.strip())
-        attr_dict[attr_name] = attr_type, " ".join(attr_lines)
-        if "timespan" not in attr_dict:
-            attr_dict["timespan"] = (
-                "TimeSpan",
-                "Time span for the queried results data.",
-            )
-        # pylint: disable=no-member
-        self._attribute_desc.update(attr_dict)  # type: ignore
-        # pylint: enable=no-member
-
-    @property
-    def properties(self):
-        """Return names of all properties."""
-        return [name for name, val in attr.asdict(self).items() if val is not None]
-
-    def prop_doc(self, name) -> Tuple[str, str]:
-        """Get the property documentation for the property."""
-        # pylint: disable=unsupported-membership-test, unsubscriptable-object
-        if name in self._attribute_desc:
-            return self._attribute_desc[name]
-        # pylint: enable=unsupported-membership-test, unsubscriptable-object
-        raise KeyError(f"Unknown property {name}.")
-
-
+# pylint: disable=too-many-public-methods
 class Notebooklet(ABC):
     """Base class for Notebooklets."""
 
@@ -292,7 +172,7 @@ class Notebooklet(ABC):
             if sub_options:
                 self.options = list(set(def_options) - sub_options)
             if add_options:
-                self.options = list(set(self.options) | add_options)
+                self.options = list(set(def_options) | add_options)
             if not (add_options or sub_options):
                 self.options = list(options)
         self._set_tqdm_notebook(get_opt("verbose"))
@@ -300,7 +180,18 @@ class Notebooklet(ABC):
             self.timespan = TimeSpan(timespan=timespan)
         elif "start" in kwargs and "end" in kwargs:
             self.timespan = TimeSpan(start=kwargs.get("start"), end=kwargs.get("end"))
-        return NotebookletResult()
+        return NotebookletResult(notebooklet=self)
+
+    def get_pivot_run(self, get_timespan: Callable[[], TimeSpan]):
+        """Return Pivot-wrappable run function."""
+
+        @wraps
+        def pivot_run(*args, **kwargs):
+            result = self.run(*args, timespan=get_timespan(), **kwargs)
+            setattr(result, "notebooklet", self)
+            return result
+
+        return pivot_run
 
     def get_provider(self, provider_name: str):
         """
@@ -430,7 +321,7 @@ class Notebooklet(ABC):
     @classmethod
     def list_options(cls) -> str:
         """
-        Return default options for Notebooklet run function.
+        Return options document for Notebooklet run function.
 
         Returns
         -------
@@ -439,6 +330,11 @@ class Notebooklet(ABC):
 
         """
         return cls.metadata.options_doc
+
+    @classmethod
+    def print_options(cls):
+        """Print options for Notebooklet run function."""
+        print(cls.metadata.options_doc)
 
     @classmethod
     def keywords(cls) -> List[str]:
@@ -514,13 +410,12 @@ class Notebooklet(ABC):
         """
         search_text = " ".join(cls.metadata.search_terms)
         search_text += cls.__doc__ or ""
-        match_count = 0
         terms = [
             subterm for term in search_terms.split(",") for subterm in term.split()
         ]
-        for term in terms:
-            if re.search(term, search_text, re.IGNORECASE):
-                match_count += 1
+        match_count = sum(
+            1 for term in terms if re.search(term, search_text, re.IGNORECASE)
+        )
 
         return (bool(match_count == len(terms)), match_count)
 
@@ -579,3 +474,80 @@ class Notebooklet(ABC):
         """Return documentation func. placeholder."""
         del fmt
         return "No documentation available."
+
+    def check_valid_result_data(self, attrib: str = None, silent: bool = False) -> bool:
+        """
+        Check that the result is valid and `attrib` contains data.
+
+        Parameters
+        ----------
+        attrib : str
+            Name of the attribute to check, if None this function
+            only checks for a valid _last_result.
+        silent : bool
+            If True, suppress output.
+
+        Returns
+        -------
+        bool
+            Returns True if valid data is available, else False.
+
+        """
+        if self._last_result is None:
+            if not silent:
+                print(
+                    "No current result."
+                    "Please use 'run()' to fetch the data before using this method."
+                )
+            return False
+        if not attrib:
+            return True
+        data_obj = getattr(self._last_result, attrib)
+        if data_obj is None or isinstance(data_obj, pd.DataFrame) and data_obj.empty:
+            if not silent:
+                print(f"No data is available for last_result.{attrib}.")
+            return False
+        return True
+
+    def check_table_exists(self, table: str) -> bool:
+        """
+        Check to see if the table exists in the provider.
+
+        Parameters
+        ----------
+        table : str
+            Table name
+
+        Returns
+        -------
+        bool
+            True if the table exists, otherwise False.
+
+        """
+        if not self.query_provider:
+            print(f"No query provider for table {table} is available.")
+            return False
+        if table not in self.query_provider.schema_tables:
+            print(f"table {table} is not available.")
+            return False
+        return True
+
+    def get_methods(self) -> Dict[str, Callable[[Any], Any]]:
+        """Return methods available for this class."""
+        meths = inspect.getmembers(self, inspect.ismethod)
+        cls_selector = f"bound method {self.__class__.__name__.rsplit('.')[0]}"
+        return {
+            meth[0]: meth[1]
+            for meth in meths
+            if cls_selector in str(meth[1]) and not meth[0].startswith("_")
+        }
+
+    def list_methods(self) -> List[str]:
+        """Return list of methods with descriptions."""
+        methods = self.get_methods()
+        method_desc: List[str] = []
+        for name, method in methods.items():
+            f_doc = inspect.getdoc(method)
+            desc = f_doc.split("\n", maxsplit=1)[0] if f_doc else ""
+            method_desc.append(f"{name} - '{desc}'")
+        return method_desc

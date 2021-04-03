@@ -4,22 +4,21 @@
 # license information.
 # --------------------------------------------------------------------------
 """Data Providers class and init function."""
-from collections import namedtuple
 import inspect
-from typing import Optional, List, Dict, Any, Iterable, Tuple
 import sys
+from collections import namedtuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
-from msticpy.data import QueryProvider
-from msticpy.data.query_defns import DataEnvironment
-from msticpy.data.azure_data import AzureData
-from msticpy.common.wsconfig import WorkspaceConfig
 from msticpy.common.exceptions import MsticpyAzureConfigError
-from msticpy.sectools import TILookup, GeoLiteLookup, IPStackLookup
-
-from .common import MsticnbDataProviderError, MsticnbError
-from .options import get_opt
+from msticpy.common.wsconfig import WorkspaceConfig
+from msticpy.data import QueryProvider
+from msticpy.data.azure_data import AzureData
+from msticpy.data.query_defns import DataEnvironment
+from msticpy.sectools import GeoLiteLookup, IPStackLookup, TILookup
 
 from ._version import VERSION
+from .common import MsticnbDataProviderError, MsticnbError
+from .options import get_opt
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -53,8 +52,8 @@ class SingletonDecorator:
         """Overide the __call__ method for the wrapper class."""
         if (
             self.instance is None
-            or self.instance.kwargs != kwargs
-            or self.instance.args != args
+            or getattr(self.instance, "kwargs", None) != kwargs
+            or getattr(self.instance, "args", None) != args
         ):
             self.instance = self.wrapped_cls(*args, **kwargs)
             self.instance.kwargs = kwargs
@@ -83,12 +82,12 @@ ProviderDefn = namedtuple("ProviderDefn", "prov_class, connect_reqd, get_config"
 class DataProviders:
     """Notebooklet DataProviders class."""
 
-    _default_providers = ["tilookup", "geolitelookup"]
-    _other_providers: List[str] = ["ipstacklookup"]
+    _DEFAULT_PROVIDERS = ["tilookup", "geolitelookup"]
+    _OTHER_PROVIDERS = ["ipstacklookup"]
 
     def __init__(
         self,
-        query_provider: str = "LogAnalytics",
+        query_provider: Union[str, QueryProvider] = "AzureSentinel",
         providers: Optional[List[str]] = None,
         **kwargs,
     ):
@@ -97,27 +96,27 @@ class DataProviders:
 
         Parameters
         ----------
-        query_provider : str, optional
-            DataEnvironment name of the primary query provider
+        query_provider : Union[str, QueryProvider], optional
+            DataEnvironment name of the primary query provider,
+            or an instance of an existing query provider,
+            by default "AzureSentinel"
         providers : Optional[List[str]], optional
-            A list of provider names, by default "azure_sentinel"
+            A list of provider names to load.
             You can add addtional query providers by including them
             in the `providers` list.
 
         Other Parameters
         ----------------
         kwargs
-            You can pass parameters to individual providers using
-            the following notation:
+            Pass parameters to individual providers using the following notation:
             `{provider_name}_{param_name}="param_value"
             Where `provider_name` is the name of the data provider,
             `param_name` is the parameter name expected by the
             provider and `param_value` is the value to assign to
             `param_name`. `param_value` can be any type.
 
-            Depending on the provider, these parameters (with the
-            prefix stripped) are sent to either the constructor or
-            `connect` method.
+            Depending on the provider, these parameters (with the prefix stripped)
+            are sent to either the constructor or the `connect` method.
 
         Notes
         -----
@@ -126,30 +125,20 @@ class DataProviders:
 
         """
         self.provider_names: set = self._get_custom_providers(providers)
-        parsed_provider = DataEnvironment.parse(query_provider)
-        if parsed_provider == DataEnvironment.Unknown:
-            known_providers = set(DataEnvironment.__members__.keys()) - {
-                "Unknown",
-                "Kusto",
-                "AzureSecurityCenter",
-            }
-            raise MsticnbDataProviderError(
-                f"Unknown query provider '{query_provider}",
-                f"Available providers are {', '.join(known_providers)}",
-            )
-        self.provider_names.add(parsed_provider.name)
+        self.provider_classes: Dict[str, ProviderDefn] = self._create_provider_defns()
         self.providers: Dict[str, Any] = {}
 
-        self.provider_classes: Dict[str, ProviderDefn] = {
-            "loganalytics": ProviderDefn(QueryProvider, True, self._azsent_get_config),
-            "queryprovider": ProviderDefn(QueryProvider, True, None),
-            "azuredata": ProviderDefn(AzureData, True, None),
-            "tilookup": ProviderDefn(TILookup, False, None),
-            "geolitelookup": ProviderDefn(GeoLiteLookup, False, None),
-            "ipstacklookup": ProviderDefn(IPStackLookup, False, None),
-        }
         self.query_provider = None
+        if isinstance(query_provider, str):
+            parsed_provider = self._parse_provider_name(query_provider)
+            self.provider_names.add(parsed_provider.name)
+        elif isinstance(query_provider, QueryProvider):
+            # If this is a query provider instance, just add it directly
+            self.query_provider = query_provider
+            parsed_provider = query_provider.environment
+            self.providers[parsed_provider] = query_provider
 
+        # Go through list of providers, instantiating and connecting them.
         for provider in sorted(self.provider_names):
             try:
                 self.add_provider(provider, **kwargs)
@@ -157,8 +146,12 @@ class DataProviders:
                 print(f"Data provider {provider} could not be added.")
                 print(err.args)
             else:
-                if provider in self.providers and provider == parsed_provider.name:
-                    # If this is the default query provider
+                if (
+                    provider in self.providers
+                    and not self.query_provider
+                    and provider == parsed_provider.name
+                ):
+                    # This is the default query provider
                     setattr(self, "query_provider", self.providers[provider])
 
     def __getitem__(self, key: str):
@@ -170,11 +163,42 @@ class DataProviders:
             return self.providers[alt_key]
         raise KeyError(key, "not found")
 
+    def _create_provider_defns(self):
+        """Definitions for provider construction."""
+        defns = {
+            "azuresentinel": ProviderDefn(QueryProvider, True, self._azsent_get_config),
+            "queryprovider": ProviderDefn(QueryProvider, True, None),
+            "azuredata": ProviderDefn(AzureData, True, None),
+            "tilookup": ProviderDefn(TILookup, False, None),
+            "geolitelookup": ProviderDefn(GeoLiteLookup, False, None),
+            "ipstacklookup": ProviderDefn(IPStackLookup, False, None),
+        }
+        # Add loganalytics as an alias for azuresentinel
+        defns["loganalytics"] = defns["azuresentinel"]
+        return defns
+
+    @staticmethod
+    def _parse_provider_name(query_provider):
+        parsed_provider = DataEnvironment.parse(query_provider)
+        # If we weren't able to match the name to a known provider, raise exception.
+        if parsed_provider == DataEnvironment.Unknown:
+            known_providers = set(DataEnvironment.__members__.keys()) - {
+                "Unknown",
+                "Kusto",
+                "AzureSecurityCenter",
+            }
+            raise MsticnbDataProviderError(
+                f"Unknown query provider '{query_provider}",
+                f"Available providers are {', '.join(known_providers)}",
+            )
+        return parsed_provider
+
     def _get_custom_providers(self, providers):
-        requested_provs = set(self._default_providers)
+        requested_provs = set(self._DEFAULT_PROVIDERS)
         if not providers:
             return requested_provs
 
+        providers = [prov.casefold() for prov in providers]
         add_provs = {opt[1:] for opt in providers if opt.startswith("+")}
         sub_provs = {opt[1:] for opt in providers if opt.startswith("-")}
         std_provs = {opt for opt in providers if opt[0] not in ("+", "-")}
@@ -292,8 +316,8 @@ class DataProviders:
         """
         providers = list(DataEnvironment.__members__.keys())
         providers.remove("Unknown")
-        providers.extend(cls._default_providers)
-        providers.extend(cls._other_providers)
+        providers.extend(cls._DEFAULT_PROVIDERS)
+        providers.extend(cls._OTHER_PROVIDERS)
         return providers
 
     # Provider initializers
@@ -309,7 +333,7 @@ class DataProviders:
             List of default providers.
 
         """
-        return cls._default_providers
+        return cls._DEFAULT_PROVIDERS
 
     def _query_prov(self, provider, provider_defn, **kwargs):
         try:
@@ -367,11 +391,9 @@ class DataProviders:
     def _get_connect_args(func, **kwargs):
         """Get the arguments required by the `connect` function."""
         connect_params = inspect.signature(func).parameters
-        connect_args = {}
-        for name, arg_val in kwargs.items():
-            if name in connect_params:
-                connect_args[name] = arg_val
-        return connect_args
+        return {
+            name: arg_val for name, arg_val in kwargs.items() if name in connect_params
+        }
 
     # Provider get_config functions
     @staticmethod
@@ -405,7 +427,7 @@ class DataProviders:
 
 
 def init(
-    query_provider: str = "LogAnalytics",
+    query_provider: str = "AzureSentinel",
     providers: Optional[List[str]] = None,
     **kwargs,
 ):
@@ -416,10 +438,11 @@ def init(
     ----------
     query_provider : str, optional
         DataEnvironment name of the primary query provider.
+        By default, "AzureSentinel".
         You can add addtional query providers by including them
         in the `providers` list.
     providers : Optional[List[str]], optional
-        A list of provider names, by default "LogAnalytics"
+        A list of provider names, by default None
 
     Other Parameters
     ----------------
@@ -443,6 +466,6 @@ def init(
 
     """
     d_provs = DataProviders(query_provider, providers, **kwargs)
-    print(f"Loaded providers: {', '.join(d_provs.providers.keys())}")
+    print(f"Notebooklets: Loaded providers: {', '.join(d_provs.providers.keys())}")
     msticnb = sys.modules["msticnb"]
     setattr(msticnb, "data_providers", d_provs.providers)

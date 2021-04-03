@@ -1,0 +1,66 @@
+metadata:
+  name: IpAddressSummary
+  description: IP Address Summary notebooklet
+  default_options:
+    - geoip: Get geo location information for IP address.
+    - alerts: Get any alerts listing the IP address.
+    - heartbeat: Get the latest heartbeat record for for this IP Address.
+    - az_net_if: Get the latest Azure network analytics interface data for this IP Address.
+    - vmcomputer: Get the latest VMComputer record for this IP Address.
+  other_options:
+    - bookmarks: Get any hunting bookmarks listing the IP address.
+    - az_netflow: Get netflow information from AzureNetworkAnalytics table.
+    - passive_dns: Force fetching passive DNS data from a TI Provider even if IP is internal.
+    - az_activity: AAD sign-ins and Azure Activity logs
+    - office_365: Office 365 activity
+    - ti: Force get threat intelligence reports even for internal public IPs.
+  keywords:
+    - ip
+    - IPAddress
+    - network
+  entity_types:
+    - ip_address
+  req_providers:
+    - AzureSentinel|LocalData
+    - tilookup
+    - geolitelookup|ipstacklookup
+output:
+  run:
+    title: IP Address summary
+    hd_level: 1
+    text:
+      Retrieving data for IP Address
+      Data and plots are stored in the result class returned by this function.
+    md: True
+  get_az_netflow:
+    title: Azure network analytics netflow data for IP.
+    text:
+      This is is a list of netflow events for the IP.
+      Timeline by protocol is available in the `result.az_network_flows_timeline`
+      property
+      - Use `nblt.netflow_total_by_protocol()` method to view flow totals
+        by protocol
+      - Use `nblt.netflow_total_by_direction()` to view a timeline grouped
+        by direction of flow
+    md: True
+  get_related_alerts:
+    title: Azure Sentinel alerts related to the IP.
+    text: Use `nblt.browse_alerts()` to retrieve a list of alerts.
+  get_heartbeat:
+    title: Azure Sentinel heartbeat record for the IP.
+    text: (only available for IP addresses that belong
+      to the subscription)
+  get_vmcomputer:
+    title: Azure VMComputer record for the IP.
+    text: (only available for Azure VMs)
+  get_az_net_if:
+    title: Azure Network Analytics Topology record for the IP.
+    text: (only available for Azure VMs)
+  get_az_activity:
+    title: Azure Sign-ins and audit activity from IP Address
+  get_office_activity:
+    title: Office 365 operations summary from IP Address
+  get_public_ip_data:
+    title: Public IP data (GeoIP, ThreatIntel, Passive DNS, VPS membership)
+  netflow_summary:
+    title: Summary of network flow data for this IP Address

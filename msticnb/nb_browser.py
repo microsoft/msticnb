@@ -107,7 +107,7 @@ class NBBrowser:
         )
 
     _CODE_TEMPLATE = """
-    from msticnb.common import TimeSpan
+    from msticpy.common.timespan import TimeSpan
     # Note you can populate TimeSpan with msticpy nbwidgets.QueryTime()
     # qt = QueryTime(autodisplay=True)
     # %% New cell

@@ -10,21 +10,20 @@ import pandas as pd
 import pytest
 
 from msticnb import nblts
-from msticnb.data_providers import init
+from msticnb import data_providers
 from msticpy.nbtools.nbwidgets import SelectAlert
 
-from ....unit_test_lib import TEST_DATA_PATH
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 
 @pytest.fixture
-def nbltdata():
+def nbltdata(monkeypatch):
     """Generate test nblt output."""
     test_file = Path.cwd().joinpath(TEST_DATA_PATH).joinpath("alerts_list.pkl")
-    test_config = str(
-        Path.cwd().joinpath(TEST_DATA_PATH).joinpath("msticpyconfig-test.yaml")
-    )
-    init("LocalData", providers=["tilookup"])
-    test_nblt = nblts.azsent.alert.EnrichAlerts()
+
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    data_providers.init("LocalData", providers=["tilookup", "geolitelookup"])
+    test_nblt = nblts.azsent.alert.EnrichAlerts()  # pylint: disable=no-member
     test_df = pd.read_pickle(test_file)
     test_df["Entities"] = ""
     return test_nblt.run(data=test_df, silent=True)

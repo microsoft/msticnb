@@ -34,32 +34,32 @@ functions will make it easier from them understand and work with
 the code.
 
 """
-from typing import Any, Optional, Iterable, Union, Dict
+from typing import Any, Dict, Iterable, Optional, Union
 
-import attr
-from bokeh.plotting.figure import Figure
 import pandas as pd
+from bokeh.plotting.figure import Figure
+from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools import nbdisplay
+
+from ... import nb_metadata
+
+# change the ".." to "...."
+from ..._version import VERSION
 
 # Note - when moved to the final location (e.g.
 # nb/environ/category/mynotebooklet.py)
 # you will need to change the "..." to "...." in these
 # imports because the relative path has changed.
 from ...common import (
-    TimeSpan,
     MsticnbMissingParameterError,
     nb_data_wait,
+    nb_markdown,
     nb_print,
     set_text,
-    nb_markdown,
 )
 
 # change the "..." to "...."
-from ...notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from ... import nb_metadata
-
-# change the ".." to "...."
-from ..._version import VERSION
+from ...notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Your name"
@@ -73,7 +73,6 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 # pylint: disable=too-few-public-methods
 # Rename this class
-@attr.s(auto_attribs=True)
 class TemplateResult(NotebookletResult):
     """
     Template Results.
@@ -90,14 +89,34 @@ class TemplateResult(NotebookletResult):
 
     """
 
-    description: str = "Windows Host Security Events"
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
 
-    # Add attributes as needed here.
-    # Make sure they are documented in the Attributes section
-    # above.
-    all_events: pd.DataFrame = None
-    plot: Figure = None
-    additional_info: Optional[dict] = None
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.description: str = "Windows Host Security Events"
+
+        # Add attributes as needed here.
+        # Make sure they are documented in the Attributes section
+        # above.
+        self.all_events: pd.DataFrame = None
+        self.plot: Figure = None
+        self.additional_info: Optional[dict] = None
 
 
 # pylint: enable=too-few-public-methods
@@ -178,9 +197,9 @@ class TemplateNB(Notebooklet):
             raise MsticnbMissingParameterError("timespan.")
 
         # Create a result class
-        result = TemplateResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = TemplateResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         # You might want to always do some tasks irrespective of
         # options sent

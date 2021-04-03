@@ -24,16 +24,16 @@ import sys
 sys.path.insert(0, os.path.abspath("../.."))
 
 # -- Project information -----------------------------------------------------
-
+# pylint: disable=redefined-builtin, invalid-name
 project = "msticnb"
-# pylint: disable=redefined-builtin
+
 copyright = "2020, (c) Microsoft Corporation."
-author = "Ian Hellen"
+author = "Ian Hellen, Pete Bryan"
 
 # The short X.Y version
 version = ""
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = "0.2.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -78,7 +78,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns: list = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
@@ -127,7 +127,7 @@ htmlhelp_basename = "msticnbdoc"
 
 # -- Options for LaTeX output ------------------------------------------------
 
-latex_elements = {
+latex_elements: dict = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',

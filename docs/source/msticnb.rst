@@ -62,6 +62,14 @@ msticnb.notebooklet module
    :undoc-members:
    :show-inheritance:
 
+msticnb.notebooklet\_result module
+----------------------------------
+
+.. automodule:: msticnb.notebooklet_result
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 msticnb.options module
 ----------------------
 
@@ -74,6 +82,14 @@ msticnb.read\_modules module
 ----------------------------
 
 .. automodule:: msticnb.read_modules
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+msticnb.data\viewers module
+---------------------------
+
+.. automodule:: msticnb.data_viewers
    :members:
    :undoc-members:
    :show-inheritance:

@@ -4,33 +4,32 @@
 # license information.
 # --------------------------------------------------------------------------
 """logons_summary - provides overview of host logon events."""
-from typing import Any, Optional, Iterable, Dict
 import re
 from math import pi
+from typing import Any, Dict, Iterable, Optional
 
-import attr
 import pandas as pd
-from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
 from bokeh.palettes import viridis  # pylint: disable=no-name-in-module
+from bokeh.plotting import figure, show
 from bokeh.transform import cumsum
 from IPython.display import display
-from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
-from msticpy.sectools.ip_utils import convert_to_ip_entities
+from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools import timeline
+from msticpy.nbtools.foliummap import FoliumMap
 
+from ...._version import VERSION
 from ....common import (
-    TimeSpan,
-    nb_print,
     MsticnbDataProviderError,
     MsticnbMissingParameterError,
     nb_data_wait,
+    nb_print,
     set_text,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
-from ...._version import VERSION
+from ....nblib.iptools import convert_to_ip_entities
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 pd.options.mode.chained_assignment = None
 
@@ -43,8 +42,8 @@ _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 
-@attr.s(auto_attribs=True)  # pylint: disable=too-few-public-methods
-class HostLogonsSummaryResults(NotebookletResult):
+# pylint: disable=too-few-public-methods
+class HostLogonsSummaryResult(NotebookletResult):
     """
     Host Logons Summary Results.
 
@@ -64,12 +63,32 @@ class HostLogonsSummaryResults(NotebookletResult):
 
     """
 
-    logon_sessions: pd.DataFrame = None
-    logon_matrix: pd.DataFrame = None
-    logon_map: FoliumMap = None
-    timeline: figure = None
-    failed_success: pd.DataFrame = None
-    plots: Optional[Dict[str, figure]] = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.logon_sessions: pd.DataFrame = None
+        self.logon_matrix: pd.DataFrame = None
+        self.logon_map: FoliumMap = None
+        self.timeline: figure = None
+        self.failed_success: pd.DataFrame = None
+        self.plots: Optional[Dict[str, figure]] = None
 
 
 class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
@@ -97,7 +116,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         timespan: Optional[TimeSpan] = None,
         options: Optional[Iterable[str]] = None,
         **kwargs,
-    ) -> HostLogonsSummaryResults:
+    ) -> HostLogonsSummaryResult:
         """
         Return host summary data.
 
@@ -171,8 +190,8 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             data = _format_raw_data(data)
 
         # Add description to results for context
-        self._last_result = HostLogonsSummaryResults(
-            description=self.metadata.description
+        self._last_result = HostLogonsSummaryResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
         )
 
         # Check we have data
@@ -209,7 +228,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 @set_text(docs=_CELL_DOCS, key="logons_timeline")
 def _gen_timeline(data: pd.DataFrame, silent: bool):
     if silent:
-        time_line = timeline.display_timeline(
+        return timeline.display_timeline(
             data[data["LogonResult"] != "Unknown"],
             group_by="LogonResult",
             source_columns=[
@@ -221,38 +240,42 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
             ],
             hide=True,
         )
-    else:
-        time_line = timeline.display_timeline(
-            data[data["LogonResult"] != "Unknown"],
-            group_by="LogonResult",
-            source_columns=[
-                "Account",
-                "LogonProcessName",
-                "SourceIP",
-                "LogonTypeName",
-                "LogonResult",
-            ],
-        )
-    return time_line
+
+    return timeline.display_timeline(
+        data[data["LogonResult"] != "Unknown"],
+        group_by="LogonResult",
+        source_columns=[
+            "Account",
+            "LogonProcessName",
+            "SourceIP",
+            "LogonTypeName",
+            "LogonResult",
+        ],
+    )
 
 
 @set_text(docs=_CELL_DOCS, key="show_map")
-def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
+def _map_logons(data: pd.DataFrame, silent: bool, geo_lookup: Any = None) -> FoliumMap:
     """Produce a map of source IP logon locations."""
     # Seperate out failed and sucessful logons and clean the data
     remote_logons = data[data["LogonResult"] == "Success"]
     failed_logons = data[data["LogonResult"] == "Failure"]
-    remote_logons.replace("", "NaN", inplace=True)
-    failed_logons.replace("", "NaN", inplace=True)
     ip_list = [
-        convert_to_ip_entities(ip)[0] for ip in remote_logons["SourceIP"] if ip != "NaN"
+        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
+        for ip in remote_logons["SourceIP"]
+        if ip not in ("", "-", "NaN")
     ]
+    ip_list = [ip for ip_ents in ip_list for ip in ip_ents]
     ip_fail_list = [
-        convert_to_ip_entities(ip)[0] for ip in failed_logons["SourceIP"] if ip != "NaN"
+        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
+        for ip in failed_logons["SourceIP"]
+        if ip not in ("", "-", "NaN")
     ]
+    ip_fail_list = [ip for ip_ents in ip_fail_list for ip in ip_ents]
+
     # Get center point of logons and build map acount that
-    location = get_center_ip_entities(ip_fail_list + ip_list)
-    folium_map = FoliumMap(location=location, zoom_start=4)
+    folium_map = FoliumMap(zoom_start=4)
+    folium_map.center_map()
     if ip_fail_list:
         icon_props = {"color": "red"}
         folium_map.add_ip_cluster(ip_entities=ip_fail_list, **icon_props)

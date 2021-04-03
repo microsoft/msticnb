@@ -4,31 +4,24 @@
 # license information.
 # --------------------------------------------------------------------------
 """Notebooklet for Windows Security Events."""
-import pkgutil
 import os
-from typing import Any, Optional, Iterable, Union, Dict
-from defusedxml import ElementTree
-from defusedxml.ElementTree import ParseError
+import pkgutil
+from typing import Any, Dict, Iterable, Optional, Union
 
-import attr
-from bokeh.plotting.figure import Figure
-from bokeh.models import LayoutDOM
-from IPython.display import display
 import numpy as np
 import pandas as pd
+from bokeh.models import LayoutDOM
+from bokeh.plotting.figure import Figure
+from defusedxml import ElementTree
+from defusedxml.ElementTree import ParseError
+from IPython.display import display
+from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools import nbdisplay
 
-from ....common import (
-    TimeSpan,
-    MsticnbMissingParameterError,
-    nb_data_wait,
-    set_text,
-    nb_markdown,
-)
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from .... import nb_metadata
-
 from ...._version import VERSION
+from ....common import MsticnbMissingParameterError, nb_data_wait, nb_markdown, set_text
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -40,7 +33,6 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
-@attr.s(auto_attribs=True)
 class WinHostEventsResult(NotebookletResult):
     """
     Windows Host Security Events Results.
@@ -67,13 +59,33 @@ class WinHostEventsResult(NotebookletResult):
 
     """
 
-    description: str = "Windows Host Security Events"
-    all_events: pd.DataFrame = None
-    event_pivot: pd.DataFrame = None
-    account_events: pd.DataFrame = None
-    account_pivot: pd.DataFrame = None
-    account_timeline: Union[Figure, LayoutDOM] = None
-    expanded_events: pd.DataFrame = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.description: str = "Windows Host Security Events"
+        self.all_events: pd.DataFrame = None
+        self.event_pivot: pd.DataFrame = None
+        self.account_events: pd.DataFrame = None
+        self.account_pivot: pd.DataFrame = None
+        self.account_timeline: Union[Figure, LayoutDOM] = None
+        self.expanded_events: pd.DataFrame = None
 
 
 class WinHostEvents(Notebooklet):
@@ -153,9 +165,9 @@ class WinHostEvents(Notebooklet):
         if not timespan:
             raise MsticnbMissingParameterError("timespan.")
 
-        result = WinHostEventsResult()
-        result.description = self.metadata.description
-        result.timespan = timespan
+        result = WinHostEventsResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         all_events_df, event_pivot_df = _get_win_security_events(
             self.query_provider, host_name=value, timespan=self.timespan

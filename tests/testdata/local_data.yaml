@@ -24,6 +24,12 @@ sources:
     args:
       query: alerts_list.pkl
     parameters:
+  list_alerts_for_ip:
+    description: Retrieves list of related alerts
+    metadata:
+      data_families: [SecurityAlert]
+    args:
+      query: alerts_list.pkl
   # Azure Sentinel tables
   list_bookmarks_for_entity:
     description: Retrieves list of related bookmarks.
@@ -86,19 +92,54 @@ sources:
   list_azure_network_flows_by_ip:
     description: List Azure Network flows by IP address
     metadata:
-      data_families: [AzureNetwork]
+      data_families: [Network]
     args:
       query: az_net_comms_df.pkl
     parameters:
   list_azure_network_flows_by_host:
     description: List Azure Network flows by host name
     metadata:
-      data_families: [AzureNetwork]
+      data_families: [Network]
     args:
       query: az_net_comms_df.pkl
     parameters:
+  get_heartbeat_for_ip:
+    description: Heartbeat record
+    metadata:
+      data_families: [Network]
+    args:
+      query: host_hb_df.pkl
+    parameters:
+  get_heartbeat_for_host:
+    description: Heartbeat record
+    metadata:
+      data_families: [Network]
+    args:
+      query: host_hb_df.pkl
+    parameters:
+  get_host_for_ip:
+    description: Azure network interface record
+    metadata:
+      data_families: [Network]
+    args:
+      query: az_net_if_df.pkl
+    parameters:
+  get_ips_for_host:
+    description: Azure network interface record
+    metadata:
+      data_families: [Network]
+    args:
+      query: az_net_if_df.pkl
+    parameters:
   # AAD
   list_aad_signins_for_account:
+    description: AAD Signin Logs
+    metadata:
+      data_families: [Azure]
+    args:
+      query: aad_signin_user.pkl
+    parameters:
+  list_aad_signins_for_ip:
     description: AAD Signin Logs
     metadata:
       data_families: [Azure]
@@ -111,12 +152,39 @@ sources:
     metadata:
       data_families: [Azure]
     args:
-      # Note - replace this with real Azure Activity if needed
-      query: office_activity_user.pkl
+      query: azure_activity_df.pkl
+    parameters:
+  list_azure_activity_for_ip:
+    description: Azure Activity
+    metadata:
+      data_families: [Azure]
+    args:
+      query: azure_activity_df.pkl
+    parameters:
+  get_vmcomputer_for_ip:
+    description: VMComputer table
+    metadata:
+      data_families: [Azure]
+    args:
+      query: vmcomputer_df.pkl
+    parameters:
+  get_vmcomputer_for_host:
+    description: VMComputer table
+    metadata:
+      data_families: [Azure]
+    args:
+      query: vmcomputer_df.pkl
     parameters:
   # O365
   list_activity_for_account:
-    description: Azure Activity
+    description: Office Activity
+    metadata:
+      data_families: [Office365]
+    args:
+      query: office_activity_user.pkl
+    parameters:
+  list_activity_for_ip:
+    description: Office Activity
     metadata:
       data_families: [Office365]
     args:
@@ -124,7 +192,7 @@ sources:
     parameters:
   # Linux
   list_logons_for_account:
-    description: Azure Activity
+    description: Linux logon Activity
     metadata:
       data_families: [LinuxSyslog]
     args:

@@ -212,13 +212,14 @@ Main operations:
 - The alerts and bookmarks are browsable using the browse_alerts and
   browse_bookmarks methods
 - You can call the find_additional_data method to retrieve and display
-  more detailed activity information for the account.
+  more detailed activity information for the account (e.g. host logons,
+  Azure and Office 365 activity)
 
 ### EnrichAlerts
 
 Alert Enrichment Notebooklet Class.
 
-Enriches Azure Sentinel alerts with Threat Intelligence data.
+Enriches Azure Sentinel alerts with Threat Intelligence and other data.
 
 ### HostLogonsSummary
 
@@ -256,6 +257,18 @@ Queries and displays Windows Security Events including:
 
 Process (4688) and Account Logon (4624, 4625) are not included in the
 event types processed by this module.
+
+### IpAddressSummary
+
+Retrieves common data about an IP Address including:
+
+- Tries to determine IP address is external or internal (i.e. owned by the organization)
+- Azure Heartbeat, Network Analytics or VMComputer records
+- Geo-IP and Whois data
+- Threat intel reports
+- Related alerts and hunting bookmarks
+- Network flows involving IP address
+- Azure activity (e.g. sign-ins) originating from IP address
 
 ### NetworkFlowSummary
 

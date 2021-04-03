@@ -106,9 +106,9 @@ def set_opt(option: str, value: Any):
     if option != "temp_silent" and not isinstance(value, type(cur_opt)):
         try:
             value = type(cur_opt)(value)
-        except ValueError:
+        except ValueError as err:
             raise TypeError(
                 f"Option is of type {type(cur_opt)}.",
                 "{value} cannot be converted to that type.",
-            )
+            ) from err
     _OPT_DICT[option] = value

@@ -4,14 +4,13 @@
 # license information.
 # --------------------------------------------------------------------------
 """Common definitions and classes."""
-from datetime import datetime, timedelta
 import functools
 from typing import Union, Optional, Iterable, Tuple, Any, List, Dict
 
-from dateutil.parser import ParserError  # type: ignore
+import bokeh.io
 from IPython.display import display, HTML
+from IPython import get_ipython
 from markdown import markdown
-import pandas as pd
 
 from msticpy.common import utility as mp_utils
 
@@ -23,163 +22,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 
-# pylint: disable=too-few-public-methods
-class TimeSpan:
-    """Timespan parameter for notebook modules."""
-
-    # pylint: enable=too-many-branches
-    def __init__(
-        self,
-        timespan: Optional[Union["TimeSpan", Tuple[Any, Any]]] = None,
-        start: Optional[Union[datetime, str]] = None,
-        end: Optional[Union[datetime, str]] = None,
-        period: Optional[Union[timedelta, str]] = None,
-    ):
-        """
-        Initialize Timespan.
-
-        Parameters
-        ----------
-        timespan : Union(TimeSpan, Tuple(Any, Any)), optional
-            A TimeSpan object
-            or a tuple of datetimes or datetime strings,
-            or an object that has either `start` and `end` or `start` and
-            `period` date_time-like attributes.
-            By default None
-        start : Optional[Union[datetime, str]], optional
-            datetime of the start of the time period, by default None
-        end : Optional[Union[datetime, str]], optional
-            datetime of the end of the time period, by default utcnow
-        period : Optional[Union[timedelta, str]], optional
-            duration of the period, by default None
-        time_selector : Any
-            an object that has either `start` and `end` or `start` and
-            `period` date_time-like attributes.
-
-        Raises
-        ------
-        ValueError
-            If neither `start` nor `period` are specified.
-
-        """
-        start, end, period = self._process_args(timespan, start, end, period)
-
-        if not start and not period:
-            raise MsticnbMissingParameterError(
-                "start, period",
-                "At least one of 'start' or 'period' must be specified.",
-            )
-
-        self._period = None
-        if period:
-            self._period = self._parse_timedelta(period)
-
-        self._end = self._parse_time(end, "end")
-        self._start = self._parse_time(start, "start")
-        if self._start and self._period:
-            self._end = self._start + self._period
-        if self._end is None:
-            self._end = datetime.utcnow()
-        if self._start is None and self._period:
-            self._start = self._end - self._period
-
-    def __eq__(self, value):
-        """Return True if the timespans are equal."""
-        if not isinstance(value, TimeSpan):
-            return False
-        return self.start == value.start and self.end == value.end
-
-    def __hash__(self):
-        """Return the hash of the timespan."""
-        return hash((self.start, self.end))
-
-    @property
-    def start(self) -> datetime:
-        """
-        Return the start of the timeperiod.
-
-        Returns
-        -------
-        datetime
-            Start datetime.
-
-        """
-        return self._start
-
-    @property
-    def end(self) -> datetime:
-        """
-        Return the end of the timeperiod.
-
-        Returns
-        -------
-        datetime
-            End datetime.
-
-        """
-        return self._end
-
-    @property
-    def period(self) -> timedelta:
-        """
-        Return the period of the timeperiod.
-
-        Returns
-        -------
-        timedelta
-            Period timedelta.
-
-        """
-        if not self._period:
-            self._period = self.start - self.end
-        return self._period
-
-    @staticmethod
-    def _process_args(timespan, start, end, period):
-        if timespan:
-            if isinstance(timespan, TimeSpan):
-                start = timespan.start
-                end = timespan.end
-                period = timespan.period
-            elif isinstance(timespan, tuple):
-                start = timespan[0]
-                end = timespan[1]
-        if not start and hasattr(timespan, "start"):
-            start = getattr(timespan, "start", None)
-        if not end and hasattr(timespan, "end"):
-            end = getattr(timespan, "end", None)
-        if not period and hasattr(timespan, "period"):
-            period = getattr(timespan, "period", None)
-        return start, end, period
-
-    @staticmethod
-    def _parse_time(time_val, prop_name):
-        if time_val is None:
-            return None
-        if isinstance(time_val, datetime):
-            return time_val
-        try:
-            if isinstance(time_val, str):
-                return pd.to_datetime(time_val, infer_datetime_format=True)
-        except (ValueError, ParserError):
-            pass
-        raise ValueError(f"'{prop_name}' must be a datetime or a datetime string.")
-
-    @staticmethod
-    def _parse_timedelta(time_val):
-        if time_val is None:
-            return None
-        if isinstance(time_val, timedelta):
-            return time_val
-        try:
-            if isinstance(time_val, str):
-                return pd.Timedelta(time_val).to_pytimedelta()
-        except (ValueError, ParserError):
-            pass
-        raise ValueError(
-            "'period' must be a pandas-compatible time period string",
-            " or Python timedelta.",
-        )
+_IP_AVAILABLE = get_ipython() is not None
 
 
 class NBContainer:
@@ -217,7 +60,7 @@ class NBContainer:
         return obj_str
 
     def iter_classes(self) -> Iterable[Tuple[str, Any]]:
-        """Iterate through all notebooklet classes."""
+        """Return iterator through all notebooklet classes."""
         for key, val in self.__dict__.items():
             if isinstance(val, NBContainer):
                 yield from val.iter_classes()
@@ -225,9 +68,9 @@ class NBContainer:
                 yield key, val
 
 
-def nb_print(mssg: Any):
+def nb_print(*args):
     """
-    Print a status message.
+    Print output but suppress if "silent".
 
     Parameters
     ----------
@@ -236,7 +79,7 @@ def nb_print(mssg: Any):
 
     """
     if get_opt("verbose") and not get_opt("silent"):
-        print(mssg)
+        print(*args)
 
 
 def nb_data_wait(source: str):
@@ -249,7 +92,7 @@ def nb_data_wait(source: str):
         The data source.
 
     """
-    nb_print(f"Getting data from {source}...")
+    nb_markdown(f"Getting data from {source}...")
 
 
 def nb_debug(*args):
@@ -263,13 +106,19 @@ def nb_debug(*args):
 def nb_markdown(*args, **kwargs):
     """Display Markdown/HTML text."""
     if not get_opt("silent"):
-        mp_utils.md(*args, **kwargs)
+        if _IP_AVAILABLE:
+            mp_utils.md(*args, **kwargs)
+        else:
+            nb_print(*args)
 
 
 def nb_warn(*args, **kwargs):
     """Display Markdown/HTML warning text."""
     if not get_opt("silent"):
-        mp_utils.md_warn(*args, **kwargs)
+        if _IP_AVAILABLE:
+            mp_utils.md_warn(*args, **kwargs)
+        else:
+            nb_print("WARNING:", *args)
 
 
 def nb_display(*args, **kwargs):
@@ -317,10 +166,8 @@ def set_text(  # noqa: MC0001
         def print_text(*args, **kwargs):
             # "silent" can be global option or in the func kwargs
             # The latter is only applicable for the NB run() method.
-            if "silent" in kwargs:
-                run_silent = kwargs.get("silent")
-            else:
-                run_silent = get_opt("silent")
+            run_silent = kwargs.get("silent") or get_opt("silent")
+
             if not run_silent:
                 h_level = hd_level
                 out_title = title
@@ -389,6 +236,22 @@ def add_result(result: Any, attr_name: Union[str, List[str]]):
         return add_results
 
     return result_wrapper
+
+
+def show_bokeh(plot):
+    """Display bokeh plot, resetting output."""
+    try:
+        bokeh.io.reset_output()
+        bokeh.io.output_notebook(hide_banner=True)
+        bokeh.io.show(plot)
+    except RuntimeError:
+        bokeh.io.output_notebook(hide_banner=True)
+        bokeh.io.show(plot)
+
+
+def df_has_data(data) -> bool:
+    """Return True if `data` DataFrame has data."""
+    return data is not None and not data.empty
 
 
 class MsticnbError(Exception):

@@ -44,7 +44,7 @@ class NBMetadata:
 
     def __str__(self):
         """Return string representation of object."""
-        return "\n".join([f"{name}: {val}" for name, val in attr.asdict(self).items()])
+        return "\n".join(f"{name}: {val}" for name, val in attr.asdict(self).items())
 
     @property
     def all_options(self) -> List[str]:

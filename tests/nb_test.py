@@ -6,11 +6,11 @@
 """Notebooklet for Host Summary."""
 from typing import Any, Optional, Iterable, Dict
 
-import attr
 import pandas as pd
 from msticpy.nbtools import entities
 
-from msticnb.common import TimeSpan, nb_print, set_text
+from msticpy.common.timespan import TimeSpan
+from msticnb.common import nb_print, set_text
 from msticnb.notebooklet import Notebooklet, NotebookletResult, NBMetadata
 from msticnb import nb_metadata
 from msticnb._version import VERSION
@@ -25,15 +25,33 @@ _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
 # pylint: disable=too-few-public-methods
-@attr.s(auto_attribs=True)
 class TstSummaryResult(NotebookletResult):
     """Test Results."""
 
-    host_entity: entities.Host = None
-    related_alerts: pd.DataFrame = None
-    related_bookmarks: pd.DataFrame = None
-    default_property: pd.DataFrame = None
-    optional_property: pd.DataFrame = None
+    def __init__(
+        self,
+        description: Optional[str] = None,
+        timespan: Optional[TimeSpan] = None,
+        notebooklet: Optional["Notebooklet"] = None,
+    ):
+        """
+        Create new Notebooklet result instance.
+
+        Parameters
+        ----------
+        description : Optional[str], optional
+            Result description, by default None
+        timespan : Optional[TimeSpan], optional
+            TimeSpan for the results, by default None
+        notebooklet : Optional[, optional
+            Originating notebooklet, by default None
+        """
+        super().__init__(description, timespan, notebooklet)
+        self.host_entity: entities.Host = None
+        self.related_alerts: pd.DataFrame = None
+        self.related_bookmarks: pd.DataFrame = None
+        self.default_property: pd.DataFrame = None
+        self.optional_property: pd.DataFrame = None
 
 
 # pylint: disable=too-few-public-methods
@@ -60,9 +78,9 @@ class TstNBSummary(Notebooklet):
         )
 
         # pylint: disable=attribute-defined-outside-init
-        self._last_result = TstSummaryResult()
-        self._last_result.description = self.metadata.description
-        self._last_result.timespan = timespan
+        self._last_result = TstSummaryResult(
+            notebooklet=self, description=self.metadata.description, timespan=timespan
+        )
 
         host_entity = entities.Host(HostName="testhost")
         _test_inline_text(host_entity)

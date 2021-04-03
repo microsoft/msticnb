@@ -34,8 +34,7 @@ output:
       cloud activity for the account.
 
       For further investigation use the host_logons_summary notebooklet
-      for Windows and Linux host logons. Or use the azure_account_summary
-      for cloud accounts.
+      for Windows and Linux host logons.
     md: True
   get_matching_accounts:
     title: Querying for account matches.
@@ -49,12 +48,12 @@ output:
     title: Summary of host logon activity.
     text: '
       Shows the total number of logons attempts by host.
-      FailedLogons shows the breakdown of successfull and failed
+      FailedLogons shows the breakdown of successfully and failed
       logons.
       IPAddresses is a list of distinct source IP addresses for
       the logons.
       LogonTypeCount breaks down the logon type used by count.
-      First and LastLogon shows the earliest and lastest logons
+      First and LastLogon shows the earliest and latest logons
       on each host by this account in the selected time range.
       '
     md: True
@@ -77,6 +76,7 @@ output:
         - Application resource provider
         - User type
       '
+    md: True
   create_azure_timelines:
     title: Azure activity timelines
     hd_level: 3
@@ -84,4 +84,13 @@ output:
       These timelines show combined Azure activity
       grouped by Application Resource Provider, IP Address and
       Operation respectively.
+      '
+  get_ip_summary:
+    title: IP Address details summary
+    hd_level: 3
+    text: '
+      Number of operations detected by IP Address.
+      The table shows WhoIs ASN Description and Country Code. If
+      UserAgent is contained in the data, operations are also
+      grouped by this.
       '
