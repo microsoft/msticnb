@@ -25,7 +25,8 @@ def test_account_summary_notebooklet(monkeypatch):
     test_data = str(Path(TEST_DATA_PATH).absolute())
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     data_providers.init(
-        query_provider="LocalData",
+        "LocalData",
+        providers=["-tilookup"],
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],
     )

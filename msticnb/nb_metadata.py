@@ -112,7 +112,8 @@ class NBMetadata:
             )
         else:
             opt_list.append("    None")
-        opt_list.append("")
+        # Add a blank line to the end
+        opt_list.extend(["", ""])
         return "\n".join(opt_list)
 
     # pylint: enable=not-an-iterable

@@ -36,6 +36,7 @@ for more help see https://msticnb.readthedocs.org/
 
 """
 import sys
+from typing import Any, Dict, List, Optional
 
 from .data_providers import DataProviders, init as dp_init  # noqa:F401
 from .read_modules import discover_modules, nblts, nb_index, find  # noqa:F401
@@ -53,10 +54,36 @@ discover_modules()
 print(f"Notebooklets: {len(list(nblts.iter_classes()))} notebooklets loaded.")
 
 
-def init(namespace: dict = None, **kwargs):
-    """Initialize notebooklets dataproviders and pivots."""
-    query_provider = kwargs.pop("query_provider", None)
-    providers = kwargs.pop("providers", None)
+def init(
+    query_provider: str,
+    namespace: Optional[Dict[str, Any]] = None,
+    providers: Optional[List[str]] = None,
+    **kwargs,
+):
+    """
+    Initialize notebooklets dataproviders and pivots.
+
+    Parameters
+    ----------
+    query_provider : str
+        The default query provider to use with notebooklets
+    namespace : Optional[Dict[str, Any]], optional
+        The global namespace - used to add pivot functions
+    providers : Optional[List[str]], optional
+        A list of other provider names to load
+
+    Other parameters
+    ----------------
+    kwargs :
+        Optional keyword arguments to pass to DataProviders
+        and Pivot initializers.
+
+    Notes
+    -----
+    Use msticnb.DataProviders.list_providers() to get a list
+    of accepted providers.
+
+    """
     dp_init(query_provider=query_provider, providers=providers, **kwargs)
     if not namespace:
         # Try to get the globals namespace from top-level caller
