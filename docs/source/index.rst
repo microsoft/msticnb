@@ -43,7 +43,15 @@ Introduction and Usage
 .. toctree::
    :maxdepth: 2
 
-   notebooklets
+   notebooklets_summary
+
+Notebooklet details
+-------------------
+
+.. toctree::
+   :maxdepth: 4
+
+   nb_doc_details
 
 Creating Notebooklets
 ---------------------

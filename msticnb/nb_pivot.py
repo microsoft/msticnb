@@ -44,7 +44,10 @@ def add_pivot_funcs(pivot: Pivot = None, **kwargs):
 
     """
     if not pivot:
-        pivot = Pivot.current or Pivot(**kwargs)
+        piv_kwargs = {
+            key: arg for key, arg in kwargs.items() if key in ("namespace", "providers")
+        }
+        pivot = Pivot.current or Pivot(**piv_kwargs)
     for nb_name, nb_class in nblts.iter_classes():
         if not issubclass(nb_class, Notebooklet) or nb_name == "TemplateNB":
             continue
