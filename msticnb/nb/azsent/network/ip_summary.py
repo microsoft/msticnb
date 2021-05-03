@@ -190,7 +190,7 @@ class IpAddressSummary(Notebooklet):
         **kwargs,
     ) -> IpSummaryResult:
         """
-        Return XYZ summary.
+        Return IP Address activity summary.
 
         Parameters
         ----------
