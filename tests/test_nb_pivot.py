@@ -66,7 +66,6 @@ def test_add_pivot_funcs(_init_pivot, ent_name, funcs, test_val):
 @pytest.mark.parametrize("ent_name, funcs, test_val", _EXPECTED_FUNCS)
 def test_run_pivot_funcs(_init_pivot, ent_name, funcs, test_val):
     """Test running notebooklets run functions."""
-    del funcs
     add_pivot_funcs(_init_pivot)
 
     entity = getattr(entities, ent_name)
@@ -74,6 +73,8 @@ def test_run_pivot_funcs(_init_pivot, ent_name, funcs, test_val):
     check.is_true(hasattr(entity, "nblt"))
     container = getattr(entity, "nblt")
     for _, p_func in container:
+        if p_func.__name__ not in funcs:
+            continue
         check.is_true(callable(p_func))
         result = p_func(value=test_val)
         test_result = result[0] if isinstance(result, list) else result
