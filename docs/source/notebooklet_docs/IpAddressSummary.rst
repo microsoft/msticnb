@@ -215,7 +215,7 @@ Instance Methods
 
 | \__init__(self, data_providers:
   Union[<msticnb.data_providers.SingletonDecorator object at
-  0x000001270177A588>, NoneType] = None, \**kwargs)
+  0x00000130B3F78788>, NoneType] = None, \**kwargs)
 | Intialize a new instance of the notebooklet class.
 
 browse_alerts
@@ -261,7 +261,7 @@ run
   NoneType] = None, timespan: Union[msticpy.common.timespan.TimeSpan,
   NoneType] = None, options: Union[Iterable[str], NoneType] = None,
   \**kwargs) -> msticnb.nb.azsent.network.ip_summary.IpSummaryResult
-| Return XYZ summary.
+| Return IP Address activity summary.
 
 Inherited methods
 ~~~~~~~~~~~~~~~~~
@@ -400,7 +400,7 @@ silent [property] Get the current instance setting for silent running.
 ``run`` function documentation
 ------------------------------
 
-Return XYZ summary.
+Return IP Address activity summary.
 
 
 Parameters

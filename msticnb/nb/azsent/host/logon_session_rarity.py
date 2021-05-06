@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
 from msticpy.common.timespan import TimeSpan
+from msticpy.nbtools import nbwidgets
 from msticpy.sectools.eventcluster import dbcluster_events, delim_count, char_ord_score
 
 from .... import nb_metadata
@@ -40,7 +41,8 @@ class LogonSessionsRarityResult(NotebookletResult):
     Attributes
     ----------
     process_clusters : pd.DataFrame
-        Process clusters based on account, process, commandline.
+        Process clusters based on account, process, commandline and
+        showing the an example process from each cluster
     processes_with_cluster : pd.DataFrame
         Merged data with rarity value assigned to each process event.
     session_rarity: pd.DataFrame
@@ -104,6 +106,7 @@ class LogonSessionsRarity(Notebooklet):
         """Initialize instance of LogonSessionRarity."""
         super().__init__(**kwargs)
         self.column_map = {}
+        self._event_browser = None
 
     # @set_text decorator will display the title and text every time
     # this method is run.
@@ -163,20 +166,31 @@ class LogonSessionsRarity(Notebooklet):
 
         self.column_map = _get_column_map(data)
         feat_data, cols = _add_session_features(data=data, column_map=self.column_map)
-        result.process_clusters = _cluster_sessions(
+        result.process_clusters, labeled_events = _cluster_sessions(
             data=feat_data, columns=list(cols.keys())
         )
+
         (
             result.processes_with_cluster,
             result.session_rarity,
         ) = _merge_cluster_with_procs(
-            data=data,
+            data=labeled_events,
             clustered_data=result.process_clusters,
-            merge_cols=list(cols.values()),
+            column_map=self.column_map,
+        )
+        # save the result
+        self._last_result = result
+
+        if not self.silent:
+            self.list_sessions_by_rarity()
+            self.plot_sessions_by_rarity()
+
+        self._event_browser = _create_session_browser(
+            summ_data=result.session_rarity,
+            data=result.processes_with_cluster,
             column_map=self.column_map,
         )
 
-        self._last_result = result  # pylint: disable=attribute-defined-outside-init
         nb_markdown("<h3>View the returned results object for more details.</h3>")
         nb_markdown(
             f"Additional methods for this class:<br>{'<br>'.join(self.list_methods())}"
@@ -205,18 +219,42 @@ class LogonSessionsRarity(Notebooklet):
                 source_columns=[self.column_map[COL_PROC], self.column_map[COL_CMD]],
             )
 
-    def process_tree(self, account: Optional[str] = None):
-        """Display process tree of processes by rarity."""
+    def process_tree(
+        self, account: Optional[str] = None, session: Optional[str] = None
+    ):
+        """
+        View a process tree of current session.
+
+        Parameters
+        ----------
+        account : Optional[str], optional
+            The account name to view, by default None
+        session : Optional[str], optional
+            The logon session to view, by default None
+        """
         if self.check_valid_result_data("processes_with_cluster"):
-            if not account:
+            if (not account and not session) or account == "all":
                 self._last_result.processes_with_cluster.mp_process_tree.plot(
                     legend_col="Rarity"
                 )
-            else:
+                return
+            if account:
                 acct_col = self.column_map.get(COL_ACCT)
                 data = self._last_result.processes_with_cluster
                 data = data[data[acct_col] == account]
                 data.mp_process_tree.plot(legend_col="Rarity")
+                return
+            session = session or self._event_browser.value
+            sess_col = self.column_map.get(COL_SESS)
+            data = self._last_result.processes_with_cluster
+            data = data[data[sess_col] == session]
+            data.mp_process_tree.plot(legend_col="Rarity")
+
+    def browse_events(self):
+        """Browse the events by logon session."""
+        if self.check_valid_result_data("processes_with_cluster"):
+            return self._event_browser
+        return None
 
 
 # %
@@ -226,6 +264,7 @@ COL_TS = "timestamp"
 COL_PROC = "process_name"
 COL_CMD = "command"
 COL_SESS = "sess"
+COL_PID = "pid"
 
 
 def _find_column(data, column_opts, default=None):
@@ -242,6 +281,7 @@ def _get_column_map(data):
         COL_CMD: _find_column(data, ["CommandLine", "cmd"]),
         COL_PROC: _find_column(data, ["NewProcessName", "exe"]),
         COL_SESS: _find_column(data, ["SubjectLogonId", "ses"]),
+        COL_PID: _find_column(data, ["NewProcessId", "pip"]),
     }
 
 
@@ -256,7 +296,7 @@ CLUSTER_COLUMNS = [CMD_LINE_TOKS, PATH_SCORE, ACCT_NUM, SYS_SESS]
 def _add_session_features(data, column_map: Dict[str, str]):
     """Create clustering features."""
     nb_markdown(f"Input data: {len(data)} events")
-    nb_markdown("Extracting features...", end="")
+    nb_print("Extracting features...", end="")
     data = data.copy()
 
     cluster_cols = {}
@@ -289,35 +329,43 @@ def _cluster_sessions(data, columns=None):
     # decreasing this gives more clusters.
     columns = columns or CLUSTER_COLUMNS
     nb_markdown("Clustering...")
-    (clus_events, _, _) = dbcluster_events(
+    (clus_events, db_cluster, _) = dbcluster_events(
         data=data,
         cluster_columns=columns,
         max_cluster_distance=0.0001,
     )
+    labeled_events = data
+    labeled_events["ClusterId"] = db_cluster.labels_
     nb_markdown("done")
     nb_markdown(f"Number of input events: {len(data)}")
-    nb_markdown(f"Number of clustered events: {len(clus_events)}")
-    return clus_events
+    nb_markdown(
+        f"Number of clusters: {len(clus_events[clus_events['ClusterId'] != -1])}"
+    )
+    nb_markdown(
+        "Number of unique (unclustered) events: "
+        f"{len(clus_events[clus_events['ClusterId'] == -1])}"
+    )
+    return clus_events, labeled_events
 
 
-def _merge_cluster_with_procs(data, clustered_data, merge_cols, column_map):
+def _merge_cluster_with_procs(data, clustered_data, column_map):
     """Merge clustered data with original."""
     nb_markdown("Merging with source data and computing rarity...")
 
-    merge_cols = merge_cols or CLUSTER_COLUMNS
     # Join the clustered results back to the original process frame
-    procs_with_cluster = data.merge(
-        clustered_data[[*merge_cols, "ClusterSize"]],
-        on=merge_cols,
+    noise_points = data[data["ClusterId"] == -1].assign(ClusterId=-1, ClusterSize=1)
+    clusters = data[data["ClusterId"] != -1].merge(
+        clustered_data[["ClusterId", "ClusterSize"]],
+        on="ClusterId",
     )
-
+    procs_with_cluster = pd.concat([clusters, noise_points])
     # Compute Process pattern Rarity = inverse of cluster size
     procs_with_cluster["Rarity"] = 1 / procs_with_cluster["ClusterSize"]
 
     # count the number of processes for each logon ID
-    sess = column_map.get("logon_id", "SubjectLogonId")
-    acct = column_map.get("account", "Account")
-    timestamp = column_map.get("timestamp", "TimeGenerated")
+    sess = column_map.get(COL_SESS, "SubjectLogonId")
+    acct = column_map.get(COL_ACCT, "Account")
+    timestamp = column_map.get(COL_TS, "TimeGenerated")
     session_rarity = (
         procs_with_cluster.groupby([acct, sess])
         .agg(
@@ -334,3 +382,33 @@ def _merge_cluster_with_procs(data, clustered_data, merge_cols, column_map):
     nb_markdown("Higher score indicates higher number of unusual processes")
 
     return procs_with_cluster, session_rarity
+
+
+def _create_session_browser(summ_data, data, column_map):
+    browse_cols = [
+        column_map[COL_ACCT],
+        column_map[COL_TS],
+        column_map[COL_SESS],
+        column_map[COL_PID],
+        column_map[COL_PROC],
+        column_map[COL_CMD],
+    ]
+    if "ParentProcessName" in data:
+        browse_cols.append("ParentProcessName")
+    browse_cols.append("Rarity")
+
+    item_dict = {
+        f"{item[1]} - {item[0]}, mean rarity: {item[2]}": item[0]
+        for item in summ_data[
+            [column_map[COL_SESS], column_map[COL_ACCT], "MeanRarity"]
+        ].values
+    }
+
+    def show_events(logon_id):
+        return (
+            data[browse_cols]
+            .query(f"{column_map[COL_SESS]} == '{logon_id}'")
+            .sort_values(column_map[COL_TS])
+        )
+
+    return nbwidgets.SelectItem(item_dict=item_dict, action=show_events)
