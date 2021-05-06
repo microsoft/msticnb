@@ -1,0 +1,34 @@
+metadata:
+  name: LogonSessionRarity
+  description: Calculates sessions with most unusual process activity.
+  default_options:
+  other_options:
+  keywords:
+    - host
+    - computer
+    - logon
+    - windows
+    - linux
+  entity_types:
+    - host
+  req_providers:
+output:
+  run:
+    title: Calculate process rarity statistics for logon sessions
+    hd_level: 1
+    text:
+      This first transforms the input data into features suitable
+      for a clustering algorithm.
+
+      It then clusters the data based on process, command line and account
+      and calculates the rarity of the process pattern.
+
+      It returns a result containing a summary of the logon sessions
+      along with full results of the clustering. Methods available to view
+      this data graphically include
+      - list_sessions_by_rarity - table of sessions ordered by degree of rarity
+      - plot_sessions_by_rarity - timeline plot of processes grouped by
+        account and showing relative rarity of each process.
+      - process_tree - a process tree of all processes or processes belonging
+        to a single account.
+    md: True

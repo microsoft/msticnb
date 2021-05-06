@@ -68,7 +68,7 @@ class NBContainer:
                 yield key, val
 
 
-def nb_print(*args):
+def nb_print(*args, **kwargs):
     """
     Print output but suppress if "silent".
 
@@ -79,7 +79,7 @@ def nb_print(*args):
 
     """
     if get_opt("verbose") and not get_opt("silent"):
-        print(*args)
+        print(*args, **kwargs)
 
 
 def nb_data_wait(source: str):

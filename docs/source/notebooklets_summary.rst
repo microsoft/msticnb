@@ -1,5 +1,5 @@
-Notebooklets
-============
+Notebooklets Overview
+=====================
 
 
 What are notebooklets?
@@ -265,7 +265,19 @@ Queries and displays Windows Security Events including:
 Process (4688) and Account Logon (4624, 4625) are not included in the
 event types processed by this module.
 
- 
+
+IpAddressSummary
+----------------
+
+Retrieves common data about an IP Address including:
+
+- Tries to determine IP address is external or internal (i.e. owned by the organization)
+- Azure Heartbeat, Network Analytics or VMComputer records
+- Geo-IP and Whois data
+- Threat intel reports
+- Related alerts and hunting bookmarks
+- Network flows involving IP address
+- Azure activity (e.g. sign-ins) originating from IP address
 
 NetworkFlowSummary
 ------------------

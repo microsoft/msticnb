@@ -64,9 +64,17 @@ class Notebooklet(ABC):
         self._current_run_silent: Optional[bool] = None
         set_opt("temp_silent", self.silent)
 
+        # update "run" function documentation on first run
+        self._add_run_doc_options()
+
+        # Check required data providers are loaded.
         # pylint: disable=no-member
         self.data_providers = data_providers or DataProviders.current()  # type: ignore
         # pylint: enable=no-member
+        self._check_nb_providers(**kwargs)
+
+    def _check_nb_providers(self, **kwargs):
+        """Check that providers required for notebooklet are available."""
         if not self.data_providers:
             raise MsticnbDataProviderError(
                 "No current DataProviders instance was found.",
@@ -90,8 +98,9 @@ class Notebooklet(ABC):
                     prov_add_errs.append(err)
 
         if missing_provs:
+            missing_mssg = [prov.replace("|", " or ") for prov in missing_provs]
             raise MsticnbDataProviderError(
-                f"Required data provider(s) {', '.join(missing_provs)} not loaded.",
+                f"Required data provider(s) {', '.join(missing_mssg)} not loaded.",
                 f"Class {self.__class__.__name__}",
                 *prov_add_errs,
             )
@@ -100,6 +109,15 @@ class Notebooklet(ABC):
                 f"Unknown provider(s) {', '.join(unknown_provs)} in req_providers list."
                 + f"Class {self.__class__.__name__}"
             )
+
+    def _add_run_doc_options(self):
+        """Add options documentation to run function."""
+        if "Default Options" in self.__class__.run.__doc__:
+            return
+        options_doc = (f"    {line}" for line in self.metadata.options_doc.split("\n"))
+        self.__class__.run.__doc__ = (self.__class__.run.__doc__ or "") + "\n".join(
+            options_doc
+        )
 
     @abstractmethod
     def run(

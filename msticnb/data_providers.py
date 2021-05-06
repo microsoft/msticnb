@@ -129,6 +129,7 @@ class DataProviders:
         self.providers: Dict[str, Any] = {}
 
         self.query_provider = None
+        parsed_provider = DataEnvironment.Unknown
         if isinstance(query_provider, str):
             parsed_provider = self._parse_provider_name(query_provider)
             self.provider_names.add(parsed_provider.name)

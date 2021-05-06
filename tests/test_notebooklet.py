@@ -132,8 +132,8 @@ def test_class_methods():
     for _, nblt in nblts.iter_classes():
         check.is_not_none(nblt.description())
         check.is_not_none(nblt.name())
-        check.greater(len(nblt.all_options()), 0)
-        check.greater(len(nblt.default_options()), 0)
+        all_opts = len(nblt.all_options())
+        check.greater_equal(all_opts, len(nblt.default_options()))
         check.greater(len(nblt.keywords()), 0)
         check.greater(len(nblt.entity_types()), 0)
         metadata = nblt.get_settings(print_settings=False)

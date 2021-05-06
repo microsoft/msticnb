@@ -11,7 +11,7 @@ import pandas as pd
 from azure.common.exceptions import CloudError
 from bokeh.models import LayoutDOM
 from bokeh.plotting.figure import Figure
-from msticpy.nbtools import nbdisplay
+from msticpy.nbtools import nbdisplay, nbwidgets
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel import entities
 from msticpy.common.utility import md
@@ -24,6 +24,7 @@ from ....common import (
     nb_markdown,
 )
 from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from ....nblib.azsent.alert import browse_alerts
 from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
 from ....nb_metadata import read_mod_metadata, update_class_doc
 from ...._version import VERSION
@@ -230,6 +231,12 @@ class HostSummary(Notebooklet):
 
         self._last_result = result
         return self._last_result
+
+    def browse_alerts(self) -> nbwidgets.SelectAlert:
+        """Return alert browser/viewer."""
+        if self.check_valid_result_data("related_alerts"):
+            return browse_alerts(self._last_result)
+        return None
 
 
 # Get Azure Resource details from API
