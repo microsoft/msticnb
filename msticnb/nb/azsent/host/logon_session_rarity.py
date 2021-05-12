@@ -232,6 +232,7 @@ class LogonSessionsRarity(Notebooklet):
             The account name to view, by default None
         session : Optional[str], optional
             The logon session to view, by default None
+
         """
         if self.check_valid_result_data("processes_with_cluster"):
             if (not account and not session) or account == "all":

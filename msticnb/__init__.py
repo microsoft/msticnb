@@ -72,7 +72,7 @@ def init(
     providers : Optional[List[str]], optional
         A list of other provider names to load
 
-    Other parameters
+    Other Parameters
     ----------------
     kwargs :
         Optional keyword arguments to pass to DataProviders
