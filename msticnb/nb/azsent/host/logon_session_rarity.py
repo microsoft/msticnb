@@ -212,6 +212,7 @@ class LogonSessionsRarity(Notebooklet):
             data = self._last_result.processes_with_cluster
             acct_col = self.column_map.get(COL_ACCT)
             data.mp_timeline.plot_values(
+                title="Processes with relative rarity score groubed by Account",
                 y="Rarity",
                 group_by=acct_col,
                 height=600,
