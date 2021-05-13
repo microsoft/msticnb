@@ -31,6 +31,9 @@ def test_logon_session_rarity_notebooklet(monkeypatch):
     filt_sess = raw_data[raw_data["Account"] == "MSTICAlertsWin1\\MSTICAdmin"]
     data = pd.concat([raw_data.iloc[:1000], filt_sess])
 
+    check.is_true(hasattr(nblts.azsent.host, "LogonSessionsRarity"))
+    if not hasattr(nblts.azsent.host, "LogonSessionsRarity"):
+        print(nblts.azsent.host())
     test_nb = nblts.azsent.host.LogonSessionsRarity()
 
     result = test_nb.run(data=data)
