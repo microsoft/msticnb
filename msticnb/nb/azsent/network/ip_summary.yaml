@@ -33,8 +33,9 @@ output:
       Data and plots are stored in the result class returned by this function.
     md: True
   get_az_netflow:
-    title: Azure network analytics netflow data for IP.
+    title: Azure Azure NSG Flow Logs for IP.
     text:
+      (only available for if Azure network analytics net flow enabled.)
       This is is a list of netflow events for the IP.
       Timeline by protocol is available in the `result.az_network_flows_timeline`
       property
@@ -58,9 +59,12 @@ output:
     text: (only available for Azure VMs)
   get_az_activity:
     title: Azure Sign-ins and audit activity from IP Address
+    text: (only available for Azure)
   get_office_activity:
     title: Office 365 operations summary from IP Address
+    text: (only available for Office 365)
   get_public_ip_data:
     title: Public IP data (GeoIP, ThreatIntel, Passive DNS, VPS membership)
   netflow_summary:
-    title: Summary of network flow data for this IP Address
+    title: Summary of Azure NSG network flow data for this IP Address
+    text: (only available for if Azure network analytics net flow enabled.)

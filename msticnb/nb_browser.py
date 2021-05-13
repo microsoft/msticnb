@@ -85,7 +85,7 @@ class NBBrowser:
     @staticmethod
     def _pyvar_case(in_name):
         return "_".join(
-            [part.lower() for part in re.split(r"([A-Z][a-z]*)", in_name) if part]
+            part.lower() for part in re.split(r"([A-Z][a-z]*)", in_name) if part
         )
 
     def _update_nbdetails(self, change):

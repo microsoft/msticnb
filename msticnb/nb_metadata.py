@@ -50,16 +50,18 @@ class NBMetadata:
     def all_options(self) -> List[str]:
         """Return combination of default and other options."""
         opts = []
-        for opt in self.default_options:
-            if isinstance(opt, str):
-                opts.append(opt)
-            elif isinstance(opt, dict):
-                opts.append(next(iter(opt.keys())))
-        for opt in self.other_options:
-            if isinstance(opt, str):
-                opts.append(opt)
-            elif isinstance(opt, dict):
-                opts.append(next(iter(opt.keys())))
+        if self.default_options:
+            for opt in self.default_options:
+                if isinstance(opt, str):
+                    opts.append(opt)
+                elif isinstance(opt, dict):
+                    opts.append(next(iter(opt.keys())))
+        if self.other_options:
+            for opt in self.other_options:
+                if isinstance(opt, str):
+                    opts.append(opt)
+                elif isinstance(opt, dict):
+                    opts.append(next(iter(opt.keys())))
         return sorted(opts)
 
     def get_options(self, option_set: str = "all") -> List[Tuple[str, Optional[str]]]:
@@ -79,13 +81,13 @@ class NBMetadata:
 
         """
         opt_list: List[Tuple[str, Optional[str]]] = []
-        if option_set.casefold() in ["all", "default"]:
+        if option_set.casefold() in ["all", "default"] and self.default_options:
             for opt in self.default_options:
                 if isinstance(opt, str):
                     opt_list.append((opt, None))
                 elif isinstance(opt, dict):
                     opt_list.extend(opt.items())
-        if option_set.casefold() in ["all", "other"]:
+        if option_set.casefold() in ["all", "other"] and self.other_options:
             for opt in self.other_options:
                 if isinstance(opt, str):
                     opt_list.append((opt, None))
@@ -96,15 +98,24 @@ class NBMetadata:
     @property
     def options_doc(self) -> str:
         """Return list of options and documentation."""
+        def_options = self.get_options("default")
+
         opt_list = [
             "",
             "    Default Options",
             "    ---------------",
-            *[f"    - {key}: {value}" for key, value in self.get_options("default")],
-            "",
-            "    Other Options",
-            "    -------------",
         ]
+        if def_options:
+            opt_list.extend([f"    - {key}: {value}" for key, value in def_options])
+        else:
+            opt_list.append("    None")
+        opt_list.extend(
+            [
+                "",
+                "    Other Options",
+                "    -------------",
+            ]
+        )
 
         if self.get_options("other"):
             opt_list.extend(
@@ -112,7 +123,8 @@ class NBMetadata:
             )
         else:
             opt_list.append("    None")
-        opt_list.append("")
+        # Add a blank line to the end
+        opt_list.extend(["", ""])
         return "\n".join(opt_list)
 
     # pylint: enable=not-an-iterable

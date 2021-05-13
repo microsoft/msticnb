@@ -74,13 +74,13 @@ class IpSummaryResult(NotebookletResult):
     heartbeat : pd.DataFrame
         Heartbeat record for IP Address or host
     az_network_if : pd.DataFrame
-        Azure Network analytics interface record, if available
+        Azure NSG analytics interface record, if available
     vmcomputer : pd.DataFrame
         VMComputer latest record
     az_network_flows : pd.DataFrame
-        Azure Network analytics flows for IP, if available
+        Azure NSG flows for IP, if available
     az_network_flows_timeline: Figure
-        Azure Network analytics flows timeline, if data is available
+        Azure NSG flows timeline, if data is available
     aad_signins : pd.DataFrame = None
         AAD signin activity
     azure_activity : pd.DataFrame = None
@@ -190,7 +190,7 @@ class IpAddressSummary(Notebooklet):
         **kwargs,
     ) -> IpSummaryResult:
         """
-        Return XYZ summary.
+        Return IP Address activity summary.
 
         Parameters
         ----------
