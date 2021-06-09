@@ -1172,6 +1172,7 @@ def _create_ip_summary(data, ip_col, geoip):
     group_cols = group_cols1 + group_cols2
     all_data = (
         data[[ip_col]]  # the property and the column we want
+        .dropna()
         .drop_duplicates()  # drop duplicates
         .pipe(
             (get_geoip_whois, "data"), geo_lookup=geoip, ip_col=ip_col

@@ -1,6 +1,7 @@
 metadata:
   name: LogonSessionRarity
   description: Calculates sessions with most unusual process activity.
+  inputs: [data]
   default_options:
   other_options:
   keywords:
