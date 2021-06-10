@@ -51,6 +51,9 @@ def add_pivot_funcs(pivot: Pivot = None, **kwargs):
     for nb_name, nb_class in nblts.iter_classes():
         if not issubclass(nb_class, Notebooklet) or nb_name == "TemplateNB":
             continue
+        if "value" not in nb_class.metadata.inputs:
+            # This doesn't take a "value" input so can't use as a pivot
+            continue
         nb_obj = nb_class()
         run_func = getattr(nb_obj, "run")
         wrp_func = _wrap_run_func(run_func, pivot.get_timespan)

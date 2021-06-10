@@ -33,7 +33,7 @@ def test_logon_session_rarity_notebooklet(monkeypatch):
 
     check.is_true(hasattr(nblts.azsent.host, "LogonSessionsRarity"))
     if not hasattr(nblts.azsent.host, "LogonSessionsRarity"):
-        print(nblts.azsent.host())
+        print(nblts.azsent.host)
     test_nb = nblts.azsent.host.LogonSessionsRarity()
 
     result = test_nb.run(data=data)

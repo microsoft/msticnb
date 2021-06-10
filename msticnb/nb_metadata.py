@@ -27,6 +27,7 @@ class NBMetadata:
     description: str = ""
     default_options: List[Union[str, Dict]] = Factory(list)
     other_options: List[Union[str, Dict]] = Factory(list)
+    inputs: List[str] = ["value"]
     entity_types: List[str] = Factory(list)
     keywords: List[str] = Factory(list)
     req_providers: List[str] = Factory(list)

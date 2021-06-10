@@ -4,6 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """Test case for hostslogonsummary nblet."""
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +21,11 @@ from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 # nosec
 # pylint: disable=no-member
+if not sys.platform.startswith("win"):
+    pytest.skip(
+        "skipping Linux and Mac for these tests since Matplotlib fails with no gui",
+        allow_module_level=True,
+    )
 
 
 @pytest.fixture

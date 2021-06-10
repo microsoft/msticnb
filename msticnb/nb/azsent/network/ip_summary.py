@@ -374,7 +374,7 @@ class IpAddressSummary(Notebooklet):
         """Retrieve Azure netflow and activity events."""
         if self.check_table_exists("AzureNetworkAnalytics_CL"):
             _get_az_netflows(self.query_provider, src_ip, result, timespan)
-            _display_df_summary(result.az_network_flows, "Azure network flows")
+            _display_df_summary(result.az_network_flows, "Azure NSG network flows")
 
     @set_text(docs=_CELL_DOCS, key="get_az_activity")
     def _get_azure_activity(self, src_ip, result, timespan):
@@ -458,7 +458,7 @@ def _determine_ip_origin(result):
 # %%
 # Get Azure network flows
 def _get_az_netflows(qry_prov, src_ip, result, timespan):
-    nb_data_wait("AzureNetworkAnalytics flows")
+    nb_data_wait("Azure NSG flows")
     result.az_network_flows = qry_prov.Network.list_azure_network_flows_by_ip(
         timespan, ip_address_list=src_ip
     )
@@ -590,13 +590,13 @@ def _summarize_azure_activity(result):
 @set_text(docs=_CELL_DOCS, key="get_az_net_if")
 def _get_az_net_if(qry_prov, src_ip, result):
     """Get the AzureNetwork topology record for `src_ip`."""
-    nb_data_wait("AzureNetworkAnalytics topology")
+    nb_data_wait("Azure NSG topology")
     # Try to find the interface topology log entry
     result.az_network_if = qry_prov.Network.get_host_for_ip(  # type:ignore
         ip_address=src_ip
     )
     if not df_has_data(result.az_network_if):
-        nb_markdown("Could not get Azure network interface record")
+        nb_markdown("Could not get Azure NSG network interface record")
 
 
 @set_text(docs=_CELL_DOCS, key="get_heartbeat")
