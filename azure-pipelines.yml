@@ -41,6 +41,8 @@ stages:
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
         pip install --upgrade pytest pytest-azurepipelines
         pip install --upgrade pytest-cov pytest-check
+        # need these two packages for tests
+        pip install matplotlib scikit-learn
         pytest tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
       continueOnError: true
       condition: succeededOrFailed()
@@ -52,7 +54,7 @@ stages:
         MSTICPY_TEST_NOSKIP: 1
     - script: |
         pip install --upgrade black
-        black -t py36 --check --exclude venv . 
+        black -t py36 --check --exclude venv .
       displayName: Black
       continueOnError: true
       condition: succeededOrFailed()
@@ -69,7 +71,7 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        pip install --upgrade flake8 
+        pip install --upgrade flake8
         flake8 --max-line-length=90 --exclude=tests* . --ignore=E501,W503
       displayName: flake8
       continueOnError: true
