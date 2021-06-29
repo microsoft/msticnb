@@ -265,15 +265,15 @@ def _azure_api_details(az_cli, host_record):
         ]
         image = (
             str(
-                resource_details["properties"]["storageProfile"]["imageReference"][
-                    "offer"
-                ]
+                resource_details["properties"]["storageProfile"]
+                .get("imageReference", {})
+                .get("offer", {})
             )
             + " "
             + str(
-                resource_details["properties"]["storageProfile"]["imageReference"][
-                    "sku"
-                ]
+                resource_details["properties"]["storageProfile"]
+                .get("imageReference", {})
+                .get("sku", {})
             )
         )
         # Extract key details and add host_entity

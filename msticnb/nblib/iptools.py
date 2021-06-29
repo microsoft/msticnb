@@ -128,8 +128,7 @@ def _get_prefix(ip_addr):
 def _to_ip4_net(net):
     try:
         return _get_prefix(net), IPv4Network(net)
-    except AddressValueError as err:
-        print(err, type(err))
+    except AddressValueError:
         return None, None
 
 
@@ -158,7 +157,7 @@ def is_in_vps_net(ip_addr: str) -> Optional[IPv4Network]:
         return None
     if ip_pref in _NET_DICT:
         for net in _NET_DICT[ip_pref]:
-            if ip_addr in net:
+            if ip4_addr in net:
                 return net
     return None
 
