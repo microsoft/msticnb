@@ -4,12 +4,14 @@
 # license information.
 # --------------------------------------------------------------------------
 """Test the nb_template class."""
+import sys
 from pathlib import Path
 
 # from contextlib import redirect_stdout
 import pytest_check as check
 
 import pandas as pd
+import pytest
 
 from msticpy.common.timespan import TimeSpan
 from msticnb import nblts
@@ -19,6 +21,12 @@ from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 
 # pylint: disable=no-member
+
+if not sys.platform.startswith("win"):
+    pytest.skip(
+        "skipping Linux and Mac for these tests since Matplotlib fails with no gui",
+        allow_module_level=True,
+    )
 
 
 def test_winhostevents_notebooklet(monkeypatch):

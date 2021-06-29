@@ -267,7 +267,16 @@ class AccountSummary(Notebooklet):
         acct_index_df = _create_account_index(all_acct_dfs)
         if acct_index_df.empty:
             nb_markdown("No accounts matching that name.")
-        elif len(acct_index_df) == 1:
+        else:
+            result.account_selector = _get_account_selector(
+                qry_prov=self.query_provider,
+                all_acct_dfs=all_acct_dfs,
+                result=result,
+                timespan=timespan,
+                options=self.options,
+                geoip=self._geo_lookup,
+            )
+        if len(acct_index_df) == 1:
             # If a single account - just display directly.
             disp_func = _create_display_callback(
                 qry_prov=self.query_provider,
@@ -288,14 +297,6 @@ class AccountSummary(Notebooklet):
             nb_markdown("<hr>")
             nb_markdown(
                 "Multiple matching accounts found, select one to see details.", "large"
-            )
-            result.account_selector = _get_account_selector(
-                qry_prov=self.query_provider,
-                all_acct_dfs=all_acct_dfs,
-                result=result,
-                timespan=timespan,
-                options=self.options,
-                geoip=self._geo_lookup,
             )
             nb_display(result.account_selector)
 
