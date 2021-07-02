@@ -1180,6 +1180,9 @@ def _create_ip_summary(data, ip_col, geoip):
         )  # get geoip and whois
         .merge(data, left_on="IpAddress", right_on=ip_col)
     )
+    for col in group_cols:
+        if col not in all_data.columns:
+            group_cols.pop(group_cols.index(col))
     ip_summary = all_data.groupby(group_cols).agg(
         Count=pd.NamedAgg("Operation", "count"),
         FirstOperation=pd.NamedAgg("TimeGenerated", "min"),

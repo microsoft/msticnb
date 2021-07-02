@@ -605,7 +605,11 @@ def _get_heartbeat(qry_prov, src_ip, result):
     nb_data_wait("Heartbeat")
     if result.ip_type == "Public":
         result.heartbeat = qry_prov.Network.get_heartbeat_for_ip(ip_address=src_ip)
-    elif result.host_entity.HostName and result.host_entity.HostName != "unknown":
+    elif (
+        result.host_entity
+        and result.host_entity.HostName
+        and result.host_entity.HostName != "unknown"
+    ):
         result.heartbeat = qry_prov.Network.get_heartbeat_for_host(
             host_name=result.host_entity.HostName
         )
