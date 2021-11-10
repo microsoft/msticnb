@@ -13,10 +13,10 @@ with open("requirements.txt", "r") as fh:
     INSTALL_REQUIRES = fh.readlines()
 
 # pylint: disable=locally-disabled, invalid-name
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("msticnb/_version.py", "r") as fd:
+with open("msticnb/_version.py", "r", encoding="utf-8") as fd:
     v_match = re.search(r'^VERSION\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE)
     __version__ = v_match.group(1) if v_match else "no version"
 # pylint: enable=locally-disabled, invalid-name

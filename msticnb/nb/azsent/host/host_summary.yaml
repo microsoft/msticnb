@@ -3,8 +3,9 @@ metadata:
   description: Host summary
   default_options:
     - heartbeat: Query Heartbeat table for host information.
-    - azure_net: 'Query AzureNetworkAnalytics table for host
-      network topology information.'
+    - azure_net: '
+        Query AzureNetworkAnalytics table for host
+        network topology information.'
     - alerts: Query any alerts for the host.
     - bookmarks: Query any bookmarks for the host.
     - azure_api: Query Azure API for VM information.

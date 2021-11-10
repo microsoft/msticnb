@@ -334,7 +334,7 @@ def _color_cells(val):
         color = color_chart[val.casefold()]
     else:
         color = "none"
-    return "background-color: %s" % color
+    return f"background-color: {color}"
 
 
 def _sev_score(sev):

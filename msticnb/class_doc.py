@@ -200,10 +200,10 @@ def _format_func_doc(func_name, func, full_doc=False, prop_set=None):
     if func_doc:
         if not full_doc:
             # Get the first line of the doc string
-            doc_lines.append(func_doc.split("\n")[0])
+            doc_lines.append(func_doc.split("\n", maxsplit=1)[0])
             return doc_lines
 
-        func_doc = inspect.cleandoc(func_doc).split("\n")[0]
+        func_doc = inspect.cleandoc(func_doc).split("\n", maxsplit=1)[0]
     if func_doc:
         refmt_headings = []
         for doc_line in func_doc.split("\n"):
