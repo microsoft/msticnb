@@ -24,7 +24,7 @@ stages:
     pool:
       vmImage: $(imageName)
     variables:
-      python.version: '3.6'
+      python.version: '3.8'
     steps:
     # Add an alias for Windows python=>python3
     - script: alias python='python3' pip='pip3'

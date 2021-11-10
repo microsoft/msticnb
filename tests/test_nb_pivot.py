@@ -42,7 +42,8 @@ _EXPECTED_FUNCS = [
 def _init_pivot(monkeypatch):
     test_data = str(Path(TEST_DATA_PATH).absolute())
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
-    nblts.azsent.host.HostSummary.metadata.req_providers.remove("azuredata")
+    if "azuredata" in nblts.azsent.host.HostSummary.metadata.req_providers:
+        nblts.azsent.host.HostSummary.metadata.req_providers.remove("azuredata")
     data_providers.init(
         query_provider="LocalData",
         providers=["geolitelookup"],
