@@ -262,7 +262,6 @@ def _alert_picker(data, ti_prov, secondary, silent: bool, geo_lookup: Any = None
         alerts=data,
         action=show_full_alert,
         columns=[
-            "StartTimeUtc",
             "AlertName",
             "CompromisedEntity",
             "TI Risk",

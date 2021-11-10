@@ -106,7 +106,7 @@ class HostSummary(Notebooklet):
     _cell_docs = _CELL_DOCS
 
     # pylint: disable=too-many-branches
-    @set_text(docs=_CELL_DOCS, key="run")  # noqa MC0001
+    @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001
         self,
         value: Any = None,
@@ -206,7 +206,7 @@ class HostSummary(Notebooklet):
             )
             if azure_api:
                 host_entity.AzureDetails["ResourceDetails"] = azure_api[
-                    "resoure_details"
+                    "resource_details"
                 ]
                 host_entity.AzureDetails["SubscriptionDetails"] = azure_api[
                     "sub_details"
@@ -254,39 +254,49 @@ def _azure_api_details(az_cli, host_record):
         )
         # Get details of attached disks and network interfaces
         disks = [
-            disk["name"]
-            for disk in resource_details["properties"]["storageProfile"]["dataDisks"]
+            disk.get("name")
+            for disk in resource_details.get("properties", {})
+            .get("storageProfile", {})
+            .get("dataDisks", {})
         ]
         network_ints = [
-            net["id"]
-            for net in resource_details["properties"]["networkProfile"][
-                "networkInterfaces"
-            ]
+            net.get("id")
+            for net in resource_details.get("properties", {})
+            .get("networkProfile", {})
+            .get("networkInterfaces")
         ]
         image = (
             str(
-                resource_details["properties"]["storageProfile"]
+                resource_details.get("properties", {})
+                .get("storageProfile", {})
                 .get("imageReference", {})
                 .get("offer", {})
             )
             + " "
             + str(
-                resource_details["properties"]["storageProfile"]
+                resource_details.get("properties", {})
+                .get("storageProfile", {})
                 .get("imageReference", {})
                 .get("sku", {})
             )
         )
         # Extract key details and add host_entity
         resource_details = {
-            "Azure Location": resource_details["location"],
-            "VM Size": resource_details["properties"]["hardwareProfile"]["vmSize"],
+            "Azure Location": resource_details.get("location"),
+            "VM Size": (
+                resource_details.get("properties", {})
+                .get("hardwareProfile", {})
+                .get("vmSize")
+            ),
             "Image": image,
             "Disks": disks,
-            "Admin User": resource_details["properties"]["osProfile"]["adminUsername"],
+            "Admin User": resource_details.get("properties", {})
+            .get("osProfile", {})
+            .get("adminUsername"),
             "Network Interfaces": network_ints,
-            "Tags": str(resource_details["tags"]),
+            "Tags": str(resource_details.get("tags")),
         }
-        return {"resoure_details": resource_details, "sub_details": sub_details}
+        return {"resource_details": resource_details, "sub_details": sub_details}
     except CloudError:
         return None
 

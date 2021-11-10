@@ -1178,6 +1178,7 @@ def _create_ip_summary(data, ip_col, geoip):
         .pipe(
             (get_geoip_whois, "data"), geo_lookup=geoip, ip_col=ip_col
         )  # get geoip and whois
+        .drop(columns=["TimeGenerated", "Type"], errors="ignore")
         .merge(data, left_on="IpAddress", right_on=ip_col)
     )
     for col in group_cols:
