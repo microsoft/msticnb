@@ -107,7 +107,7 @@ class HostSummary(Notebooklet):
 
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa MC0001
-    def run(
+    def run(  # noqa:MC0001
         self,
         value: Any = None,
         data: Optional[pd.DataFrame] = None,

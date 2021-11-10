@@ -116,7 +116,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         timespan: Optional[TimeSpan] = None,
         options: Optional[Iterable[str]] = None,
         **kwargs,
-    ) -> HostLogonsSummaryResult:
+    ) -> HostLogonsSummaryResult:  # noqa:MC0001
         """
         Return host summary data.
 

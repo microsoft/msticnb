@@ -9,7 +9,7 @@ import re
 import setuptools
 
 
-with open("requirements.txt", "r") as fh:
+with open("requirements.txt", "r", encoding="utf-8") as fh:
     INSTALL_REQUIRES = fh.readlines()
 
 # pylint: disable=locally-disabled, invalid-name
