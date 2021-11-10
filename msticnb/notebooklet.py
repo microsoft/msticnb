@@ -455,7 +455,7 @@ class Notebooklet(ABC):
     def import_cell(cls):
         """Import the text of this module into a new cell."""
         if cls.module_path:
-            with open(cls.module_path, "r") as mod_file:
+            with open(cls.module_path, "r", encoding="utf-8") as mod_file:
                 mod_text = mod_file.read()
             if mod_text:
                 # replace relative references with absolute paths
@@ -553,7 +553,9 @@ class Notebooklet(ABC):
     def get_methods(self) -> Dict[str, Callable[[Any], Any]]:
         """Return methods available for this class."""
         meths = inspect.getmembers(self, inspect.ismethod)
-        cls_selector = f"bound method {self.__class__.__name__.rsplit('.')[0]}"
+        cls_selector = (
+            f"bound method {self.__class__.__name__.rsplit('.', maxsplit=1)[0]}"
+        )
         return {
             meth[0]: meth[1]
             for meth in meths

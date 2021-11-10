@@ -7,7 +7,7 @@
 import inspect
 import sys
 from collections import namedtuple
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from msticpy.common.exceptions import MsticpyAzureConfigError
 from msticpy.common.wsconfig import WorkspaceConfig
@@ -336,7 +336,7 @@ class DataProviders:
         """
         return cls._DEFAULT_PROVIDERS
 
-    def _query_prov(self, provider, provider_defn, **kwargs):
+    def _query_prov(self, provider: str, provider_defn: ProviderDefn, **kwargs) -> Any:
         try:
             # Get any keys with the provider prefix and initialize the provider
             prov_kwargs_args = self._get_provider_kwargs(provider, **kwargs)
@@ -353,25 +353,30 @@ class DataProviders:
             if not prov_connect_args and provider_defn.get_config:
                 prov_connect_args = provider_defn.get_config()
             # call the connect function
-            created_provider.connect(**prov_connect_args)
+            try:
+                created_provider.connect(**prov_connect_args)
+            except Exception as err:  # pylint: disable=broad-except
+                print(f"Connection attempt for {provider} failed.\n{err}")
             return created_provider
         except MsticpyAzureConfigError as mp_ex:
             if get_opt("verbose"):
                 print("Warning:", mp_ex.args)
             return None
 
-    def _no_connect_prov(self, provider, provider_defn, **kwargs):
+    def _no_connect_prov(
+        self, provider: str, provider_defn: ProviderDefn, **kwargs
+    ) -> Any:
         # Get the args passed to __init__ for this provider
         prov_args = self._get_provider_kwargs(provider, **kwargs)
         # If there are none and there's a config function, call that.
         if not prov_args and provider_defn.get_config:
             prov_args = provider_defn.get_config()
-        # Instatiate the provider
+        # Instantiate the provider
         return provider_defn.prov_class(prov_args)
 
     # Helper methods
     @staticmethod
-    def _get_provider_kwargs(prefix, **kwargs):
+    def _get_provider_kwargs(prefix: str, **kwargs) -> Dict[str, str]:
         """Return the kwargs prefixed with "prefix_"."""
         if prefix == "LogAnalytics" and any(
             key for key in kwargs if key.startswith("AzureSentinel")
@@ -389,7 +394,7 @@ class DataProviders:
         }
 
     @staticmethod
-    def _get_connect_args(func, **kwargs):
+    def _get_connect_args(func: Callable, **kwargs) -> Dict[str, str]:
         """Get the arguments required by the `connect` function."""
         connect_params = inspect.signature(func).parameters
         return {
@@ -398,7 +403,7 @@ class DataProviders:
 
     # Provider get_config functions
     @staticmethod
-    def _azsent_get_config(**kwargs):
+    def _azsent_get_config(**kwargs) -> Dict[str, str]:
         if "workspace" in kwargs:
             ws_config = WorkspaceConfig(workspace=kwargs["workspace"])
         elif "config_file" in kwargs:

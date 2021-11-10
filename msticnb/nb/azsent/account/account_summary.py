@@ -11,6 +11,7 @@ import pandas as pd
 from bokeh.models import LayoutDOM
 from IPython.display import HTML
 from msticpy.common.timespan import TimeSpan
+from msticpy.common.utility import enum_parse
 from msticpy.datamodel import entities
 from msticpy.nbtools import nbdisplay, nbwidgets
 
@@ -18,11 +19,11 @@ from .... import nb_metadata
 from ...._version import VERSION
 from ....common import (
     MsticnbMissingParameterError,
+    df_has_data,
     nb_data_wait,
     nb_display,
     nb_markdown,
     set_text,
-    df_has_data,
 )
 from ....nblib.azsent.alert import browse_alerts
 from ....nblib.iptools import get_geoip_whois, map_ips
@@ -48,6 +49,7 @@ class AccountType(Flag):
     Windows = auto()
     Linux = auto()
     Azure = AzureActiveDirectory | AzureActivity | Office365
+    All = Azure | Windows | Linux
 
     def in_list(self, acct_types: Iterable[Union["AccountType", str]]):
         """Is the current value in the `acct_types` list."""
@@ -61,10 +63,7 @@ class AccountType(Flag):
     @classmethod
     def parse(cls, name: str):
         """Try to parse string to valid account type."""
-        try:
-            return cls[name]
-        except KeyError:
-            return None
+        return enum_parse(cls, name)
 
 
 # pylint: enable=invalid-name
@@ -1178,6 +1177,7 @@ def _create_ip_summary(data, ip_col, geoip):
         .pipe(
             (get_geoip_whois, "data"), geo_lookup=geoip, ip_col=ip_col
         )  # get geoip and whois
+        .drop(columns=["TimeGenerated", "Type"], errors="ignore")
         .merge(data, left_on="IpAddress", right_on=ip_col)
     )
     for col in group_cols:

@@ -5,7 +5,7 @@
 # --------------------------------------------------------------------------
 """Notebooklet Result base classes."""
 import inspect
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 from bokeh.models import LayoutDOM
@@ -98,9 +98,7 @@ class NotebookletResult(DFViewer):
     @staticmethod
     def _html_repr(obj):
         if isinstance(obj, pd.DataFrame):
-            suffix = ""
-            if len(obj) > 5:
-                suffix = f"<br>(showing top 5 of {len(obj)} rows)"
+            suffix = f"<br>(showing top 5 of {len(obj)} rows)" if len(obj) > 5 else ""
             return obj.head(5)._repr_html_() + suffix
         if isinstance(obj, (LayoutDOM, Figure)):
             show_bokeh(obj)
@@ -177,3 +175,19 @@ class NotebookletResult(DFViewer):
             return self._attribute_desc[name]
         # pylint: enable=unsupported-membership-test, unsubscriptable-object
         raise KeyError(f"Unknown property {name}.")
+
+    def data_properties(self, empty: bool = False) -> List[str]:
+        """Return list of attributes with populated data."""
+        return [
+            attr
+            for attr, val in vars(self).items()
+            if isinstance(val, pd.DataFrame) and (empty or not val.empty)
+        ]
+
+    def vis_properties(self) -> List[str]:
+        """Return list of properties with visualizations."""
+        return [
+            attr
+            for attr, val in vars(self).items()
+            if isinstance(val, (LayoutDOM, Figure))
+        ]
