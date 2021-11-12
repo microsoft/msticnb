@@ -12,7 +12,7 @@ import pytest_check as check
 from msticpy.datamodel import entities
 from msticpy.datamodel.pivot import Pivot
 
-from msticnb import data_providers
+from msticnb import data_providers, nblts
 from msticnb.nb_pivot import add_pivot_funcs
 from msticnb.notebooklet import NotebookletResult
 
@@ -42,6 +42,8 @@ _EXPECTED_FUNCS = [
 def _init_pivot(monkeypatch):
     test_data = str(Path(TEST_DATA_PATH).absolute())
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    if "azuredata" in nblts.azsent.host.HostSummary.metadata.req_providers:
+        nblts.azsent.host.HostSummary.metadata.req_providers.remove("azuredata")
     data_providers.init(
         query_provider="LocalData",
         providers=["geolitelookup"],

@@ -165,7 +165,7 @@ def _read_metadata_file(mod_path):
     if not md_path.is_file():
         md_path = Path(str(mod_path).replace(".py", ".yml"))
     if md_path.is_file():
-        with open(md_path, "r") as _md_file:
+        with open(md_path, "r", encoding="utf-8") as _md_file:
             return yaml.safe_load(_md_file)
     return None
 

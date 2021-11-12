@@ -107,9 +107,9 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
     metadata = _CLS_METADATA
 
-    @set_text(docs=_CELL_DOCS, key="run")  # noqa:MC0001
+    @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     # pylint: disable=too-many-locals, too-many-branches
-    def run(
+    def run(  # noqa:MC0001
         self,
         value: Any = None,
         data: Optional[pd.DataFrame] = None,
