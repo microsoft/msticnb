@@ -216,7 +216,7 @@ stages:
     pool:
       vmImage: windows-latest
     variables:
-      python.version: '3.6'
+      python.version: '3.8'
     steps:
     - script: 'pip install --upgrade setuptools wheel'
       displayName: 'Install setuptools'

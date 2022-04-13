@@ -1,5 +1,7 @@
 # msticnb - Notebooklets for Jupyter Notebooks
 
+Read the full documentation at [msticnb.readthedocs](https://msticnb.readthedocs.io/en/latest/)
+
 msticnb is a companion package to
 [msticpy](https://msticpy.readthedocs.io/en/latest/). It is designed to
 be used in Jupyter notebooks by security operations engineers and analysts,
