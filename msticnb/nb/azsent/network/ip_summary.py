@@ -4,31 +4,31 @@
 # license information.
 # --------------------------------------------------------------------------
 """IP Address Summary notebooklet."""
-from ipaddress import IPv4Address, IPv4Network, IPv6Address, ip_address
 import json
+from ipaddress import IPv4Address, IPv6Address, ip_address
 from json import JSONDecodeError
 from typing import Any, Dict, Iterable, Optional, Union
 
+import numpy as np
 import pandas as pd
 from bokeh.plotting.figure import Figure
 from msticpy.common.timespan import TimeSpan
-from msticpy.datamodel.entities import Host, IpAddress, GeoLocation
-from msticpy.nbtools import nbwidgets, nbdisplay
+from msticpy.datamodel.entities import GeoLocation, Host, IpAddress
+from msticpy.nbtools import nbdisplay, nbwidgets
 from msticpy.sectools.ip_utils import get_ip_type, get_whois_info
 
 from .... import nb_metadata
 from ...._version import VERSION
 from ....common import (
     MsticnbMissingParameterError,
+    df_has_data,
     nb_data_wait,
+    nb_display,
     nb_markdown,
     set_text,
-    nb_display,
-    df_has_data,
 )
 from ....nblib.azsent.alert import browse_alerts
 from ....nblib.azsent.host import populate_host_entity
-from ....nblib.iptools import is_in_vps_net
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
@@ -61,8 +61,6 @@ class IpSummaryResult(NotebookletResult):
         Host entity associated with IP Address
     ip_type : str
         IP address type - "Public", "Private", etc.
-    vps_network : IPv4Network
-        If this is not None, the address is part of a know VPS network.
     geoip : Optional[Dict[str, Any]]
         Geo location information as a dictionary.
     location : Optional[GeoLocation]
@@ -89,8 +87,8 @@ class IpSummaryResult(NotebookletResult):
         Azure Activity (AAD and Az Activity) summarized view
     office_activity : pd.DataFrame = None
         Office 365 activity
-    related_alerts : pd.DataFrame
-        Alerts related to IP Address
+    common_security : pd.DataFrame
+        Common Security Log entries for source IP
     related_bookmarks : pd.DataFrame
         Bookmarks related to IP Address
     alert_timeline : Figure
@@ -99,6 +97,10 @@ class IpSummaryResult(NotebookletResult):
         Threat intel lookup results
     passive_dns: pd.DataFrame
         Passive DNS lookup results
+    self.related_hosts: pd.DataFrame
+        Related hosts
+    self.related_accounts: pd.DataFrame
+        Related accounts
 
     """
 
@@ -132,7 +134,6 @@ class IpSummaryResult(NotebookletResult):
         self.ip_entity: IpAddress = None
         self.ip_origin: str = "External"
         self.ip_type: str = "Public"
-        self.vps_network: Optional[IPv4Network] = None
         self.host_entity: Host = None
         self.geoip: Optional[Dict[str, Any]] = None
         self.location: Optional[GeoLocation] = None
@@ -148,11 +149,14 @@ class IpSummaryResult(NotebookletResult):
         self.azure_activity: pd.DataFrame = None
         self.azure_activity_summary: pd.DataFrame = None
         self.office_activity: pd.DataFrame = None
+        self.common_security: pd.DataFrame = None
         self.related_alerts: pd.DataFrame = None
         self.related_bookmarks: pd.DataFrame = None
         self.alert_timeline: Figure = None
         self.ti_results: pd.DataFrame = None
         self.passive_dns: pd.DataFrame = None
+        self.related_hosts: pd.DataFrame = None
+        self.related_accounts: pd.DataFrame = None
 
 
 # pylint: enable=too-few-public-methods, too-many-instance-attributes
@@ -266,11 +270,28 @@ class IpAddressSummary(Notebooklet):
                     result.az_network_flows
                 )
                 nb_display()
-        if "az_activity" in self.options:
+        if "az_activity" in self.options or "related_accounts" in self.options:
             self._get_azure_activity(src_ip=value, result=result, timespan=timespan)
             _summarize_azure_activity(result)
         if "office_365" in self.options:
             self._get_office_activity(src_ip=value, result=result, timespan=timespan)
+        if "common_security" in self.options:
+            _get_common_security_log(
+                qry_prov=self.query_provider,
+                src_ip=value,
+                result=result,
+                timespan=timespan,
+            )
+
+        if "related_hosts" in self.options:
+            _get_related_hosts(
+                qry_prov=self.query_provider,
+                src_ip=value,
+                result=result,
+                timespan=timespan,
+            )
+        if "related_accounts" in self.options:
+            _get_related_accounts(result=result)
 
         result.ip_origin = _determine_ip_origin(result)
 
@@ -361,14 +382,6 @@ class IpAddressSummary(Notebooklet):
         ) and isinstance(result.ip_address, IPv4Address):
             _get_passv_dns(self.get_provider("tilookup"), src_ip, result)
 
-        # VPS Check
-        vps_net = is_in_vps_net(src_ip)
-        if vps_net:
-            nb_markdown(f"IP is part of known VPS network {vps_net}")
-            result.vps_network = vps_net
-        else:
-            nb_markdown("No match for known VPS network")
-
     @set_text(docs=_CELL_DOCS, key="get_az_netflow")
     def _get_azure_netflow(self, src_ip, result, timespan):
         """Retrieve Azure netflow and activity events."""
@@ -384,7 +397,7 @@ class IpAddressSummary(Notebooklet):
             result.aad_signins = self.query_provider.Azure.list_aad_signins_for_ip(
                 timespan, ip_address_list=src_ip
             )
-        _display_df_summary(result.aad_signins, "AAD signins")
+            _display_df_summary(result.aad_signins, "AAD signins")
 
         if self.check_table_exists("AzureActivity"):
             nb_data_wait("AzureActivity")
@@ -393,14 +406,16 @@ class IpAddressSummary(Notebooklet):
                     timespan, ip_address_list=src_ip
                 )
             )
-        _display_df_summary(result.azure_activity, "Azure Activity")
+            _display_df_summary(result.azure_activity, "Azure Activity")
 
     @set_text(docs=_CELL_DOCS, key="get_office_activity")
     def _get_office_activity(self, src_ip, result, timespan):
         """Retrieve Office activity data."""
         if self.check_table_exists("OfficeActivity"):
             nb_data_wait("OfficeActivity")
-            summarize = "| summarize operations=count() by OfficeWorkload, Operation"
+            summarize = """| summarize operations=count(), FirstOperation=min(TimeGenerated),
+            LastOperation=max(TimeGenerated) by UserId, OfficeWorkload, Operation
+            | project-rename AccountName=UserId"""
             result.office_activity = self.query_provider.Office365.list_activity_for_ip(
                 timespan, ip_address_list=src_ip, add_query_items=summarize
             )
@@ -582,6 +597,7 @@ def _summarize_azure_activity(result):
         FirstOperation=pd.NamedAgg(column="TimeGenerated", aggfunc="min"),
         LastOperation=pd.NamedAgg(column="TimeGenerated", aggfunc="max"),
     )
+    nb_markdown("Summary of Azure activity", "large")
     nb_display(result.azure_activity_summary)
 
 
@@ -596,7 +612,7 @@ def _get_az_net_if(qry_prov, src_ip, result):
         ip_address=src_ip
     )
     if not df_has_data(result.az_network_if):
-        nb_markdown("Could not get Azure NSG network interface record")
+        nb_markdown("Could not get Azure NSG network interface record.")
 
 
 @set_text(docs=_CELL_DOCS, key="get_heartbeat")
@@ -614,7 +630,34 @@ def _get_heartbeat(qry_prov, src_ip, result):
             host_name=result.host_entity.HostName
         )
     if not df_has_data(result.heartbeat):
-        nb_markdown("Could not get Azure Heartbeat record")
+        nb_markdown("Could not get Azure Heartbeat record.")
+
+
+@set_text(docs=_CELL_DOCS, key="get_common_security_log")
+def _get_common_security_log(qry_prov, src_ip, result, timespan):
+    """Get the CommonSecurityLog records for `src_ip`."""
+    nb_data_wait("Common Security Log")
+    query = """
+    CommonSecurityLog
+    | where TimeGenerated between (datetime({start}) .. datetime({end}))
+    | where SourceIP == '{ip_address}' or DestinationIP == '{ip_address}'
+    """
+    result_df = qry_prov.exec_query(
+        query.format(
+            start=timespan.start,
+            end=timespan.end,
+            ip_address=src_ip,
+        )
+    )
+
+    if df_has_data(result_df):
+        # Log has lots of sparse columns - trim these down as much as
+        # possible.
+        result.common_security = result_df.replace("", np.nan).dropna(
+            how="all", axis="columns"
+        )
+    else:
+        nb_markdown("No CommonSecurityLog records found.")
 
 
 @set_text(docs=_CELL_DOCS, key="get_vmcomputer")
@@ -626,6 +669,84 @@ def _get_vmcomputer(qry_prov, src_ip, result):
     )
     if not df_has_data(result.vmcomputer):
         nb_markdown("Could not get VMComputer record")
+
+
+_RELATED_WIN_HOSTS = """
+SecurityEvent
+| where TimeGenerated >= datetime({start}) and TimeGenerated <= datetime({end})
+| where IpAddress == \'{ip_address}\' or RemoteIpAddress == \'{ip_address}\'
+| summarize Count=count(), FirstOperation=min(TimeGenerated),
+LastOperation=max(TimeGenerated) by Computer, Account
+"""
+_RELATED_LX_HOST_ADD = """
+| project-rename Account=User
+| summarize Count=count(), FirstOperation=min(TimeGenerated),
+LastOperation=max(TimeGenerated) by Computer, Account
+"""
+
+
+@set_text(docs=_CELL_DOCS, key="get_related_hosts")
+def _get_related_hosts(qry_prov, src_ip, result, timespan):
+    """Get the related hosts for `src_ip`."""
+    nb_data_wait("Related hosts")
+    win_hosts_df = qry_prov.exec_query(
+        _RELATED_WIN_HOSTS.format(
+            start=timespan.start,
+            end=timespan.end,
+            ip_address=src_ip,
+        )
+    )
+    lx_hosts_df = qry_prov.LinuxSyslog.list_logons_for_source_ip(
+        start=timespan.start,
+        end=timespan.end,
+        ip_address=src_ip,
+        add_query_items=_RELATED_LX_HOST_ADD,
+    )
+    combined_results = []
+    if df_has_data(win_hosts_df):
+        combined_results.append(win_hosts_df.assign(Type="Windows"))
+    if df_has_data(lx_hosts_df):
+        combined_results.append(lx_hosts_df.assign(Type="Linux"))
+    if combined_results:
+        result.related_hosts = pd.concat(combined_results, ignore_index=True)
+        nb_display(
+            result.related_hosts[["Computer", "Type", "Count"]].drop_duplicates()
+        )
+        return
+    nb_markdown("No results for related hosts")
+
+
+@set_text(docs=_CELL_DOCS, key="get_related_accounts")
+def _get_related_accounts(result):
+    """Get the related accounts for `src_ip`."""
+    nb_data_wait("Related hosts")
+    combined_results = []
+    if df_has_data(result.related_hosts):
+        combined_results.append(result.related_hosts)
+    if df_has_data(result.azure_activity_summary):
+        combined_results.append(
+            result.azure_activity_summary.reset_index().rename(
+                columns={"UserPrincipalName": "Account", "OperationCount": "Count"}
+            )[["Account", "Type", "Count", "FirstOperation", "LastOperation"]]
+        )
+    if df_has_data(result.office_activity):
+        combined_results.append(
+            result.office_activity.reset_index().rename(
+                columns={
+                    "AccountName": "Account",
+                    "OfficeWorkload": "Type",
+                    "operations": "Count",
+                }
+            )[["Account", "Type", "Count", "FirstOperation", "LastOperation"]]
+        )
+
+    if combined_results:
+        result.related_accounts = pd.concat(combined_results, ignore_index=True)
+        nb_display(
+            result.related_accounts[["Account", "Type", "Count"]].drop_duplicates()
+        )
+        return
+    nb_markdown("No results for related accounts")
 
 
 def _populate_host_entity(result, geo_lookup=None):

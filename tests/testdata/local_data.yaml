@@ -2,7 +2,13 @@ metadata:
   version: 1
   description: Local Data Alert Queries
   data_environments: [LocalData]
-  data_families: [SecurityAlert, WindowsSecurity, AzureNetwork, LinuxSyslog, Network]
+  data_families:
+    - SecurityAlert
+    - SecurityEvent
+    - WindowsSecurity
+    - AzureNetwork
+    - LinuxSyslog
+    - Network
   tags: ['alert', 'securityalert', 'process', 'account', 'network', 'host']
 defaults:
   metadata:
@@ -192,6 +198,13 @@ sources:
     parameters:
   # Linux
   list_logons_for_account:
+    description: Linux logon Activity
+    metadata:
+      data_families: [LinuxSyslog]
+    args:
+      query: lx_host_logons.pkl
+    parameters:
+  list_logons_for_source_ip:
     description: Linux logon Activity
     metadata:
       data_families: [LinuxSyslog]

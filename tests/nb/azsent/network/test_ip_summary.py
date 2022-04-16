@@ -6,22 +6,66 @@
 """Test the nb_template class."""
 from pathlib import Path
 
-# from contextlib import redirect_stdout
-import pytest_check as check
-
-from bokeh.models import LayoutDOM
 import pandas as pd
 
+# from contextlib import redirect_stdout
+import pytest_check as check
+from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
-from msticnb import nblts
-from msticnb import data_providers
+
+from msticnb import data_providers, nblts
 
 from ....unit_test_lib import (
-    TEST_DATA_PATH,
     DEF_PROV_TABLES,
+    TEST_DATA_PATH,
     GeoIPLiteMock,
     TILookupMock,
 )
+
+
+def create_mocked_exec_query(func):
+    """Create decorator for mocked exec_query"""
+
+    def exec_query_mock(query, *args, **kwargs):
+        """Mock exec query for driver."""
+        if (
+            "SecurityEvent" in query
+            and "| summarize Count=count(), FirstOperation=min(TimeGenerated)" in query
+        ):
+            win_host_df = pd.read_pickle(
+                str(Path(TEST_DATA_PATH).joinpath("all_events_df.pkl"))
+            ).head(10)
+            return (
+                win_host_df[["Computer", "Account", "TimeGenerated"]]
+                .groupby(["Computer", "Account"])
+                .agg(
+                    Count=pd.NamedAgg("Computer", "count"),
+                    FirstOperation=pd.NamedAgg("TimeGenerated", "min"),
+                    LastOperation=pd.NamedAgg("TimeGenerated", "max"),
+                )
+                .reset_index()
+            )
+        # if no special handling, pass to original function
+        return func(query, *args, **kwargs)
+
+    return exec_query_mock
+
+
+def create_check_table(valid_tables):
+    """Create mock for check_table_exists."""
+
+    def check_table_exists(table):
+        """Mock check table exists."""
+        return table in valid_tables
+
+    return check_table_exists
+
+
+def patch_nb(test_nb, patch):
+    """Monkeypatch notebooklet to emulate queries."""
+    patch.setattr(test_nb, "check_table_exists", check_table_exists)
+    eq_mock = create_mocked_exec_query(test_nb.query_provider.exec_query)
+    patch.setattr(test_nb.query_provider, "exec_query", eq_mock)
 
 
 # pylint: disable=no-member
@@ -32,6 +76,7 @@ def test_ip_summary_notebooklet(monkeypatch):
     test_data = str(Path(TEST_DATA_PATH).absolute())
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
@@ -40,12 +85,19 @@ def test_ip_summary_notebooklet(monkeypatch):
     )
 
     test_nb = nblts.azsent.network.IpAddressSummary()
+    check_tables = create_check_table(
+        valid_tables=["SigninLogs", "AzureActivity", "OfficeActivity"]
+    )
+    monkeypatch.setattr(test_nb, "check_table_exists", check_tables)
+    eq_mock = create_mocked_exec_query(test_nb.query_provider.exec_query)
+    monkeypatch.setattr(test_nb.query_provider, "exec_query", eq_mock)
+
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="11.1.2.3", timespan=tspan)
     check.is_not_none(result.ip_entity)
     check.equal(result.ip_type, "Public")
-    check.equal(result.ip_origin, "External")
+    check.equal(result.ip_origin, "Internal")
     check.is_in("CountryCode", result.geoip)
     check.is_not_none(result.location)
     check.is_not_none(result.notebooklet)
@@ -69,6 +121,7 @@ def test_ip_summary_notebooklet_internal(monkeypatch):
     )
 
     test_nb = nblts.azsent.network.IpAddressSummary()
+
     tspan = TimeSpan(period="1D")
 
     test_nb.query_provider.schema.update({tab: {} for tab in DEF_PROV_TABLES})
