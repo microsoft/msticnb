@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 from msticpy.common.exceptions import MsticpyAzureConfigError
 from msticpy.common.wsconfig import WorkspaceConfig
 from msticpy.data import QueryProvider
-from msticpy.data.azure_data import AzureData
+from msticpy.data.azure.azure_data import AzureData
 from msticpy.data.query_defns import DataEnvironment
 from msticpy.sectools import GeoLiteLookup, IPStackLookup, TILookup
 

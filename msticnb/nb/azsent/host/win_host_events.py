@@ -20,7 +20,13 @@ from msticpy.nbtools import nbdisplay
 
 from .... import nb_metadata
 from ...._version import VERSION
-from ....common import MsticnbMissingParameterError, nb_data_wait, nb_markdown, set_text
+from ....common import (
+    MsticnbMissingParameterError,
+    nb_data_wait,
+    nb_markdown,
+    nb_warn,
+    set_text,
+)
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
@@ -336,6 +342,9 @@ def _parse_eventdata(event_data, event_ids: Optional[Union[int, Iterable[int]]] 
     else:
         src_event_data = event_data.copy()
 
+    if src_event_data.empty:
+        nb_warn(f"No events matching {event_ids}")
+        return None
     # Parse event properties into a dictionary
     nb_markdown("Parsing event data...")
     src_event_data["EventProperties"] = src_event_data.apply(

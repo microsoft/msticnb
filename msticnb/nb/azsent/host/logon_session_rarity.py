@@ -7,9 +7,9 @@
 from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
+from msticpy.analysis.eventcluster import char_ord_score, dbcluster_events, delim_count
 from msticpy.common.timespan import TimeSpan
 from msticpy.nbtools import nbwidgets
-from msticpy.sectools.eventcluster import dbcluster_events, delim_count, char_ord_score
 
 from .... import nb_metadata
 from ...._version import VERSION
