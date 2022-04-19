@@ -857,9 +857,9 @@ def _create_o365_account_entity(account_name, acct_activity_df, geoip):
         & (acct_activity_df["Source"] == AccountType.Office365.name)
     ]
     account_event = o365_events.iloc[0]
-    acc_entity.Name = account_event["UserPrincipalName"]
-    if "@" in account_event["UserPrincipalName"]:
-        acc_entity.UPNSuffix = account_event["UserPrincipalName"].split("@")[1]
+    acc_entity.Name = account_event["UserId"]
+    if "@" in account_event["UserId"]:
+        acc_entity.UPNSuffix = account_event["UserId"].split("@")[1]
     acc_entity.AadTenantId = account_event["TenantId"]
     acc_entity.OrganizationId = account_event["OrganizationId"]
 

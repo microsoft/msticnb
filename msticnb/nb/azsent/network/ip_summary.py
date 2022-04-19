@@ -413,12 +413,26 @@ class IpAddressSummary(Notebooklet):
         """Retrieve Office activity data."""
         if self.check_table_exists("OfficeActivity"):
             nb_data_wait("OfficeActivity")
-            summarize = """| summarize operations=count(), FirstOperation=min(TimeGenerated),
-            LastOperation=max(TimeGenerated) by UserId, OfficeWorkload, Operation
-            | project-rename AccountName=UserId"""
-            result.office_activity = self.query_provider.Office365.list_activity_for_ip(
-                timespan, ip_address_list=src_ip, add_query_items=summarize
+            office_activity = self.query_provider.Office365.list_activity_for_ip(
+                timespan, ip_address_list=src_ip
             )
+            if df_has_data(office_activity):
+                result.office_activity = (
+                    office_activity.rename(columns={"UserId": "Account"})
+                    .groupby(["Account", "OfficeWorkload", "Operation"])
+                    .agg(
+                        OperationCount=pd.NamedAgg(column="Type", aggfunc="count"),
+                        OperationTypes=pd.NamedAgg(
+                            column="Operation", aggfunc=lambda x: x.unique().tolist()
+                        ),
+                        FirstOperation=pd.NamedAgg(
+                            column="TimeGenerated", aggfunc="min"
+                        ),
+                        LastOperation=pd.NamedAgg(
+                            column="TimeGenerated", aggfunc="max"
+                        ),
+                    )
+                )
             _display_df_summary(result.office_activity, "Office 365 operations")
             if df_has_data(result.office_activity):
                 nb_display(result.office_activity)
@@ -465,6 +479,7 @@ def _determine_ip_origin(result):
             result.ip_type == "Private"
             or df_has_data(result.heartbeat)
             or df_has_data(result.az_network_if)
+            or df_has_data(result.vmcomputer)
         )
         else "External"
     )
@@ -559,8 +574,11 @@ def _summarize_azure_activity(result):
     if df_has_data(result.aad_signins):
         az_dfs.append(
             result.aad_signins.assign(
-                UserPrincipalName=lambda x: x.UserPrincipalName.str.lower()
-            ).rename(
+                UserPrincipalName=lambda x: x.UserPrincipalName.str.lower(),
+                Status=result.aad_signins["ResultDescription"],
+            )
+            .replace({"Status": ""}, "Success")  # fill in blank (ResultType==0) status
+            .rename(
                 columns={
                     "OperationName": "Operation",
                     "AppDisplayName": "AppResourceProvider",
@@ -578,6 +596,7 @@ def _summarize_azure_activity(result):
                     "OperationName": "Operation",
                     "ResourceProvider": "AppResourceProvider",
                     "Category": "UserType",
+                    "ActivityStatusValue": "Status",
                 }
             )
         )
@@ -587,7 +606,14 @@ def _summarize_azure_activity(result):
 
     az_all_data = pd.concat(az_dfs)
     result.azure_activity_summary = az_all_data.groupby(
-        ["UserPrincipalName", "Type", "IPAddress", "AppResourceProvider", "UserType"]
+        [
+            "UserPrincipalName",
+            "Type",
+            "IPAddress",
+            "AppResourceProvider",
+            "UserType",
+            "Status",
+        ]
     ).agg(
         OperationCount=pd.NamedAgg(column="Type", aggfunc="count"),
         OperationTypes=pd.NamedAgg(
@@ -676,12 +702,12 @@ SecurityEvent
 | where TimeGenerated >= datetime({start}) and TimeGenerated <= datetime({end})
 | where IpAddress == \'{ip_address}\' or RemoteIpAddress == \'{ip_address}\'
 | summarize Count=count(), FirstOperation=min(TimeGenerated),
-LastOperation=max(TimeGenerated) by Computer, Account
+LastOperation=max(TimeGenerated) by Computer, Account, LogonTypeName
 """
 _RELATED_LX_HOST_ADD = """
 | project-rename Account=User
 | summarize Count=count(), FirstOperation=min(TimeGenerated),
-LastOperation=max(TimeGenerated) by Computer, Account
+LastOperation=max(TimeGenerated) by Computer, Account, LogonTypeName
 """
 
 
@@ -708,9 +734,21 @@ def _get_related_hosts(qry_prov, src_ip, result, timespan):
     if df_has_data(lx_hosts_df):
         combined_results.append(lx_hosts_df.assign(Type="Linux"))
     if combined_results:
-        result.related_hosts = pd.concat(combined_results, ignore_index=True)
+        result.related_hosts = pd.concat(combined_results, ignore_index=True)[
+            [
+                "Computer",
+                "Account",
+                "Type",
+                "LogonTypeName",
+                "Count",
+                "FirstOperation",
+                "LastOperation",
+            ]
+        ]
         nb_display(
-            result.related_hosts[["Computer", "Type", "Count"]].drop_duplicates()
+            result.related_hosts[
+                ["Computer", "Type", "LogonTypeName", "Count"]
+            ].drop_duplicates()
         )
         return
     nb_markdown("No results for related hosts")
@@ -727,15 +765,14 @@ def _get_related_accounts(result):
         combined_results.append(
             result.azure_activity_summary.reset_index().rename(
                 columns={"UserPrincipalName": "Account", "OperationCount": "Count"}
-            )[["Account", "Type", "Count", "FirstOperation", "LastOperation"]]
+            )[["Account", "Type", "Status", "Count", "FirstOperation", "LastOperation"]]
         )
     if df_has_data(result.office_activity):
         combined_results.append(
             result.office_activity.reset_index().rename(
                 columns={
-                    "AccountName": "Account",
                     "OfficeWorkload": "Type",
-                    "operations": "Count",
+                    "OperationCount": "Count",
                 }
             )[["Account", "Type", "Count", "FirstOperation", "LastOperation"]]
         )

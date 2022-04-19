@@ -97,7 +97,7 @@ def test_ip_summary_notebooklet(monkeypatch):
     result = test_nb.run(value="11.1.2.3", timespan=tspan)
     check.is_not_none(result.ip_entity)
     check.equal(result.ip_type, "Public")
-    check.equal(result.ip_origin, "Internal")
+    check.equal(result.ip_origin, "External")
     check.is_in("CountryCode", result.geoip)
     check.is_not_none(result.location)
     check.is_not_none(result.notebooklet)
@@ -121,7 +121,18 @@ def test_ip_summary_notebooklet_internal(monkeypatch):
     )
 
     test_nb = nblts.azsent.network.IpAddressSummary()
-
+    check_tables = create_check_table(
+        valid_tables=[
+            "SigninLogs",
+            "AzureActivity",
+            "OfficeActivity",
+            "Heartbeat",
+            "AzureNetworkAnalytics_CL",
+        ]
+    )
+    monkeypatch.setattr(test_nb, "check_table_exists", check_tables)
+    eq_mock = create_mocked_exec_query(test_nb.query_provider.exec_query)
+    monkeypatch.setattr(test_nb.query_provider, "exec_query", eq_mock)
     tspan = TimeSpan(period="1D")
 
     test_nb.query_provider.schema.update({tab: {} for tab in DEF_PROV_TABLES})
@@ -153,6 +164,20 @@ def test_ip_summary_notebooklet_all(monkeypatch):
     test_nb = nblts.azsent.network.IpAddressSummary()
     tspan = TimeSpan(period="1D")
     test_nb.query_provider.schema.update({tab: {} for tab in DEF_PROV_TABLES})
+    check_tables = create_check_table(
+        valid_tables=[
+            "SigninLogs",
+            "AzureActivity",
+            "OfficeActivity",
+            "Heartbeat",
+            "AzureNetworkAnalytics_CL",
+            "VMComputer",
+        ]
+    )
+    monkeypatch.setattr(test_nb, "check_table_exists", check_tables)
+    eq_mock = create_mocked_exec_query(test_nb.query_provider.exec_query)
+    monkeypatch.setattr(test_nb.query_provider, "exec_query", eq_mock)
+    tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)
     check.is_not_none(result.ip_entity)

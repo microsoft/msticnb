@@ -150,7 +150,7 @@ sources:
     metadata:
       data_families: [Azure]
     args:
-      query: aad_signin_user.pkl
+      query: aad_signin_random.pkl
     parameters:
   # Azure Activity
   list_azure_activity_for_account:
@@ -194,7 +194,7 @@ sources:
     metadata:
       data_families: [Office365]
     args:
-      query: office_activity_user.pkl
+      query: office_activity_random.pkl
     parameters:
   # Linux
   list_logons_for_account:
