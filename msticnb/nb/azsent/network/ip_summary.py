@@ -42,7 +42,7 @@ _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = nb_metadata.read_mod_metadata(__file__, __name__)
 
 
-# pylint: disable=too-few-public-methods, too-many-instance-attributes
+# pylint: disable=too-few-public-methods, too-many-instance-attributes, too-many-lines
 # Rename this class
 class IpSummaryResult(NotebookletResult):
     """
@@ -768,6 +768,7 @@ def _get_device_info(qry_prov, src_ip, result, geo_lookup):
         )
         result.host_entities = _host_entity_from_dev_info(result, geo_lookup=geo_lookup)
         _display_df_summary(result.associated_hosts, "Defender hosts with matching IP")
+        nb_display(result.associated_hosts[["DeviceName"]].drop_duplicates())
         _display_df_summary(result.device_info, "Defender hosts device info")
     nb_markdown("No events from Defender Device info")
 
@@ -834,6 +835,9 @@ def _get_device_net_connections(qry_prov, src_ip, result):
     )
     if df_has_data(result.network_connections):
         _display_df_summary(result.network_connections, "Defender network connections")
+        nb_display(
+            result.network_connections[["Computer", "LocalIP"]].drop_duplicates()
+        )
     else:
         nb_markdown("No events from Device network connections")
 
