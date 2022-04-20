@@ -4,11 +4,13 @@ metadata:
   default_options:
     - geoip: Get geo location information for IP address.
     - alerts: Get any alerts listing the IP address.
-    - heartbeat: Get the latest heartbeat record for for this IP Address.
-    - az_net_if: Get the latest Azure network analytics interface data for this IP Address.
-    - vmcomputer: Get the latest VMComputer record for this IP Address.
-    - related_hosts: Find any hosts accessed by this IP Address in Win event log and Syslog.
-    - related_accounts: Find any accounts using this IP Address in AAD or host logs.
+    - heartbeat: Get the latest heartbeat record for for this IP address.
+    - az_net_if: Get the latest Azure network analytics interface data for this IP address.
+    - vmcomputer: Get the latest VMComputer record for this IP address.
+    - host_logons: Find any hosts with logons using this IP address as a source.
+    - related_accounts: Find any accounts using this IP address in AAD or host logs.
+    - device_info: Find any devices associated with this IP address.
+    - device_network: Find any devices communicating with this IP address.
   other_options:
     - bookmarks: Get any hunting bookmarks listing the IP address.
     - az_netflow: Get netflow information from AzureNetworkAnalytics table.
@@ -74,9 +76,15 @@ output:
   get_common_security_log:
     title: Common security log
     text: The CommonSecurityLog contains log data from firewalls and network devices.
-  get_related_hosts:
-    title: Related hosts
-    text: List of hosts accessed from the IP address.
+  get_host_logons:
+    title: Host logons
+    text: List of hosts with logon attempts from this IP address.
   get_related_accounts:
     title: Related accounts
     text: List of accounts using the IP address.
+  get_device_info:
+    title: Defender device information
+    text: MS Defender device network and host information.
+  get_device_network:
+    title: Network connections
+    text: MS Defender network connections to/from this IP address.

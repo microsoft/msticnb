@@ -7,7 +7,7 @@
 import json
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from json import JSONDecodeError
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -29,6 +29,7 @@ from ....common import (
 )
 from ....nblib.azsent.alert import browse_alerts
 from ....nblib.azsent.host import populate_host_entity
+from ....nblib.iptools import convert_to_ip_entities
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
@@ -57,8 +58,8 @@ class IpSummaryResult(NotebookletResult):
         IpAddress entity
     ip_origin : str
         "External" or "Internal"
-    host_entity : Host
-        Host entity associated with IP Address
+    host_entities : Host
+        Host entity or entities associated with IP Address
     ip_type : str
         IP address type - "Public", "Private", etc.
     geoip : Optional[Dict[str, Any]]
@@ -97,10 +98,16 @@ class IpSummaryResult(NotebookletResult):
         Threat intel lookup results
     passive_dns: pd.DataFrame
         Passive DNS lookup results
-    self.related_hosts: pd.DataFrame
-        Related hosts
-    self.related_accounts: pd.DataFrame
-        Related accounts
+    self.host_logons : pd.DataFrame
+        Hosts with logons from this IP Address
+    self.related_accounts : pd.DataFrame
+        Accounts with activity related to this IP Address
+    self.associated_hosts : pd.DataFrame
+        Hosts using this IP Address
+    self.device_info : pd.DataFrame
+        Device info of hosts using this IP Address
+    self.network_connections : pd.DataFrame = None
+        Network connections to/from this IP on other devices
 
     """
 
@@ -134,7 +141,7 @@ class IpSummaryResult(NotebookletResult):
         self.ip_entity: IpAddress = None
         self.ip_origin: str = "External"
         self.ip_type: str = "Public"
-        self.host_entity: Host = None
+        self.host_entities: List[Host] = []
         self.geoip: Optional[Dict[str, Any]] = None
         self.location: Optional[GeoLocation] = None
         self.whois: pd.DataFrame = None
@@ -155,8 +162,11 @@ class IpSummaryResult(NotebookletResult):
         self.alert_timeline: Figure = None
         self.ti_results: pd.DataFrame = None
         self.passive_dns: pd.DataFrame = None
-        self.related_hosts: pd.DataFrame = None
+        self.host_logons: pd.DataFrame = None
         self.related_accounts: pd.DataFrame = None
+        self.associated_hosts: pd.DataFrame = None
+        self.device_info: pd.DataFrame = None
+        self.network_connections: pd.DataFrame = None
 
 
 # pylint: enable=too-few-public-methods, too-many-instance-attributes
@@ -183,7 +193,7 @@ class IpAddressSummary(Notebooklet):
     __doc__ = nb_metadata.update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
 
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches, too-many-statements
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa: MC0001
         self,
@@ -244,25 +254,44 @@ class IpAddressSummary(Notebooklet):
         result.ip_entity = IpAddress(Address=value)
         nb_markdown(f"{value}, ip address type: {result.ip_type}")
 
-        if "az_net_if" in self.options and self.check_table_exists(
-            "AzureNetworkAnalytics_CL"
-        ):
-            _get_az_net_if(qry_prov=self.query_provider, src_ip=value, result=result)
-        if "heartbeat" in self.options and self.check_table_exists("Heartbeat"):
-            _get_heartbeat(qry_prov=self.query_provider, src_ip=value, result=result)
-        if "vmcomputer" in self.options and self.check_table_exists("VMComputer"):
-            _get_vmcomputer(qry_prov=self.query_provider, src_ip=value, result=result)
         geo_lookup = self.get_provider("geolitelookup") or self.get_provider(
             "ipstacklookup"
         )
-        _populate_host_entity(result, geo_lookup=geo_lookup)
-        if not result.host_entity:
-            result.host_entity = Host(HostName="unknown")
+        # Lookup basic host info
+        if "device_info" in self.options and self.check_table_exists(
+            "DeviceNetworkInfo"
+        ):
+            _get_device_info(
+                qry_prov=self.query_provider,
+                src_ip=value,
+                result=result,
+                geo_lookup=geo_lookup,
+            )
+        else:
+            if "az_net_if" in self.options and self.check_table_exists(
+                "AzureNetworkAnalytics_CL"
+            ):
+                _get_az_net_if(
+                    qry_prov=self.query_provider, src_ip=value, result=result
+                )
+            if "heartbeat" in self.options and self.check_table_exists("Heartbeat"):
+                _get_heartbeat(
+                    qry_prov=self.query_provider, src_ip=value, result=result
+                )
+            if "vmcomputer" in self.options and self.check_table_exists("VMComputer"):
+                _get_vmcomputer(
+                    qry_prov=self.query_provider, src_ip=value, result=result
+                )
+            _populate_host_entity(result, geo_lookup=geo_lookup)
+        if not result.host_entities:
+            result.host_entities.append(Host(HostName="unknown"))
 
+        # Alerts and bookmarks
         if "alerts" in self.options:
             self._get_related_alerts(src_ip=value, result=result, timespan=timespan)
         if "bookmarks" in self.options:
             self._get_related_bookmarks(src_ip=value, result=result, timespan=timespan)
+        # Azure NSG netflow
         if "az_netflow" in self.options:
             self._get_azure_netflow(src_ip=value, result=result, timespan=timespan)
             if df_has_data(result.az_network_flows):
@@ -283,8 +312,8 @@ class IpAddressSummary(Notebooklet):
                 timespan=timespan,
             )
 
-        if "related_hosts" in self.options:
-            _get_related_hosts(
+        if "host_logons" in self.options:
+            _get_host_logons(
                 qry_prov=self.query_provider,
                 src_ip=value,
                 result=result,
@@ -292,6 +321,13 @@ class IpAddressSummary(Notebooklet):
             )
         if "related_accounts" in self.options:
             _get_related_accounts(result=result)
+
+        if "device_network" in self.options and self.check_table_exists(
+            "DeviceNetworkEvents"
+        ):
+            _get_device_net_connections(
+                qry_prov=self.query_provider, src_ip=value, result=result
+            )
 
         result.ip_origin = _determine_ip_origin(result)
 
@@ -307,6 +343,8 @@ class IpAddressSummary(Notebooklet):
             f"Additional methods for this class:<br>{'<br>'.join(self.list_methods())}"
         )
         return self._last_result
+
+    # pylint: disable=too-many-branches, too-many-statements
 
     def browse_alerts(self) -> nbwidgets.SelectAlert:
         """Return alert browser/viewer."""
@@ -480,6 +518,7 @@ def _determine_ip_origin(result):
             or df_has_data(result.heartbeat)
             or df_has_data(result.az_network_if)
             or df_has_data(result.vmcomputer)
+            or df_has_data(result.associated_hosts)
         )
         else "External"
     )
@@ -697,26 +736,131 @@ def _get_vmcomputer(qry_prov, src_ip, result):
         nb_markdown("Could not get VMComputer record")
 
 
-_RELATED_WIN_HOSTS = """
+_MDE_DEVICE_NET_INFO = """
+DeviceNetworkInfo
+| where IPAddresses has "{src_ip}"
+| mv-expand IPAddresses
+| extend IPAddress = tostring(IPAddresses.IPAddress)
+| summarize arg_max(TimeGenerated, *) by IPAddress, DeviceName, DeviceId
+"""
+
+_MDE_DEVICE_INFO = """
+DeviceInfo
+| where DeviceId == "{device_id}"
+| summarize arg_max(TimeGenerated, *)
+"""
+
+
+@set_text(docs=_CELL_DOCS, key="get_device_info")
+def _get_device_info(qry_prov, src_ip, result, geo_lookup):
+    nb_data_wait("DeviceInfo")
+    result.associated_hosts = qry_prov.exec_query(
+        _MDE_DEVICE_NET_INFO.format(src_ip=src_ip)
+    )
+    if df_has_data(result.associated_hosts):
+        device_ids = result.associated_hosts.DeviceId.unique()
+        result.device_info = pd.concat(
+            [
+                qry_prov.exec_query(_MDE_DEVICE_INFO.format(device_id=device_id))
+                for device_id in device_ids
+            ],
+            ignore_index=True,
+        )
+        result.host_entities = _host_entity_from_dev_info(result, geo_lookup=geo_lookup)
+        _display_df_summary(result.associated_hosts, "Defender hosts with matching IP")
+        _display_df_summary(result.device_info, "Defender hosts device info")
+    nb_markdown("No events from Defender Device info")
+
+
+def _host_entity_from_dev_info(result, geo_lookup):
+    device_info = result.device_info
+    host_dict: Dict[str, Host] = {}
+    for row in device_info.itertuples():
+        host_entity = host_dict.get(row.DeviceName)
+        # if we don't already have a host of that name, create one
+        if not host_entity:
+            if "." in row.DeviceName:
+                host, domain = row.DeviceName.split(".", maxsplit=1)
+            else:
+                host = row.DeviceName
+                domain = None
+            host_entity = Host(
+                HostName=host,
+                DnsDomain=domain,
+                IsDomainJoined=row.IsAzureADJoined,
+            )
+            host_entity.DeviceIds = []
+            host_entity.IpAddresses = []
+            host_dict[row.DeviceName] = host_entity
+        # add device ID
+        if row.DeviceId not in host_entity.DeviceIds:
+            host_entity.DeviceIds.append(row.DeviceId)
+        # Add IP Addresses from dev info record
+        ip_set = {row.PublicIP}
+        # and from the devicenetworkinfo results for this device
+        ip_set.update(
+            result.associated_hosts[
+                result.associated_hosts.DeviceId == row.DeviceId
+            ].IPAddress
+        )
+        ip_entities = convert_to_ip_entities(list(ip_set), geo_lookup=geo_lookup)
+        host_ips = {ip.Address for ip in host_entity.IpAddresses}
+        host_entity.IpAddresses.extend(
+            [
+                ip_entity
+                for ip_entity in ip_entities
+                if ip_entity.Address not in host_ips
+            ]
+        )
+    return list(host_dict.values())
+
+
+_MDE_DEV_NETWORK_EVT = """
+DeviceNetworkEvents
+| where RemoteIP == "{src_ip}"
+| extend Computer = DeviceName
+| summarize Count=count(), FirstOperation=min(TimeGenerated),
+LastOperation=max(TimeGenerated) by Computer, LocalIP, RemoteIP,
+ActionType, InitiatingProcessAccountName, InitiatingProcessFolderPath,
+InitiatingProcessSHA256
+"""
+
+
+@set_text(docs=_CELL_DOCS, key="get_device_network")
+def _get_device_net_connections(qry_prov, src_ip, result):
+    nb_data_wait("DeviceNetworkEvents")
+    result.network_connections = qry_prov.exec_query(
+        _MDE_DEV_NETWORK_EVT.format(src_ip=src_ip)
+    )
+    if df_has_data(result.network_connections):
+        _display_df_summary(result.network_connections, "Defender network connections")
+    else:
+        nb_markdown("No events from Device network connections")
+
+
+_WIN_HOSTS_LOGONS = """
 SecurityEvent
 | where TimeGenerated >= datetime({start}) and TimeGenerated <= datetime({end})
-| where IpAddress == \'{ip_address}\' or RemoteIpAddress == \'{ip_address}\'
+| where EventID in (4624, 4625)
+| where IpAddress == \'{ip_address}\'
+| project-rename LogonTypeCode=LogonType
+| project-rename LogonType=LogonTypeName
 | summarize Count=count(), FirstOperation=min(TimeGenerated),
-LastOperation=max(TimeGenerated) by Computer, Account, LogonTypeName
+LastOperation=max(TimeGenerated) by Computer, Account, LogonType
 """
-_RELATED_LX_HOST_ADD = """
+_LX_HOST_LOGONS_ADD = """
 | project-rename Account=User
 | summarize Count=count(), FirstOperation=min(TimeGenerated),
-LastOperation=max(TimeGenerated) by Computer, Account, LogonTypeName
+LastOperation=max(TimeGenerated) by Computer, Account, LogonType
 """
 
 
-@set_text(docs=_CELL_DOCS, key="get_related_hosts")
-def _get_related_hosts(qry_prov, src_ip, result, timespan):
-    """Get the related hosts for `src_ip`."""
+@set_text(docs=_CELL_DOCS, key="get_host_logons")
+def _get_host_logons(qry_prov, src_ip, result, timespan):
+    """Get the hosts with logons for `src_ip`."""
     nb_data_wait("Related hosts")
     win_hosts_df = qry_prov.exec_query(
-        _RELATED_WIN_HOSTS.format(
+        _WIN_HOSTS_LOGONS.format(
             start=timespan.start,
             end=timespan.end,
             ip_address=src_ip,
@@ -726,7 +870,7 @@ def _get_related_hosts(qry_prov, src_ip, result, timespan):
         start=timespan.start,
         end=timespan.end,
         ip_address=src_ip,
-        add_query_items=_RELATED_LX_HOST_ADD,
+        add_query_items=_LX_HOST_LOGONS_ADD,
     )
     combined_results = []
     if df_has_data(win_hosts_df):
@@ -734,33 +878,33 @@ def _get_related_hosts(qry_prov, src_ip, result, timespan):
     if df_has_data(lx_hosts_df):
         combined_results.append(lx_hosts_df.assign(Type="Linux"))
     if combined_results:
-        result.related_hosts = pd.concat(combined_results, ignore_index=True)[
+        result.host_logons = pd.concat(combined_results, ignore_index=True)[
             [
                 "Computer",
                 "Account",
                 "Type",
-                "LogonTypeName",
+                "LogonType",
                 "Count",
                 "FirstOperation",
                 "LastOperation",
             ]
         ]
         nb_display(
-            result.related_hosts[
-                ["Computer", "Type", "LogonTypeName", "Count"]
+            result.host_logons[
+                ["Computer", "Type", "LogonType", "Count"]
             ].drop_duplicates()
         )
         return
-    nb_markdown("No results for related hosts")
+    nb_markdown("No results for host logons")
 
 
 @set_text(docs=_CELL_DOCS, key="get_related_accounts")
 def _get_related_accounts(result):
     """Get the related accounts for `src_ip`."""
-    nb_data_wait("Related hosts")
+    nb_data_wait("Related accounts")
     combined_results = []
-    if df_has_data(result.related_hosts):
-        combined_results.append(result.related_hosts)
+    if df_has_data(result.host_logons):
+        combined_results.append(result.host_logons)
     if df_has_data(result.azure_activity_summary):
         combined_results.append(
             result.azure_activity_summary.reset_index().rename(
@@ -788,12 +932,13 @@ def _get_related_accounts(result):
 
 def _populate_host_entity(result, geo_lookup=None):
     """Populate host entity and IP address details."""
-    result.host_entity = populate_host_entity(
-        heartbeat_df=result.heartbeat,
-        az_net_df=result.az_network_if,
-        vmcomputer_df=result.vmcomputer,
-        host_entity=result.host_entity,
-        geo_lookup=geo_lookup,
+    result.host_entities.append(
+        populate_host_entity(
+            heartbeat_df=result.heartbeat,
+            az_net_df=result.az_network_if,
+            vmcomputer_df=result.vmcomputer,
+            geo_lookup=geo_lookup,
+        )
     )
 
 

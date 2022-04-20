@@ -24,7 +24,7 @@ __author__ = "Ian Hellen"
 class NotebookletResult(DFViewer):
     """Base result class."""
 
-    _TITLE_STYLE = "background-color:lightgray; padding:5px;"
+    _TITLE_STYLE = "color:black; background-color:lightgray; padding:5px;"
 
     def __init__(
         self,
@@ -86,7 +86,7 @@ class NotebookletResult(DFViewer):
                 attr_desc += f"&nbsp;Type: [{attr_type}]"
             attrib_lines.extend(
                 [
-                    f"<h3 style='{self._TITLE_STYLE}'>property: {name}</h3>",
+                    f"<h3 style='{self._TITLE_STYLE}'>{name}</h3>",
                     f"{attr_desc}<br>{self._html_repr(val)}<hr>",
                 ]
             )

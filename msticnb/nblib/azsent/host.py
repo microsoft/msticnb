@@ -14,7 +14,7 @@ from msticpy.data import QueryProvider
 from msticpy.datamodel import entities
 
 from ..._version import VERSION
-from ...common import MsticnbMissingParameterError, nb_data_wait, nb_print, df_has_data
+from ...common import MsticnbMissingParameterError, df_has_data, nb_data_wait, nb_print
 from ..iptools import convert_to_ip_entities
 
 __version__ = VERSION
@@ -202,7 +202,7 @@ def populate_host_entity(
     Parameters
     ----------
     heartbeat_df : pd.DataFrame
-        A dataframe of heartbeat data for the host
+        Optional dataframe of heartbeat data for the host
     az_net_df : pd.DataFrame
         Optional dataframe of Azure network data for the host
     vmcomputer_df : pd.DataFrame
