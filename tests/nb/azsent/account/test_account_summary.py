@@ -11,7 +11,15 @@ import pytest_check as check
 from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel import entities
-from msticpy.nbtools import nbwidgets
+
+try:
+    from msticpy import nbwidgets
+
+    if not hasattr(nbwidgets, "SelectItem"):
+        raise ImportError("Invalid nbwidgets")
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbwidgets
 
 from msticnb import data_providers, nblts
 

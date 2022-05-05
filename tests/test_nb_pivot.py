@@ -8,9 +8,13 @@ from pathlib import Path
 
 import pytest
 import pytest_check as check
-
 from msticpy.datamodel import entities
-from msticpy.datamodel.pivot import Pivot
+
+try:
+    from msticpy.init.pivot import Pivot
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.datamodel.pivot import Pivot
 
 from msticnb import data_providers, nblts
 from msticnb.nb_pivot import add_pivot_funcs

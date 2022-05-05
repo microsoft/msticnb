@@ -4,15 +4,15 @@ metadata:
   default_options:
     - geoip: Get geo location information for IP address.
     - alerts: Get any alerts listing the IP address.
-    - heartbeat: Get the latest heartbeat record for for this IP address.
-    - az_net_if: Get the latest Azure network analytics interface data for this IP address.
-    - vmcomputer: Get the latest VMComputer record for this IP address.
     - host_logons: Find any hosts with logons using this IP address as a source.
     - related_accounts: Find any accounts using this IP address in AAD or host logs.
     - device_info: Find any devices associated with this IP address.
     - device_network: Find any devices communicating with this IP address.
   other_options:
     - bookmarks: Get any hunting bookmarks listing the IP address.
+    - heartbeat: Get the latest heartbeat record for for this IP address.
+    - az_net_if: Get the latest Azure network analytics interface data for this IP address.
+    - vmcomputer: Get the latest VMComputer record for this IP address.
     - az_netflow: Get netflow information from AzureNetworkAnalytics table.
     - passive_dns: Force fetching passive DNS data from a TI Provider even if IP is internal.
     - az_activity: AAD sign-ins and Azure Activity logs.

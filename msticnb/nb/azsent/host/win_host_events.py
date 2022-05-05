@@ -16,7 +16,12 @@ from defusedxml import ElementTree
 from defusedxml.ElementTree import ParseError
 from IPython.display import display
 from msticpy.common.timespan import TimeSpan
-from msticpy.nbtools import nbdisplay
+
+try:
+    from msticpy.vis.timeline import display_timeline
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools.nbdisplay import display_timeline
 
 from .... import nb_metadata
 from ...._version import VERSION
@@ -285,7 +290,7 @@ def _display_event_pivot(event_pivot):
         )
         .set_properties(subset=["Activity"], **{"width": "400px", "text-align": "left"})
         .highlight_max(axis=1)
-        .hide_index()
+        .hide(axis="index")
     )
 
 
@@ -359,7 +364,8 @@ def _extract_acct_mgmt_events(event_data):
     # Get a full list of Windows Security Events
 
     w_evt = pkgutil.get_data("msticpy", f"resources{os.sep}WinSecurityEvent.json")
-    win_event_df = pd.read_json(w_evt)
+
+    win_event_df = pd.read_json(w_evt.decode("utf-8"))
 
     # Create criteria for events that we're interested in
     acct_sel = win_event_df["subcategory"] == "User Account Management"
@@ -410,14 +416,14 @@ def _display_acct_event_pivot(event_pivot_df):
         )
         .set_properties(subset=["Activity"], **{"width": "400px", "text-align": "left"})
         .highlight_max(axis=1)
-        .hide_index()
+        .hide(axis="index")
     )
 
 
 @set_text(docs=_CELL_DOCS, key="display_acct_mgmt_timeline")
 def _display_acct_mgmt_timeline(acct_event_data):
     # Plot events on a timeline
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=acct_event_data,
         group_by="EventID",
         source_columns=["Activity", "Account"],

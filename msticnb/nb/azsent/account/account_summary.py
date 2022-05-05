@@ -13,7 +13,14 @@ from IPython.display import HTML
 from msticpy.common.timespan import TimeSpan
 from msticpy.common.utility import enum_parse
 from msticpy.datamodel import entities
-from msticpy.nbtools import nbdisplay, nbwidgets
+
+try:
+    from msticpy import nbwidgets
+    from msticpy.vis.timeline import display_timeline
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbwidgets
+    from msticpy.nbtools.nbdisplay import display_timeline
 
 from .... import nb_metadata
 from ...._version import VERSION
@@ -911,7 +918,7 @@ def _get_related_alerts(
 
 def _get_alerts_timeline(related_alerts: pd.DataFrame, silent=True) -> LayoutDOM:
     """Return alert timeline."""
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=related_alerts,
         title="Alerts",
         source_columns=["AlertName"],
@@ -1034,7 +1041,7 @@ def _summarize_host_activity(all_logons: pd.DataFrame, ip_col="SourceIP"):
 def _create_host_timeline(
     all_logons: pd.DataFrame, ip_col="SourceIP", silent: bool = False
 ):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=all_logons,
         group_by=ip_col,
         source_columns=["Computer", "LogonResult", "LogonType"],
@@ -1112,7 +1119,7 @@ def _create_azure_timelines(az_all_data: pd.DataFrame, silent: bool = False):
 
 
 def _plot_timeline_by_provider(az_all_data, silent=False):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=az_all_data,
         group_by="AppResourceProvider",
         source_columns=["Operation", "IPAddress", "AppResourceProvider"],
@@ -1122,7 +1129,7 @@ def _plot_timeline_by_provider(az_all_data, silent=False):
 
 
 def _plot_timeline_by_ip(az_all_data, silent=False):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=az_all_data,
         group_by="IPAddress",
         source_columns=[
@@ -1137,7 +1144,7 @@ def _plot_timeline_by_ip(az_all_data, silent=False):
 
 
 def _plot_timeline_by_operation(az_all_data, silent=False):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=az_all_data,
         group_by="Operation",
         source_columns=["AppResourceProvider", "Operation", "IPAddress"],

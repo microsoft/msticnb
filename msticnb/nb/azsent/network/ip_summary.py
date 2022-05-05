@@ -14,8 +14,19 @@ import pandas as pd
 from bokeh.plotting.figure import Figure
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel.entities import GeoLocation, Host, IpAddress
-from msticpy.nbtools import nbdisplay, nbwidgets
-from msticpy.sectools.ip_utils import get_ip_type, get_whois_info
+
+try:
+    from msticpy import nbwidgets
+    from msticpy.context.ip_utils import get_ip_type, get_whois_info
+    from msticpy.vis.timeline import display_timeline
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbwidgets
+    from msticpy.nbtools.timeline import display_timeline
+    from msticpy.sectools.ip_utils import get_ip_type, get_whois_info
+
+    # pylint: disable=unused-import
+    from msticpy.vis import mp_pandas_plot  # noqa: F401
 
 from .... import nb_metadata
 from ...._version import VERSION
@@ -267,24 +278,19 @@ class IpAddressSummary(Notebooklet):
                 result=result,
                 geo_lookup=geo_lookup,
             )
-        else:
-            if "az_net_if" in self.options and self.check_table_exists(
-                "AzureNetworkAnalytics_CL"
-            ):
-                _get_az_net_if(
-                    qry_prov=self.query_provider, src_ip=value, result=result
-                )
-            if "heartbeat" in self.options and self.check_table_exists("Heartbeat"):
-                _get_heartbeat(
-                    qry_prov=self.query_provider, src_ip=value, result=result
-                )
-            if "vmcomputer" in self.options and self.check_table_exists("VMComputer"):
-                _get_vmcomputer(
-                    qry_prov=self.query_provider, src_ip=value, result=result
-                )
-            _populate_host_entity(result, geo_lookup=geo_lookup)
-        if not result.host_entities:
-            result.host_entities.append(Host(HostName="unknown"))
+        if not df_has_data(result.device_info):
+            self.options.extend(["az_net_if", "heartbeat", "vmcomputer"])
+            self.options = list(set(self.options))
+        if "az_net_if" in self.options and self.check_table_exists(
+            "AzureNetworkAnalytics_CL"
+        ):
+            _get_az_net_if(qry_prov=self.query_provider, src_ip=value, result=result)
+        if "heartbeat" in self.options and self.check_table_exists("Heartbeat"):
+            _get_heartbeat(qry_prov=self.query_provider, src_ip=value, result=result)
+        if "vmcomputer" in self.options and self.check_table_exists("VMComputer"):
+            _get_vmcomputer(qry_prov=self.query_provider, src_ip=value, result=result)
+        _populate_host_entity(result, geo_lookup=geo_lookup)
+        # Future: (ianhelle) - _normalize_host_entities(result)
 
         # Alerts and bookmarks
         if "alerts" in self.options:
@@ -355,7 +361,7 @@ class IpAddressSummary(Notebooklet):
     def display_alert_timeline(self):
         """Display the alert timeline."""
         if self.check_valid_result_data("related_alerts"):
-            return nbdisplay.display_timeline(
+            return display_timeline(
                 data=self._last_result.related_alerts,
                 title="Alerts",
                 source_columns=["AlertName"],
@@ -540,7 +546,7 @@ def _get_az_netflows(qry_prov, src_ip, result, timespan):
 
 
 def _plot_netflow_by_protocol(result):
-    return result.az_network_flows.mp_timeline.plot(
+    return result.az_network_flows.mp_plot.timeline(
         group_by="L7Protocol",
         title="Network Flows by Protocol",
         time_column="FlowStartTime",
@@ -552,7 +558,7 @@ def _plot_netflow_by_protocol(result):
 
 
 def _plot_netflow_values_by_protocol(result):
-    return result.az_network_flows.mp_timeline.plot_values(
+    return result.az_network_flows.mp_plot.timeline_values(
         group_by="L7Protocol",
         source_columns=[
             "FlowType",
@@ -571,7 +577,7 @@ def _plot_netflow_values_by_protocol(result):
 
 
 def _plot_netflow_by_direction(result):
-    return result.az_network_flows.mp_timeline.plot(
+    return result.az_network_flows.mp_plot.timeline(
         group_by="FlowDirection",
         title="Network Flows by Direction",
         time_column="FlowStartTime",
@@ -942,6 +948,7 @@ def _populate_host_entity(result, geo_lookup=None):
             az_net_df=result.az_network_if,
             vmcomputer_df=result.vmcomputer,
             geo_lookup=geo_lookup,
+            host_entity=result.host_entities[0] if result.host_entities else None,
         )
     )
 

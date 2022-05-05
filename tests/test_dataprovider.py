@@ -8,7 +8,12 @@ import sys
 
 import pytest_check as check
 from msticpy.data import QueryProvider
-from msticpy.sectools import TILookup
+
+try:
+    from msticpy.context import TILookup
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.sectools import TILookup
 
 from msticnb import data_providers
 

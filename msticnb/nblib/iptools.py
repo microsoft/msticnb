@@ -8,8 +8,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from msticpy.datamodel.entities import IpAddress
-from msticpy.nbtools.foliummap import FoliumMap
-from msticpy.sectools.ip_utils import get_whois_df
+
+try:
+    from msticpy.context.ip_utils import get_whois_df
+    from msticpy.vis.foliummap import FoliumMap
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools.foliummap import FoliumMap
+    from msticpy.sectools.ip_utils import get_whois_df
 
 from .._version import VERSION
 from ..common import nb_markdown

@@ -142,7 +142,8 @@ disable=print-statement,
         comprehension-escape,
         bad-continuation,
         D203,
-        D212
+        D212,
+        duplicate-code
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

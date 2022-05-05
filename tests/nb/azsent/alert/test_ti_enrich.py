@@ -9,9 +9,13 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from msticnb import nblts
-from msticnb import data_providers
-from msticpy.nbtools.nbwidgets import SelectAlert
+from msticnb import data_providers, nblts
+
+try:
+    from msticpy.nbwidgets import SelectAlert
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools.nbwidgets import SelectAlert
 
 from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 

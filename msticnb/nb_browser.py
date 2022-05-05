@@ -5,19 +5,18 @@
 # --------------------------------------------------------------------------
 """Jupyter Browser for Notebooklets."""
 
-from datetime import datetime, timedelta
 import inspect
 import re
+from datetime import datetime, timedelta
 
-from markdown import markdown
+import ipywidgets as widgets
 from IPython import get_ipython
 from IPython.display import display
-import ipywidgets as widgets
-
-from .read_modules import nblts, nb_index
-from .common import MsticnbError
+from markdown import markdown
 
 from ._version import VERSION
+from .common import MsticnbError
+from .read_modules import nb_index, nblts
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -39,7 +38,6 @@ class NBBrowser:
         nb_doc_layout = widgets.Layout(
             width="60%",
             border="1px solid lightgray",
-            position="left",
             margin="0px 0px 0px 10px",
         )
         self.nb_doc = widgets.HTML(layout=nb_doc_layout)
@@ -58,7 +56,7 @@ class NBBrowser:
             children=[self.nb_details, self.nb_run_doc, self.nb_code]
         )
         nb_det_accdn.set_title(0, "Full class details")
-        nb_det_accdn.set_title(1, "run() method documenation")
+        nb_det_accdn.set_title(1, "run() method documentation")
         nb_det_accdn.set_title(2, "Sample code")
         nb_det_accdn.selected_index = None
 

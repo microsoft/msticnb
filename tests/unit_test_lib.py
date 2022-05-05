@@ -4,16 +4,24 @@
 # license information.
 # --------------------------------------------------------------------------
 """Unit test common utilities."""
-from pathlib import Path
 import random
+from pathlib import Path
 
 import attr
 import pandas as pd
 
-from msticpy.sectools.geoip import GeoIpLookup
-from msticpy.sectools.tilookup import TILookup
-from msticpy.sectools.tiproviders.ti_provider_base import LookupResult
-from msticpy.datamodel.entities import IpAddress, GeoLocation
+try:
+    from msticpy.context import TILookup
+    from msticpy.context.geoip import GeoIpLookup
+    from msticpy.context.tiproviders.ti_provider_base import LookupResult
+except ImportError:
+    from msticpy.sectools.geoip import GeoIpLookup
+    from msticpy.sectools.tilookup import TILookup
+    from msticpy.sectools.tiproviders.ti_provider_base import LookupResult
+
+from msticpy.datamodel.entities import GeoLocation, IpAddress
+
+from msticnb.common import check_mp_version
 
 __author__ = "Ian Hellen"
 
@@ -130,22 +138,22 @@ class TILookupMock:
         result_list = []
         for i in range(3):
             hit = random.randint(1, 10) > 5
-            result_list.append(
-                (
-                    f"TIProv{i}",
-                    LookupResult(
-                        ioc=observable,
-                        ioc_type=ioc_type,
-                        safe_ioc=observable,
-                        query_subtype="mock",
-                        provider="mockTI",
-                        result=True,
-                        severity=2 if hit else 0,
-                        details=f"Details for {observable}",
-                        raw_result=f"Raw details for {observable}",
-                    ),
-                )
+
+            result_args = dict(
+                ioc=observable,
+                ioc_type=ioc_type,
+                query_subtype="mock",
+                provider="mockTI",
+                result=True,
+                severity=2 if hit else 0,
+                details=f"Details for {observable}",
+                raw_result=f"Raw details for {observable}",
             )
+            if check_mp_version("2.0"):
+                result_args["sanitized_value"] = observable
+            else:
+                result_args["safe_ioc"] = observable
+            result_list.append((f"TIProv{i}", LookupResult(**result_args)))
         return True, result_list
 
     def lookup_iocs(self, data, obs_col: str = None, **kwargs):
