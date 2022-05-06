@@ -34,12 +34,18 @@ functions will make it easier from them understand and work with
 the code.
 
 """
+# pylint: disable=duplicate-code
 from typing import Any, Dict, Iterable, Optional, Union
 
 import pandas as pd
 from bokeh.plotting.figure import Figure
 from msticpy.common.timespan import TimeSpan
-from msticpy.nbtools import nbdisplay
+
+try:
+    from msticpy.vis.timeline import display_timeline
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools.nbdisplay import display_timeline
 
 from ... import nb_metadata
 
@@ -289,10 +295,7 @@ def _get_all_events(qry_prov, host_name, timespan):
 def _display_event_timeline(acct_event_data):
     # Plot events on a timeline
 
-    # Note the nbdisplay function is a wrapper around IPython.display()
-    # However, it honors the "silent" option (global or per-notebooklet)
-    # which allows you to suppress output while running.
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=acct_event_data,
         group_by="EventID",
         source_columns=["Activity", "Account"],

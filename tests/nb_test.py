@@ -4,16 +4,16 @@
 # license information.
 # --------------------------------------------------------------------------
 """Notebooklet for Host Summary."""
-from typing import Any, Optional, Iterable, Dict
+from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
-from msticpy.nbtools import entities
-
 from msticpy.common.timespan import TimeSpan
-from msticnb.common import nb_print, set_text
-from msticnb.notebooklet import Notebooklet, NotebookletResult, NBMetadata
+from msticpy.datamodel import entities
+
 from msticnb import nb_metadata
 from msticnb._version import VERSION
+from msticnb.common import nb_print, set_text
+from msticnb.notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"

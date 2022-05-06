@@ -4,15 +4,20 @@ metadata:
   default_options:
     - geoip: Get geo location information for IP address.
     - alerts: Get any alerts listing the IP address.
-    - heartbeat: Get the latest heartbeat record for for this IP Address.
-    - az_net_if: Get the latest Azure network analytics interface data for this IP Address.
-    - vmcomputer: Get the latest VMComputer record for this IP Address.
+    - host_logons: Find any hosts with logons using this IP address as a source.
+    - related_accounts: Find any accounts using this IP address in AAD or host logs.
+    - device_info: Find any devices associated with this IP address.
+    - device_network: Find any devices communicating with this IP address.
   other_options:
     - bookmarks: Get any hunting bookmarks listing the IP address.
+    - heartbeat: Get the latest heartbeat record for for this IP address.
+    - az_net_if: Get the latest Azure network analytics interface data for this IP address.
+    - vmcomputer: Get the latest VMComputer record for this IP address.
     - az_netflow: Get netflow information from AzureNetworkAnalytics table.
     - passive_dns: Force fetching passive DNS data from a TI Provider even if IP is internal.
-    - az_activity: AAD sign-ins and Azure Activity logs
-    - office_365: Office 365 activity
+    - az_activity: AAD sign-ins and Azure Activity logs.
+    - office_365: Office 365 activity.
+    - common_security: Get records from common security log.
     - ti: Force get threat intelligence reports even for internal public IPs.
   keywords:
     - ip
@@ -33,7 +38,7 @@ output:
       Data and plots are stored in the result class returned by this function.
     md: True
   get_az_netflow:
-    title: Azure Azure NSG Flow Logs for IP.
+    title: Azure Azure NSG Flow Logs for IP
     text:
       (only available for if Azure network analytics net flow enabled.)
       This is is a list of netflow events for the IP.
@@ -45,17 +50,17 @@ output:
         by direction of flow
     md: True
   get_related_alerts:
-    title: Azure Sentinel alerts related to the IP.
+    title: Azure Sentinel alerts related to the IP
     text: Use `nblt.browse_alerts()` to retrieve a list of alerts.
   get_heartbeat:
-    title: Azure Sentinel heartbeat record for the IP.
+    title: Azure Sentinel heartbeat record for the IP
     text: (only available for IP addresses that belong
       to the subscription)
   get_vmcomputer:
     title: Azure VMComputer record for the IP.
     text: (only available for Azure VMs)
   get_az_net_if:
-    title: Azure Network Analytics Topology record for the IP.
+    title: Azure Network Analytics Topology record for the IP
     text: (only available for Azure VMs)
   get_az_activity:
     title: Azure Sign-ins and audit activity from IP Address
@@ -68,3 +73,18 @@ output:
   netflow_summary:
     title: Summary of Azure NSG network flow data for this IP Address
     text: (only available for if Azure network analytics net flow enabled.)
+  get_common_security_log:
+    title: Common security log
+    text: The CommonSecurityLog contains log data from firewalls and network devices.
+  get_host_logons:
+    title: Host logons
+    text: List of hosts with logon attempts from this IP address.
+  get_related_accounts:
+    title: Related accounts
+    text: List of accounts using the IP address.
+  get_device_info:
+    title: Defender device information
+    text: MS Defender device network and host information.
+  get_device_network:
+    title: Network connections
+    text: MS Defender network connections to/from this IP address.

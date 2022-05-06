@@ -8,7 +8,12 @@ from functools import wraps
 from typing import Any, Callable, Dict
 
 from msticpy.common.timespan import TimeSpan
-from msticpy.datamodel.pivot import Pivot, PivotRegistration
+
+try:
+    from msticpy.init.pivot import Pivot, PivotRegistration
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.datamodel.pivot import Pivot, PivotRegistration
 
 from ._version import VERSION
 from .notebooklet import Notebooklet

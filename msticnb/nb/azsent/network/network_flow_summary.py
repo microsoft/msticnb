@@ -14,9 +14,19 @@ from bokeh.plotting.figure import Figure
 from IPython.display import display
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel import entities
-from msticpy.nbtools import foliummap, nbdisplay, nbwidgets
-from msticpy.sectools.ip_utils import get_ip_type, get_whois_df, get_whois_info
-from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
+
+try:
+    from msticpy import nbwidgets
+    from msticpy.context.ip_utils import get_ip_type, get_whois_df, get_whois_info
+    from msticpy.context.tilookup import TISeverity
+    from msticpy.vis import foliummap
+    from msticpy.vis.timeline import display_timeline, display_timeline_values
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import foliummap, nbwidgets
+    from msticpy.nbtools.nbdisplay import display_timeline, display_timeline_values
+    from msticpy.sectools.ip_utils import get_ip_type, get_whois_df, get_whois_info
+    from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
 
 from .... import nb_metadata
 from ...._version import VERSION
@@ -47,7 +57,7 @@ class NetworkFlowResult(NotebookletResult):
 
     Attributes
     ----------
-    host_entity : msticpy.data.nbtools.entities.Host
+    host_entity : msticpy.datamodel.entities.Host
         The host entity object contains data about the host
         such as name, environment, operating system version,
         IP addresses and Azure VM details. Depending on the
@@ -411,7 +421,7 @@ def _get_az_net_flows(qry_prov, timespan, ip_addr, hostname):
 # Plot flows
 @set_text(docs=_CELL_DOCS, key="plot_flows_by_protocol")
 def _plot_flows_by_protocol(flow_df):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=flow_df,
         group_by="L7Protocol",
         title="Network Flows by Protocol",
@@ -425,7 +435,7 @@ def _plot_flows_by_protocol(flow_df):
 
 @set_text(docs=_CELL_DOCS, key="plot_flows_by_direction")
 def _plot_flows_by_direction(flow_df):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=flow_df,
         group_by="FlowDirection",
         title="Network Flows by Direction",
@@ -441,7 +451,7 @@ def _plot_flows_by_direction(flow_df):
 # Plot flow values
 @set_text(docs=_CELL_DOCS, key="plot_flow_values")
 def _plot_flow_values(flow_df, related_alert=None):
-    return nbdisplay.display_timeline_values(
+    return display_timeline_values(
         data=flow_df,
         group_by="L7Protocol",
         source_columns=[

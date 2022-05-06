@@ -5,18 +5,18 @@
 # --------------------------------------------------------------------------
 """Common definitions and classes."""
 import functools
-from typing import Union, Optional, Iterable, Tuple, Any, List, Dict
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import bokeh.io
-from IPython.display import display, HTML
 from IPython import get_ipython
+from IPython.display import HTML, display
 from markdown import markdown
-
+from msticpy import VERSION as MP_VERSION
 from msticpy.common import utility as mp_utils
-
-from .options import get_opt
+from pkg_resources import parse_version
 
 from ._version import VERSION
+from .options import get_opt
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -47,7 +47,7 @@ class NBContainer:
         return ", ".join(obj_list)
 
     def __str__(self):
-        """Print a string represenation of the object."""
+        """Print a string representation of the object."""
         obj_str = ""
         for key, val in self.__dict__.items():
             if isinstance(val, NBContainer):
@@ -279,3 +279,13 @@ class MsticnbMissingParameterError(MsticnbError):
 
 class MsticnbDataProviderError(MsticnbError):
     """DataProvider Error."""
+
+
+def mp_version():
+    """Return currently-loaded msticpy version."""
+    return parse_version(MP_VERSION)
+
+
+def check_mp_version(required_version: str) -> bool:
+    """Returns true if the installed version is >= `required_version`."""
+    return mp_version().major >= parse_version(required_version).major

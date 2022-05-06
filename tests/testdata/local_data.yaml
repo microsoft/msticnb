@@ -2,7 +2,13 @@ metadata:
   version: 1
   description: Local Data Alert Queries
   data_environments: [LocalData]
-  data_families: [SecurityAlert, WindowsSecurity, AzureNetwork, LinuxSyslog, Network]
+  data_families:
+    - SecurityAlert
+    - SecurityEvent
+    - WindowsSecurity
+    - AzureNetwork
+    - LinuxSyslog
+    - Network
   tags: ['alert', 'securityalert', 'process', 'account', 'network', 'host']
 defaults:
   metadata:
@@ -144,7 +150,7 @@ sources:
     metadata:
       data_families: [Azure]
     args:
-      query: aad_signin_user.pkl
+      query: aad_signin_random.pkl
     parameters:
   # Azure Activity
   list_azure_activity_for_account:
@@ -188,10 +194,17 @@ sources:
     metadata:
       data_families: [Office365]
     args:
-      query: office_activity_user.pkl
+      query: office_activity_random.pkl
     parameters:
   # Linux
   list_logons_for_account:
+    description: Linux logon Activity
+    metadata:
+      data_families: [LinuxSyslog]
+    args:
+      query: lx_host_logons.pkl
+    parameters:
+  list_logons_for_source_ip:
     description: Linux logon Activity
     metadata:
       data_families: [LinuxSyslog]

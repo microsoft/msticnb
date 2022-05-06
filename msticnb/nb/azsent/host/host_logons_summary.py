@@ -15,8 +15,14 @@ from bokeh.plotting import figure, show
 from bokeh.transform import cumsum
 from IPython.display import display
 from msticpy.common.timespan import TimeSpan
-from msticpy.nbtools import timeline
-from msticpy.nbtools.foliummap import FoliumMap
+
+try:
+    from msticpy.vis import timeline
+    from msticpy.vis.foliummap import FoliumMap
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import timeline
+    from msticpy.nbtools.foliummap import FoliumMap
 
 from ...._version import VERSION
 from ....common import (

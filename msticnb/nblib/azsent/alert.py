@@ -4,7 +4,16 @@
 # license information.
 # --------------------------------------------------------------------------
 """Alert utility functions."""
-from msticpy.nbtools import nbdisplay, nbwidgets
+try:
+    from msticpy import nbwidgets
+    from msticpy.vis import nbdisplay
+
+    if not hasattr(nbwidgets, "SelectItem"):
+        raise ImportError("Invalid nbwidgets")
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbdisplay, nbwidgets
+
 from ..._version import VERSION
 
 __version__ = VERSION

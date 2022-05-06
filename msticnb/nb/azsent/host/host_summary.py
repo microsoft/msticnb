@@ -5,29 +5,37 @@
 # --------------------------------------------------------------------------
 """Notebooklet for Host Summary."""
 from functools import lru_cache
-from typing import Any, Optional, Iterable, Union, Dict
+from typing import Any, Dict, Iterable, Optional, Union
 
 import pandas as pd
 from azure.common.exceptions import CloudError
 from bokeh.models import LayoutDOM
 from bokeh.plotting.figure import Figure
-from msticpy.nbtools import nbdisplay, nbwidgets
-from msticpy.common.timespan import TimeSpan
-from msticpy.datamodel import entities
-from msticpy.common.utility import md
 
+try:
+    from msticpy import nbwidgets
+    from msticpy.vis.timeline import display_timeline
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbwidgets
+    from msticpy.nbtools.nbdisplay import display_timeline
+
+from msticpy.common.timespan import TimeSpan
+from msticpy.common.utility import md
+from msticpy.datamodel import entities
+
+from ...._version import VERSION
 from ....common import (
     MsticnbMissingParameterError,
     nb_data_wait,
-    set_text,
-    nb_print,
     nb_markdown,
+    nb_print,
+    set_text,
 )
-from ....notebooklet import Notebooklet, NotebookletResult, NBMetadata
-from ....nblib.azsent.alert import browse_alerts
-from ....nblib.azsent.host import get_heartbeat, get_aznet_topology, verify_host_name
 from ....nb_metadata import read_mod_metadata, update_class_doc
-from ...._version import VERSION
+from ....nblib.azsent.alert import browse_alerts
+from ....nblib.azsent.host import get_aznet_topology, get_heartbeat, verify_host_name
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -45,7 +53,7 @@ class HostSummaryResult(NotebookletResult):
 
     Attributes
     ----------
-    host_entity : msticpy.data.nbtools.entities.Host
+    host_entity : msticpy.datamodel.entities.Host
         The host entity object contains data about the host
         such as name, environment, operating system version,
         IP addresses and Azure VM details. Depending on the
@@ -333,7 +341,7 @@ def _get_related_alerts(qry_prov, timespan, host_name):
 @set_text(docs=_CELL_DOCS, key="show_alert_timeline")
 def _show_alert_timeline(related_alerts):
     if len(related_alerts) > 1:
-        return nbdisplay.display_timeline(
+        return display_timeline(
             data=related_alerts,
             title="Related Alerts",
             source_columns=["AlertName", "TimeGenerated"],

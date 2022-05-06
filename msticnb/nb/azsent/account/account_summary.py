@@ -11,18 +11,26 @@ import pandas as pd
 from bokeh.models import LayoutDOM
 from IPython.display import HTML
 from msticpy.common.timespan import TimeSpan
+from msticpy.common.utility import enum_parse
 from msticpy.datamodel import entities
-from msticpy.nbtools import nbdisplay, nbwidgets
+
+try:
+    from msticpy import nbwidgets
+    from msticpy.vis.timeline import display_timeline
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbwidgets
+    from msticpy.nbtools.nbdisplay import display_timeline
 
 from .... import nb_metadata
 from ...._version import VERSION
 from ....common import (
     MsticnbMissingParameterError,
+    df_has_data,
     nb_data_wait,
     nb_display,
     nb_markdown,
     set_text,
-    df_has_data,
 )
 from ....nblib.azsent.alert import browse_alerts
 from ....nblib.iptools import get_geoip_whois, map_ips
@@ -48,6 +56,7 @@ class AccountType(Flag):
     Windows = auto()
     Linux = auto()
     Azure = AzureActiveDirectory | AzureActivity | Office365
+    All = Azure | Windows | Linux
 
     def in_list(self, acct_types: Iterable[Union["AccountType", str]]):
         """Is the current value in the `acct_types` list."""
@@ -61,10 +70,7 @@ class AccountType(Flag):
     @classmethod
     def parse(cls, name: str):
         """Try to parse string to valid account type."""
-        try:
-            return cls[name]
-        except KeyError:
-            return None
+        return enum_parse(cls, name)
 
 
 # pylint: enable=invalid-name
@@ -858,9 +864,9 @@ def _create_o365_account_entity(account_name, acct_activity_df, geoip):
         & (acct_activity_df["Source"] == AccountType.Office365.name)
     ]
     account_event = o365_events.iloc[0]
-    acc_entity.Name = account_event["UserPrincipalName"]
-    if "@" in account_event["UserPrincipalName"]:
-        acc_entity.UPNSuffix = account_event["UserPrincipalName"].split("@")[1]
+    acc_entity.Name = account_event["UserId"]
+    if "@" in account_event["UserId"]:
+        acc_entity.UPNSuffix = account_event["UserId"].split("@")[1]
     acc_entity.AadTenantId = account_event["TenantId"]
     acc_entity.OrganizationId = account_event["OrganizationId"]
 
@@ -912,7 +918,7 @@ def _get_related_alerts(
 
 def _get_alerts_timeline(related_alerts: pd.DataFrame, silent=True) -> LayoutDOM:
     """Return alert timeline."""
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=related_alerts,
         title="Alerts",
         source_columns=["AlertName"],
@@ -1035,7 +1041,7 @@ def _summarize_host_activity(all_logons: pd.DataFrame, ip_col="SourceIP"):
 def _create_host_timeline(
     all_logons: pd.DataFrame, ip_col="SourceIP", silent: bool = False
 ):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=all_logons,
         group_by=ip_col,
         source_columns=["Computer", "LogonResult", "LogonType"],
@@ -1113,7 +1119,7 @@ def _create_azure_timelines(az_all_data: pd.DataFrame, silent: bool = False):
 
 
 def _plot_timeline_by_provider(az_all_data, silent=False):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=az_all_data,
         group_by="AppResourceProvider",
         source_columns=["Operation", "IPAddress", "AppResourceProvider"],
@@ -1123,7 +1129,7 @@ def _plot_timeline_by_provider(az_all_data, silent=False):
 
 
 def _plot_timeline_by_ip(az_all_data, silent=False):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=az_all_data,
         group_by="IPAddress",
         source_columns=[
@@ -1138,7 +1144,7 @@ def _plot_timeline_by_ip(az_all_data, silent=False):
 
 
 def _plot_timeline_by_operation(az_all_data, silent=False):
-    return nbdisplay.display_timeline(
+    return display_timeline(
         data=az_all_data,
         group_by="Operation",
         source_columns=["AppResourceProvider", "Operation", "IPAddress"],

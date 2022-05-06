@@ -6,14 +6,22 @@
 """Test the nb_template class."""
 from pathlib import Path
 
-import pytest_check as check
 import pandas as pd
+import pytest_check as check
 from bokeh.models import LayoutDOM
-from msticnb import nblts
-from msticnb import data_providers
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel import entities
-from msticpy.nbtools import nbwidgets
+
+try:
+    from msticpy import nbwidgets
+
+    if not hasattr(nbwidgets, "SelectItem"):
+        raise ImportError("Invalid nbwidgets")
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbwidgets
+
+from msticnb import data_providers, nblts
 
 from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
@@ -39,14 +47,12 @@ def test_account_summary_notebooklet(monkeypatch):
     acct_select = test_nb.browse_accounts()
     check.is_instance(acct_select, nbwidgets.SelectItem)
 
-    select_opts = result.account_selector._item_dict
+    select_opts = result.account_selector.options
     disp_account = result.account_selector.item_action
-    for acct_item in select_opts.values():
+    for item_value in select_opts.values():
         # Programatically select the item list control
-        select_item = [key for key, value in select_opts.items() if value == acct_item]
-        if select_item:
-            result.account_selector._wgt_select.value = select_item[0]
-        disp_account(acct_item)
+        result.account_selector._wgt_select.value = item_value
+        disp_account(item_value)
         check.is_instance(result.account_activity, pd.DataFrame)
         check.is_instance(result.related_alerts, pd.DataFrame)
         check.is_instance(result.related_bookmarks, pd.DataFrame)
@@ -61,7 +67,7 @@ def test_account_summary_notebooklet(monkeypatch):
         test_nb.get_additional_data()
 
         check.is_instance(result.account_timeline_by_ip, LayoutDOM)
-        if "Windows" in acct_item or "Linux" in acct_item:
+        if "Windows" in item_value or "Linux" in item_value:
             check.is_instance(result.host_logons, pd.DataFrame)
             check.is_instance(result.host_logon_summary, pd.DataFrame)
             check.is_none(result.azure_activity)

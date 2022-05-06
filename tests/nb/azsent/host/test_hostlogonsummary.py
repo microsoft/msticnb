@@ -11,10 +11,15 @@ import pandas as pd
 import pytest
 from bokeh.layouts import Column
 from bokeh.plotting import Figure
-from msticnb import nblts
-from msticnb import data_providers
 from msticpy.common.timespan import TimeSpan
-from msticpy.nbtools.foliummap import FoliumMap
+
+try:
+    from msticpy.vis.foliummap import FoliumMap
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools.foliummap import FoliumMap
+
+from msticnb import data_providers, nblts
 
 from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 

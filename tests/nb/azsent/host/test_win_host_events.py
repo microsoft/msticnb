@@ -7,18 +7,16 @@
 import sys
 from pathlib import Path
 
-# from contextlib import redirect_stdout
-import pytest_check as check
-
 import pandas as pd
 import pytest
 
+# from contextlib import redirect_stdout
+import pytest_check as check
 from msticpy.common.timespan import TimeSpan
-from msticnb import nblts
-from msticnb import data_providers
+
+from msticnb import data_providers, nblts
 
 from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
-
 
 # pylint: disable=no-member
 
@@ -53,5 +51,11 @@ def test_winhostevents_notebooklet(monkeypatch):
     check.is_instance(result.event_pivot, pd.DataFrame)
     # check.is_not_none(result.account_timeline)
 
-    exp_events = test_nb.expand_events(["5058", "5061"])
+    exp_events = test_nb.expand_events([5058, 5061])
     check.is_instance(exp_events, pd.DataFrame)
+
+    exp_events = test_nb.expand_events(5061)
+    check.is_instance(exp_events, pd.DataFrame)
+
+    exp_events = test_nb.expand_events(99999)
+    check.is_none(exp_events)

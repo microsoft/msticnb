@@ -7,9 +7,17 @@
 from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
+from msticpy.analysis.eventcluster import char_ord_score, dbcluster_events, delim_count
 from msticpy.common.timespan import TimeSpan
-from msticpy.nbtools import nbwidgets
-from msticpy.sectools.eventcluster import dbcluster_events, delim_count, char_ord_score
+
+try:
+    from msticpy import nbwidgets
+
+    if not hasattr(nbwidgets, "SelectItem"):
+        raise ImportError("Invalid nbwidgets")
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools import nbwidgets
 
 from .... import nb_metadata
 from ...._version import VERSION
@@ -211,8 +219,8 @@ class LogonSessionsRarity(Notebooklet):
         if self.check_valid_result_data("processes_with_cluster"):
             data = self._last_result.processes_with_cluster
             acct_col = self.column_map.get(COL_ACCT)
-            data.mp_timeline.plot_values(
-                title="Processes with relative rarity score groubed by Account",
+            data.mp_plot.timeline_values(
+                title="Processes with relative rarity score grouped by Account",
                 y="Rarity",
                 group_by=acct_col,
                 height=600,
@@ -236,7 +244,7 @@ class LogonSessionsRarity(Notebooklet):
         """
         if self.check_valid_result_data("processes_with_cluster"):
             if (not account and not session) or account == "all":
-                self._last_result.processes_with_cluster.mp_process_tree.plot(
+                self._last_result.processes_with_cluster.mp_plot.process_tree(
                     legend_col="Rarity"
                 )
                 return
@@ -244,13 +252,13 @@ class LogonSessionsRarity(Notebooklet):
                 acct_col = self.column_map.get(COL_ACCT)
                 data = self._last_result.processes_with_cluster
                 data = data[data[acct_col] == account]
-                data.mp_process_tree.plot(legend_col="Rarity")
+                data.mp_plot.process_tree(legend_col="Rarity")
                 return
             session = session or self._event_browser.value
             sess_col = self.column_map.get(COL_SESS)
             data = self._last_result.processes_with_cluster
             data = data[data[sess_col] == session]
-            data.mp_process_tree.plot(legend_col="Rarity")
+            data.mp_plot.process_tree(legend_col="Rarity")
 
     def browse_events(self):
         """Browse the events by logon session."""

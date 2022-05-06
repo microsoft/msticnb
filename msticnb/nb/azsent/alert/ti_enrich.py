@@ -3,19 +3,27 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""Alert TI encrichment - provides enrichment of alerts with threat intelligence."""
+"""Alert TI enrichment - provides enrichment of alerts with threat intelligence."""
 import json
 from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
 from IPython.display import display
-from tqdm.notebook import tqdm
-
 from msticpy.common.timespan import TimeSpan
 from msticpy.common.utility import md
-from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
-from msticpy.nbtools.nbdisplay import format_alert
-from msticpy.nbtools.nbwidgets import SelectAlert
+from tqdm.notebook import tqdm
+
+# pylint: disable=ungrouped-imports
+try:
+    from msticpy.nbwidgets import SelectAlert
+    from msticpy.vis.foliummap import FoliumMap, get_center_ip_entities
+    from msticpy.vis.nbdisplay import format_alert
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools.foliummap import FoliumMap, get_center_ip_entities
+    from msticpy.nbtools.nbdisplay import format_alert
+    from msticpy.nbtools.nbwidgets import SelectAlert
+
 from msticpy.nbtools.security_alert import SecurityAlert
 
 from ...._version import VERSION
@@ -27,8 +35,8 @@ from ....common import (
     set_text,
 )
 from ....nb_metadata import read_mod_metadata
-from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 from ....nblib.iptools import convert_to_ip_entities
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Pete Bryan"

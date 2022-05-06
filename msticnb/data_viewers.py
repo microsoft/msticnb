@@ -6,10 +6,14 @@
 """Data viewers mixin classes."""
 from typing import List, Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from msticpy.nbtools.nbwidgets import SelectItem
+try:
+    from msticpy.nbwidgets import SelectItem
+except ImportError:
+    # Fall back to msticpy locations prior to v2.0.0
+    from msticpy.nbtools.nbwidgets import SelectItem
 
 from ._version import VERSION
 from .common import MsticnbMissingParameterError
@@ -23,7 +27,7 @@ class DFViewer:
 
     def view_events(
         self,
-        summary_cols: List[str],
+        summary_cols: List[str] = None,
         attrib: Optional[str] = None,
         data: Optional[pd.DataFrame] = None,
         **kwargs,
@@ -33,7 +37,7 @@ class DFViewer:
 
         Parameters
         ----------
-        summary_cols : List[str]
+        summary_cols : List[str], optional
             [description]
         attrib : Optional[str], optional
             [description], by default None
@@ -68,6 +72,7 @@ class DFViewer:
             raise MsticnbMissingParameterError("'attrib' or 'data'")
         if not isinstance(data, pd.DataFrame):
             raise TypeError("The 'data' or 'attrib' must be a DataFrame.")
+        summary_cols = summary_cols or list(data.columns)[:3]
 
         missing_cols = [col for col in summary_cols if col not in data.columns]
         if missing_cols:
