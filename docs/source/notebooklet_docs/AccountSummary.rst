@@ -195,19 +195,22 @@ az_activity_timeline_by_provider
 browse_accounts
 ^^^^^^^^^^^^^^^
 
-| browse_accounts(self) -> msticpy.nbtools.nbwidgets.SelectItem
+| browse_accounts(self) ->
+  msticpy.nbtools.nbwidgets.select_item.SelectItem
 | Return the accounts browser/viewer.
 
 browse_alerts
 ^^^^^^^^^^^^^
 
-| browse_alerts(self) -> msticpy.nbtools.nbwidgets.SelectAlert
+| browse_alerts(self) ->
+  msticpy.nbtools.nbwidgets.select_alert.SelectAlert
 | Return alert browser/viewer.
 
 browse_bookmarks
 ^^^^^^^^^^^^^^^^
 
-| browse_bookmarks(self) -> msticpy.nbtools.nbwidgets.SelectItem
+| browse_bookmarks(self) ->
+  msticpy.nbtools.nbwidgets.select_item.SelectItem
 | Return bookmark browser/viewer.
 
 display_alert_timeline
@@ -237,10 +240,10 @@ host_logon_timeline
 run
 ^^^
 
-| run(self, value: Any = None, data: Union[pandas.core.frame.DataFrame,
-  NoneType] = None, timespan: Union[msticpy.common.timespan.TimeSpan,
-  NoneType] = None, options: Union[Iterable[str], NoneType] = None,
-  \**kwargs) ->
+| run(self, value: Any = None, data:
+  Optional[pandas.core.frame.DataFrame] = None, timespan:
+  Optional[msticpy.common.timespan.TimeSpan] = None, options:
+  Optional[Iterable[str]] = None, \**kwargs) ->
   msticnb.nb.azsent.account.account_summary.AccountSummaryResult
 | Return account activity summary.
 
@@ -291,8 +294,28 @@ list_methods
 | list_methods(self) -> List[str]
 | Return list of methods with descriptions.
 
+run_nb_func
+^^^^^^^^^^^
+
+| run_nb_func(self, nb_func: Union[str,
+  msticnb.notebooklet_func.NBFunc], \**kwargs)
+| Run the notebooklet function and return the results.
+
+run_nb_funcs
+^^^^^^^^^^^^
+
+| run_nb_funcs(self)
+| Run all notebooklet functions defined for the notebooklet.
+
 Other Methods
 ~~~~~~~~~~~~~
+
+add_nb_function
+^^^^^^^^^^^^^^^
+
+| add_nb_function(nb_func: Union[str, msticnb.notebooklet_func.NBFunc],
+  \**kwargs)
+| Add a notebooklet function to the class.
 
 all_options
 ^^^^^^^^^^^
@@ -327,7 +350,7 @@ get_help
 get_settings
 ^^^^^^^^^^^^
 
-| get_settings(print_settings=True) -> Union[str, NoneType]
+| get_settings(print_settings=True) -> Optional[str]
 | Print or return metadata for class.
 
 import_cell
@@ -382,7 +405,7 @@ silent
 
 silent [property] Get the current instance setting for silent running.
 
----------
+<hr>
 
 ``run`` function documentation
 ------------------------------

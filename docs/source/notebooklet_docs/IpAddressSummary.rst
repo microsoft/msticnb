@@ -25,25 +25,37 @@ Queries and displays summary information about an IP address, including:
 
 -  alerts: Get any alerts listing the IP address.
 
--  heartbeat: Get the latest heartbeat record for for this IP Address.
+-  host_logons: Find any hosts with logons using this IP address as a
+   source.
 
--  az_net_if: Get the latest Azure network analytics interface data for
-   this IP Address.
+-  related_accounts: Find any accounts using this IP address in AAD or
+   host logs.
 
--  vmcomputer: Get the latest VMComputer record for this IP Address.
+-  device_info: Find any devices associated with this IP address.
+
+-  device_network: Find any devices communicating with this IP address.
 
 **Other Options**
 
 -  bookmarks: Get any hunting bookmarks listing the IP address.
+
+-  heartbeat: Get the latest heartbeat record for for this IP address.
+
+-  az_net_if: Get the latest Azure network analytics interface data for
+   this IP address.
+
+-  vmcomputer: Get the latest VMComputer record for this IP address.
 
 -  az_netflow: Get netflow information from AzureNetworkAnalytics table.
 
 -  passive_dns: Force fetching passive DNS data from a TI Provider even
    if IP is internal.
 
--  az_activity: AAD sign-ins and Azure Activity logs
+-  az_activity: AAD sign-ins and Azure Activity logs.
 
--  office_365: Office 365 activity
+-  office_365: Office 365 activity.
+
+-  common_security: Get records from common security log.
 
 -  ti: Force get threat intelligence reports even for internal public
    IPs.
@@ -58,8 +70,8 @@ Azure Sign-ins and audit activity from IP Address
 
 (only available for Azure)
 
-Azure network analytics netflow data for IP.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Azure Azure NSG Flow Logs for IP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (only available for if Azure network analytics net flow enabled.) This
 is is a list of netflow events for the IP. Timeline by protocol is
@@ -76,15 +88,15 @@ Office 365 operations summary from IP Address
 Public IP data (GeoIP, ThreatIntel, Passive DNS, VPS membership)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Azure Sentinel alerts related to the IP.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Azure Sentinel alerts related to the IP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``nblt.browse_alerts()`` to retrieve a list of alerts.
 
-.. _azure-sentinel-alerts-related-to-the-ip.-1:
+.. _azure-sentinel-alerts-related-to-the-ip-1:
 
-Azure Sentinel alerts related to the IP.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Azure Sentinel alerts related to the IP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``nblt.browse_alerts()`` to retrieve a list of alerts.
 
@@ -94,23 +106,49 @@ IP Address summary
 Retrieving data for IP Address Data and plots are stored in the result
 class returned by this function.
 
-Azure Network Analytics Topology record for the IP.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Azure Network Analytics Topology record for the IP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (only available for Azure VMs)
 
-Azure Sentinel heartbeat record for the IP.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Common security log
+^^^^^^^^^^^^^^^^^^^
+
+The CommonSecurityLog contains log data from firewalls and network
+devices.
+
+Defender device information
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+MS Defender device network and host information.
+
+Network connections
+^^^^^^^^^^^^^^^^^^^
+
+MS Defender network connections to/from this IP address.
+
+Azure Sentinel heartbeat record for the IP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (only available for IP addresses that belong to the subscription)
+
+Host logons
+^^^^^^^^^^^
+
+List of hosts with logon attempts from this IP address.
+
+Related accounts
+^^^^^^^^^^^^^^^^
+
+List of accounts using the IP address.
 
 Azure VMComputer record for the IP.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (only available for Azure VMs)
 
-Summary of network flow data for this IP Address
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Summary of Azure NSG network flow data for this IP Address
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (only available for if Azure network analytics net flow enabled.)
 
@@ -139,14 +177,11 @@ Attributes
 -  | ip_origin : str
    | "External" or "Internal"
 
--  | host_entity : Host
-   | Host entity associated with IP Address
+-  | host_entities : Host
+   | Host entity or entities associated with IP Address
 
 -  | ip_type : str
    | IP address type - "Public", "Private", etc.
-
--  | vps_network : IPv4Network
-   | If this is not None, the address is part of a know VPS network.
 
 -  | geoip : Optional[Dict[str, Any]]
    | Geo location information as a dictionary.
@@ -164,16 +199,16 @@ Attributes
    | Heartbeat record for IP Address or host
 
 -  | az_network_if : pd.DataFrame
-   | Azure Network analytics interface record, if available
+   | Azure NSG analytics interface record, if available
 
 -  | vmcomputer : pd.DataFrame
    | VMComputer latest record
 
 -  | az_network_flows : pd.DataFrame
-   | Azure Network analytics flows for IP, if available
+   | Azure NSG flows for IP, if available
 
 -  | az_network_flows_timeline: Figure
-   | Azure Network analytics flows timeline, if data is available
+   | Azure NSG flows timeline, if data is available
 
 -  | aad_signins : pd.DataFrame = None
    | AAD signin activity
@@ -187,8 +222,8 @@ Attributes
 -  | office_activity : pd.DataFrame = None
    | Office 365 activity
 
--  | related_alerts : pd.DataFrame
-   | Alerts related to IP Address
+-  | common_security : pd.DataFrame
+   | Common Security Log entries for source IP
 
 -  | related_bookmarks : pd.DataFrame
    | Bookmarks related to IP Address
@@ -202,6 +237,21 @@ Attributes
 -  | passive_dns: pd.DataFrame
    | Passive DNS lookup results
 
+-  | self.host_logons : pd.DataFrame
+   | Hosts with logons from this IP Address
+
+-  | self.related_accounts : pd.DataFrame
+   | Accounts with activity related to this IP Address
+
+-  | self.associated_hosts : pd.DataFrame
+   | Hosts using this IP Address
+
+-  | self.device_info : pd.DataFrame
+   | Device info of hosts using this IP Address
+
+-  | self.network_connections : pd.DataFrame = None
+   | Network connections to/from this IP on other devices
+
 --------------
 
 Methods
@@ -214,14 +264,15 @@ Instance Methods
 ^^^^^^^^^^
 
 | \__init__(self, data_providers:
-  Union[<msticnb.data_providers.SingletonDecorator object at
-  0x00000130B3F78788>, NoneType] = None, \**kwargs)
-| Intialize a new instance of the notebooklet class.
+  Optional[<msticnb.data_providers.SingletonDecorator object at
+  0x0000023FAFA3A6A0>] = None, \**kwargs)
+| Initialize a new instance of the notebooklet class.
 
 browse_alerts
 ^^^^^^^^^^^^^
 
-| browse_alerts(self) -> msticpy.nbtools.nbwidgets.SelectAlert
+| browse_alerts(self) ->
+  msticpy.nbtools.nbwidgets.select_alert.SelectAlert
 | Return alert browser/viewer.
 
 browse_ti_results
@@ -257,10 +308,11 @@ netflow_total_by_protocol
 run
 ^^^
 
-| run(self, value: Any = None, data: Union[pandas.core.frame.DataFrame,
-  NoneType] = None, timespan: Union[msticpy.common.timespan.TimeSpan,
-  NoneType] = None, options: Union[Iterable[str], NoneType] = None,
-  \**kwargs) -> msticnb.nb.azsent.network.ip_summary.IpSummaryResult
+| run(self, value: Any = None, data:
+  Optional[pandas.core.frame.DataFrame] = None, timespan:
+  Optional[msticpy.common.timespan.TimeSpan] = None, options:
+  Optional[Iterable[str]] = None, \**kwargs) ->
+  msticnb.nb.azsent.network.ip_summary.IpSummaryResult
 | Return IP Address activity summary.
 
 Inherited methods
@@ -304,8 +356,28 @@ list_methods
 | list_methods(self) -> List[str]
 | Return list of methods with descriptions.
 
+run_nb_func
+^^^^^^^^^^^
+
+| run_nb_func(self, nb_func: Union[str,
+  msticnb.notebooklet_func.NBFunc], \**kwargs)
+| Run the notebooklet function and return the results.
+
+run_nb_funcs
+^^^^^^^^^^^^
+
+| run_nb_funcs(self)
+| Run all notebooklet functions defined for the notebooklet.
+
 Other Methods
 ~~~~~~~~~~~~~
+
+add_nb_function
+^^^^^^^^^^^^^^^
+
+| add_nb_function(nb_func: Union[str, msticnb.notebooklet_func.NBFunc],
+  \**kwargs)
+| Add a notebooklet function to the class.
 
 all_options
 ^^^^^^^^^^^
@@ -340,7 +412,7 @@ get_help
 get_settings
 ^^^^^^^^^^^^
 
-| get_settings(print_settings=True) -> Union[str, NoneType]
+| get_settings(print_settings=True) -> Optional[str]
 | Print or return metadata for class.
 
 import_cell
@@ -395,7 +467,7 @@ silent
 
 silent [property] Get the current instance setting for silent running.
 
----------
+<hr>
 
 ``run`` function documentation
 ------------------------------
@@ -446,17 +518,22 @@ Default Options
 
 - geoip: Get geo location information for IP address.
 - alerts: Get any alerts listing the IP address.
-- heartbeat: Get the latest heartbeat record for for this IP Address.
-- az_net_if: Get the latest Azure network analytics interface data for this IP Address.
-- vmcomputer: Get the latest VMComputer record for this IP Address.
+- host_logons: Find any hosts with logons using this IP address as a source.
+- related_accounts: Find any accounts using this IP address in AAD or host logs.
+- device_info: Find any devices associated with this IP address.
+- device_network: Find any devices communicating with this IP address.
 
 
 Other Options
 ~~~~~~~~~~~~~
 
 - bookmarks: Get any hunting bookmarks listing the IP address.
+- heartbeat: Get the latest heartbeat record for for this IP address.
+- az_net_if: Get the latest Azure network analytics interface data for this IP address.
+- vmcomputer: Get the latest VMComputer record for this IP address.
 - az_netflow: Get netflow information from AzureNetworkAnalytics table.
 - passive_dns: Force fetching passive DNS data from a TI Provider even if IP is internal.
-- az_activity: AAD sign-ins and Azure Activity logs
-- office_365: Office 365 activity
+- az_activity: AAD sign-ins and Azure Activity logs.
+- office_365: Office 365 activity.
+- common_security: Get records from common security log.
 - ti: Force get threat intelligence reports even for internal public IPs.
