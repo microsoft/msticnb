@@ -62,17 +62,17 @@ Instance Methods
 ^^^^^^^^^^
 
 | \__init__(self, data_providers:
-  Union[<msticnb.data_providers.SingletonDecorator object at
-  0x000001270177A588>, NoneType] = None, \**kwargs)
-| Intialize a new instance of the notebooklet class.
+  Optional[<msticnb.data_providers.SingletonDecorator object at
+  0x0000023FAFA3A6A0>] = None, \**kwargs)
+| Initialize a new instance of the notebooklet class.
 
 run
 ^^^
 
-| run(self, value: Any = None, data: Union[pandas.core.frame.DataFrame,
-  NoneType] = None, timespan: Union[msticpy.common.timespan.TimeSpan,
-  NoneType] = None, options: Union[Iterable[str], NoneType] = None,
-  \**kwargs) ->
+| run(self, value: Any = None, data:
+  Optional[pandas.core.frame.DataFrame] = None, timespan:
+  Optional[msticpy.common.timespan.TimeSpan] = None, options:
+  Optional[Iterable[str]] = None, \**kwargs) ->
   msticnb.nb.azsent.host.host_logons_summary.HostLogonsSummaryResult
 | Return host summary data.
 
@@ -117,8 +117,28 @@ list_methods
 | list_methods(self) -> List[str]
 | Return list of methods with descriptions.
 
+run_nb_func
+^^^^^^^^^^^
+
+| run_nb_func(self, nb_func: Union[str,
+  msticnb.notebooklet_func.NBFunc], \**kwargs)
+| Run the notebooklet function and return the results.
+
+run_nb_funcs
+^^^^^^^^^^^^
+
+| run_nb_funcs(self)
+| Run all notebooklet functions defined for the notebooklet.
+
 Other Methods
 ~~~~~~~~~~~~~
+
+add_nb_function
+^^^^^^^^^^^^^^^
+
+| add_nb_function(nb_func: Union[str, msticnb.notebooklet_func.NBFunc],
+  \**kwargs)
+| Add a notebooklet function to the class.
 
 all_options
 ^^^^^^^^^^^
@@ -153,7 +173,7 @@ get_help
 get_settings
 ^^^^^^^^^^^^
 
-| get_settings(print_settings=True) -> Union[str, NoneType]
+| get_settings(print_settings=True) -> Optional[str]
 | Print or return metadata for class.
 
 import_cell
@@ -208,7 +228,7 @@ silent
 
 silent [property] Get the current instance setting for silent running.
 
----------
+<hr>
 
 ``run`` function documentation
 ------------------------------
