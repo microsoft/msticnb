@@ -26,6 +26,7 @@ from msticpy.datamodel import entities
 
 from ...._version import VERSION
 from ....common import (
+    MsticnbDataProviderError,
     MsticnbMissingParameterError,
     nb_data_wait,
     nb_markdown,
@@ -36,6 +37,7 @@ from ....nb_metadata import read_mod_metadata, update_class_doc
 from ....nblib.azsent.alert import browse_alerts
 from ....nblib.azsent.host import get_aznet_topology, get_heartbeat, verify_host_name
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
+from ....nblib.ti import get_ti_results, extract_iocs
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -66,6 +68,9 @@ class HostSummaryResult(NotebookletResult):
     related_bookmarks: pd.DataFrame
         Pandas DataFrame of any investigation bookmarks
         relating to the host.
+    events: pd.DataFrame
+        Pandas DataFrame of any high severity events
+        from the selected host.
 
     """
 
@@ -84,7 +89,7 @@ class HostSummaryResult(NotebookletResult):
             Result description, by default None
         timespan : Optional[TimeSpan], optional
             TimeSpan for the results, by default None
-        notebooklet : Optional[, optional
+        notebooklet : Optional[], optional
             Originating notebooklet, by default None
 
         """
@@ -93,6 +98,12 @@ class HostSummaryResult(NotebookletResult):
         self.related_alerts: pd.DataFrame = None
         self.alert_timeline: Union[LayoutDOM, Figure] = None
         self.related_bookmarks: pd.DataFrame = None
+        self.summary: pd.DataFrame = None
+        self.scheduled_tasks: pd.DataFrame = None
+        self.account_actions: pd.DataFrame = None
+        self.notable_events: pd.DataFrame = None
+        self.processes: pd.DataFrame = None
+        self.process_ti: pd.DataFrame = None
 
 
 # pylint: disable=too-few-public-methods
@@ -234,8 +245,59 @@ class HostSummary(Notebooklet):
 
         if "bookmarks" in self.options:
             result.related_bookmarks = _get_related_bookmarks(
-                self.query_provider, self.timespan, host_name
+                self.query_provider, self.timespan, result.host_entity.HostName
             )
+
+        if "scheduled_tasks" in self.options:
+            result.scheduled_tasks = _get_scheduled_tasks(
+                self.query_provider,
+                self.timespan,
+                result.host_entity.HostName,
+                result.host_entity.OSFamily,
+            )
+
+        if "account_actions" in self.options:
+            result.account_actions = _get_account_actions(
+                self.query_provider,
+                self.timespan,
+                result.host_entity.HostName,
+                result.host_entity.OSFamily,
+            )
+
+        if "notable_events" in self.options:
+            result.notable_events = _get_notable_events(
+                self.query_provider,
+                self.timespan,
+                result.host_entity.HostName,
+                result.host_entity.OSFamily,
+            )
+
+        if "processes" in self.options:
+            result.processes = _get_process_events(
+                self.query_provider,
+                self.timespan,
+                result.host_entity.HostName,
+                result.host_entity.OSFamily,
+            )
+
+        if "process_ti" in self.options and result.processes:
+            cmd_column = (
+                "CommandLine"
+                if result.host_entity.OSFamily.name == "Windows"
+                else "SyslogMessage"
+            )
+            if "tilookup" in self.data_providers.providers:
+                ti_prov = self.data_providers.providers["tilookup"]
+            else:
+                raise MsticnbDataProviderError("No TI providers avaliable")
+            result.process_ti = _process_ti(result.processes, cmd_column, ti_prov)
+
+        result.summary = _get_host_event_summary(
+            self.query_provider,
+            self.timespan,
+            result.host_entity.HostName,
+            result.host_entity.OSFamily,
+        )
 
         self._last_result = result
         return self._last_result
@@ -245,6 +307,104 @@ class HostSummary(Notebooklet):
         if self.check_valid_result_data("related_alerts"):
             return browse_alerts(self._last_result)
         return None
+
+    def display_alert_timeline(self):
+        """Display the alert timeline."""
+        if self.check_valid_result_data("related_alerts"):
+            if len(self._last_result.related_alerts) > 1:
+                return _show_alert_timeline(self._last_result.related_alerts)
+            print("Cannot plot timeline with 0 or 1 event.")
+        return None
+
+
+def _process_ti(data, col, ti_prov) -> pd.DataFrame:
+    extracted_iocs = extract_iocs(data, col, True)
+    _, ti_merged_df = get_ti_results(ti_lookup=ti_prov, data=extracted_iocs, col="IoC")
+    return ti_merged_df
+
+
+@lru_cache()
+def _get_process_events(qry_prov, timespan, host_name, os_family) -> pd.DataFrame:
+    process_events = pd.DataFrame
+    if os_family.name == "Windows":
+        nb_data_wait("Process Events")
+        process_events = qry_prov.WindowsSecurity.list_host_processes(
+            timespan, host_name=host_name, host_op="=~"
+        )
+    elif os_family.name == "Linux":
+        nb_data_wait("Process Events")
+        process_events = qry_prov.LinuxSyslog.sysmon_process_events(
+            timespan, host_name=f"'{host_name}'"
+        )
+        if process_events.empty:
+            process_events = qry_prov.LinuxSyslog.summarize_events(
+                timespan, host_name=f"'{host_name}'"
+            )
+    return process_events
+
+
+@lru_cache()
+def _get_host_event_summary(qry_prov, timespan, host_name, os_family) -> pd.DataFrame:
+    host_events = pd.DataFrame
+    if os_family.name == "Windows":
+        nb_data_wait("Events")
+        host_events = qry_prov.WindowsSecurity.summarize_events(
+            timespan, host_name=host_name, host_op="has"
+        )
+    elif os_family.name == "Linux":
+        nb_data_wait("Events")
+        host_events = qry_prov.LinuxSyslog.summarize_events(
+            timespan, host_name=f"'{host_name}'"
+        )
+    return host_events
+
+
+@lru_cache()
+def _get_notable_events(qry_prov, timespan, host_name, os_family) -> pd.DataFrame:
+    notable_events = pd.DataFrame()
+    if os_family.name == "Windows":
+        nb_data_wait("Notable Events")
+        notable_events = qry_prov.WindowsSecurity.notable_events(
+            timespan, host_name=host_name, host_op="has"
+        )
+    elif os_family.name == "Linux":
+        nb_data_wait("Notable Events")
+        notable_events = qry_prov.LinuxSyslog.notable_events(
+            timespan, host_name=f"'{host_name}'"
+        )
+    return notable_events
+
+
+@lru_cache()
+def _get_account_actions(qry_prov, timespan, host_name, os_family) -> pd.DataFrame:
+    account_actions = pd.DataFrame()
+    if os_family.name == "Windows":
+        nb_data_wait("Account Change Events")
+        account_actions = qry_prov.WindowsSecurity.account_change_events(
+            timespan, host_name=host_name, host_op="=~"
+        )
+    elif os_family.name == "Linux":
+        nb_data_wait("Account Change Events")
+        account_actions = qry_prov.LinuxSyslog.user_group_activity(
+            timespan, host_name=host_name
+        )
+    return account_actions
+
+
+@lru_cache()
+def _get_scheduled_tasks(qry_prov, timespan, host_name, os_family) -> pd.DataFrame:
+    scheduled_tasks = pd.DataFrame()
+    if os_family.name == "Windows":
+        nb_data_wait("Scheduled Tasks")
+        scheduled_tasks = qry_prov.WindowsSecurity.schdld_tasks_and_services(
+            timespan, host_name=host_name, host_op="=~"
+        )
+    elif os_family.name == "Linux":
+        nb_data_wait("Scheduled Tasks")
+        scheduled_tasks = qry_prov.LinuxSyslog.cron_activity(
+            timespan, host_name=host_name
+        )
+    return scheduled_tasks
 
 
 # Get Azure Resource details from API

@@ -18,7 +18,7 @@ from msticpy.datamodel import entities
 try:
     from msticpy import nbwidgets
     from msticpy.context.ip_utils import get_ip_type, get_whois_df, get_whois_info
-    from msticpy.context.tilookup import TISeverity
+    from msticpy.context.tiproviders.ti_provider_base import ResultSeverity
     from msticpy.vis import foliummap
     from msticpy.vis.timeline import display_timeline, display_timeline_values
 except ImportError:
@@ -26,7 +26,7 @@ except ImportError:
     from msticpy.nbtools import foliummap, nbwidgets
     from msticpy.nbtools.nbdisplay import display_timeline, display_timeline_values
     from msticpy.sectools.ip_utils import get_ip_type, get_whois_df, get_whois_info
-    from msticpy.sectools.tiproviders.ti_provider_base import TISeverity
+    from msticpy.sectools.tiproviders.ti_provider_base import ResultSeverity
 
 from .... import nb_metadata
 from ...._version import VERSION
@@ -624,8 +624,8 @@ def _get_ips_from_selected_asn(flow_sum_df, select_asn):
 @set_text(docs=_CELL_DOCS, key="lookup_ip_ti")
 def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
     def ti_check_ser_sev(severity, threshold):
-        threshold = TISeverity.parse(threshold)
-        return severity.apply(lambda x: TISeverity.parse(x) >= threshold)
+        threshold = ResultSeverity.parse(threshold)
+        return severity.apply(lambda x: ResultSeverity.parse(x) >= threshold)
 
     # Add the IoCType to save cost of inferring each item
     nb_data_wait("Threat Intelligence")
