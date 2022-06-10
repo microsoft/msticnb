@@ -109,7 +109,7 @@ class DataProviders:
             by default "AzureSentinel"
         providers : Optional[List[str]], optional
             A list of provider names to load.
-            You can add addtional query providers by including them
+            You can add additional query providers by including them
             in the `providers` list.
 
         Other Parameters
@@ -379,7 +379,7 @@ class DataProviders:
         if not prov_args and provider_defn.get_config:
             prov_args = provider_defn.get_config()
         # Instantiate the provider
-        return provider_defn.prov_class(prov_args)
+        return provider_defn.prov_class(**prov_args)
 
     # Helper methods
     @staticmethod
