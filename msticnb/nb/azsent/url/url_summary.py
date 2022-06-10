@@ -4,7 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """Notebooklet for URL Summary."""
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, List
 from collections import Counter
 
 import pandas as pd
@@ -18,16 +18,18 @@ from ipwhois import IPWhois
 try:
     from msticpy.context.domain_utils import DomainValidator, screenshot
     from msticpy import nbwidgets
-    from msticpy.vis.timeline import display_timeline
+    from msticpy.vis.timeline import display_timeline, display_timeline_values
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
     from msticpy.sectools.domain_utils import DomainValidator, screenshot
     from msticpy.nbtools import nbwidgets
-    from msticpy.nbtools.nbdisplay import display_timeline
+    from msticpy.nbtools.nbdisplay import display_timeline, display_timeline_values
+
 
 from msticpy.common.timespan import TimeSpan
 from msticpy.common.utility import md
 
+from bokeh.models import LayoutDOM
 
 from ...._version import VERSION
 from ....common import (
@@ -76,7 +78,9 @@ class URLSummaryResult(NotebookletResult):
         self.related_alerts: pd.DataFrame = None
         self.bookmarks: pd.DataFrame = None
         self.dns_results: pd.DataFrame = None
-        self.hosts = None
+        self.hosts: List = None
+        self.flows: pd.DataFrame = None
+        self.flow_graph: LayoutDOM = None
 
 
 # pylint: disable=too-few-public-methods
@@ -183,7 +187,7 @@ class URLSummary(Notebooklet):
             ti_results, ti_results_merged = get_ti_results(
                 ti_prov, result.summary, "URL"
             )
-            if ti_results and not ti_results.empty:
+            if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
                 result.summary = ti_results_merged
             if not self.silent:
                 nb_markdown(f"Threat Intelligence Results for {url}.")
@@ -193,26 +197,41 @@ class URLSummary(Notebooklet):
             result.domain_record = _domain_whois_record(
                 domain, self.data_providers.providers["tilookup"]
             )
+            if not self.silent:
+                nb_markdown(f"WhoIs Results for {url}.")
+                display(
+                    result.domain_record.T.style.applymap(
+                        color_domain_record_cells,
+                        subset=pd.IndexSlice[["Page Rank", "Domain Name Entropy"], 0],
+                    )
+                )
 
         if "cert" in self.options:
             result.cert_details = _get_tls_cert_details(url, domain_validator)
+            if not self.silent and not result.cert_details.empty:
+                nb_markdown(f"TLS Certificate Details for {url}.")
+                display(result.cert_details)
 
         if "ip_record" in self.options:
             result.ip_record = _get_ip_record(
                 domain, domain_validator, self.data_providers.providers["tilookup"]
             )
+            if not self.silent:
+                nb_markdown(f"IP Address Details for {url}.")
+                display(result.ip_record.T)
 
         if "screenshot" in self.options:
             image_data = screenshot(url)
             with open("screenshot.png", "wb") as f:
                 f.write(image_data.content)
-            nb_markdown(f"Screenshot of {url}")
-            display(Image(filename="screenshot.png"))
+            if not self.silent:
+                nb_markdown(f"Screenshot of {url}")
+                display(Image(filename="screenshot.png"))
 
         if "alerts" in self.options:
             alerts = self.query_provider.SecurityAlert.list_alerts(timespan)
             result.related_alerts = alerts[alerts["Entities"].str.contains(url)]
-            if not self.silent:
+            if not self.silent and not result.related_alerts.empty:
                 nb_markdown(f"Alerts related to {url}")
                 display(result.related_alerts)
 
@@ -222,7 +241,7 @@ class URLSummary(Notebooklet):
                     url=url, start=timespan.start, end=timespan.end
                 )
             )
-            if not self.silent:
+            if not self.silent and not result.bookmarks.empty:
                 nb_markdown(f"Bookmarks related to {url}")
                 display(result.bookmarks)
 
@@ -232,31 +251,53 @@ class URLSummary(Notebooklet):
                     domain=domain, start=timespan.start, end=timespan.end
                 )
             )
-            if not self.silent:
+            if not self.silent and not result.dns_results.empty:
                 nb_markdown(f"DNS events related to {url}")
                 display(result.dns_results)
 
         if "hosts" in self.options:
             syslog_hosts = self.query_provider.LinuxSyslog.all_syslog(
-                add_query_items=f"| where SyslogMessage has {url}",
+                add_query_items=f"| where SyslogMessage has '{url}'",
                 start=timespan.start,
                 end=timespan.end,
             )["Computer"].unique()
-            mde_hosts = self.query_provider.MDE.host_connectsions(
-                add_query_items=f"| where RemoteUrl has {url}",
+            mde_hosts = self.query_provider.MDE.host_connections(
+                time_column="TimeGenerated",
+                host_name="",
+                add_query_items=f"| where RemoteUrl has '{url}'",
                 start=timespan.start,
                 end=timespan.end,
             )["DeviceName"].unique()
             windows_hosts = self.query_provider.WindowsSecurity.list_events(
-                add_query_items=f"| where CommandLine has {url}",
+                add_query_items=f"| where CommandLine has '{url}'",
                 start=timespan.start,
                 end=timespan.end,
             )["Computer"].unique()
-            all_hosts = syslog_hosts + mde_hosts + windows_hosts
+            all_hosts = list(syslog_hosts) + list(mde_hosts) + list(windows_hosts)
             result.hosts = all_hosts
             if not self.silent:
                 nb_markdown(f"Hosts connecting to {url}")
                 display(result.hosts)
+
+        if "flows" in self.options:
+            result.flows = self.query_provider.Network.network_connections_to_url(
+                start=timespan.start, end=timespan.end, url="com"
+            )
+            flow_graph_data = self.query_provider.Network.network_connections_to_url(
+                start=timespan.start,
+                end=timespan.end,
+                url="com",
+                add_query_items="| summarize sum(SentBytes) by RequestURL, bin(TimeGenerated, 10m)",
+            )
+            result.flow_graph = display_timeline_values(
+                flow_graph_data,
+                value_col="sum_SentBytes",
+                title=f"Network traffic volume to {url}",
+            )
+            if not self.silent:
+                display(result.flow_graph)
+                nb_markdown(f"Network connections to {url}")
+                display(result.flows)
 
         self._last_result = result
         return self._last_result
@@ -284,11 +325,11 @@ def entropy(data):
 
 def color_domain_record_cells(val):
     if isinstance(val, int):
-        color = "yellow" if val < 3 else "white"
+        color = "yellow" if val < 3 else None
     elif isinstance(val, float):
-        color = "yellow" if val > 4.30891 or val < 2.72120 else "white"
+        color = "yellow" if val > 4.30891 or val < 2.72120 else None
     else:
-        color = "white"
+        color = None
     return f"background-color: {color}"
 
 
@@ -311,25 +352,24 @@ def _show_alert_timeline(related_alerts):
 @set_text(docs=_CELL_DOCS, key="show_domain_record")
 def _domain_whois_record(domain, ti_prov):
     dom_record = pd.DataFrame()
-    # tilookup = self.data_providers.providers["tilookup"]
     whois_result = whois(domain)
     if whois_result.domain_name is not None:
         # Create domain record from whois data
         dom_record = pd.DataFrame(
             {
                 "Domain": [domain],
-                "Name": [whois_result["name"]],
-                "Org": [whois_result["org"]],
-                "DNSSec": [whois_result["dnssec"]],
-                "City": [whois_result["city"]],
-                "State": [whois_result["state"]],
-                "Country": [whois_result["country"]],
-                "Registrar": [whois_result["registrar"]],
-                "Status": [whois_result["status"]],
-                "Created": [whois_result["creation_date"]],
-                "Expiration": [whois_result["expiration_date"]],
-                "Last Updated": [whois_result["updated_date"]],
-                "Name Servers": [whois_result["name_servers"]],
+                "Name": [whois_result.get("name", None)],
+                "Org": [whois_result.get("org", None)],
+                "DNSSec": [whois_result.get("dnssec", None)],
+                "City": [whois_result.get("city", None)],
+                "State": [whois_result.get("state", None)],
+                "Country": [whois_result.get("country", None)],
+                "Registrar": [whois_result.get("registrar", None)],
+                "Status": [whois_result.get("status", None)],
+                "Created": [whois_result.get("creation_date", None)],
+                "Expiration": [whois_result.get("expiration_date", None)],
+                "Last Updated": [whois_result.get("updated_date", None)],
+                "Name Servers": [whois_result.get("name_servers", None)],
             }
         )
         ns_domains = []
@@ -350,10 +390,10 @@ def _domain_whois_record(domain, ti_prov):
         url_ti = ti_prov.result_to_df(
             ti_prov.lookup_ioc(observable=domain, providers=["VirusTotal"])
         )
-        if url_ti["RawResult"][0]:
+        try:
             sub_doms = url_ti["RawResult"][0]["subdomains"]
-        else:
-            sub_doms = 0
+        except TypeError:
+            sub_doms = "None found"
         dom_record["Sub Domains"] = [sub_doms]
 
         # Work out domain entropy to identity possible DGA
@@ -366,13 +406,6 @@ def _domain_whois_record(domain, ti_prov):
             ns_dom = ns_domain.lower() + "." + ns_tld.lower()
             if domain not in ns_domains:
                 ns_domains.append(ns_dom)
-
-    display(
-        dom_record.T.style.applymap(
-            color_domain_record_cells,
-            subset=pd.IndexSlice[["Page Rank", "Domain Name Entropy"], 0],
-        )
-    )
     return dom_record
 
 
@@ -390,7 +423,6 @@ def _get_tls_cert_details(url, domain_validator):
                 "InAbuseList": result,
             }
         )
-        display(cert_df)
     return cert_df
 
 
@@ -402,15 +434,14 @@ def _get_ip_record(domain, domain_validator, ti_prov):
         except dns.resolver.NXDOMAIN:
             md("Could not resolve IP addresses from domain.")
         resolved_domain_ip = answer[0].to_text()
-        whois_result_domain = IPWhois(resolved_domain_ip)
-        ip_whois_result = whois.lookup_whois(whois_result_domain)
+        ip_whois_result = whois(resolved_domain_ip)
         ip_record = pd.DataFrame(
             {
                 "IP Address": [resolved_domain_ip],
-                "ASN": [ip_whois_result["asn"]],
-                "ASN Owner": [ip_whois_result["asn_description"]],
-                "Country": [ip_whois_result["asn_country_code"]],
-                "Date": [ip_whois_result["asn_date"]],
+                "Domain": [ip_whois_result.get("domain_name", None)],
+                "Registrar": [ip_whois_result.get("asn_description", None)],
+                "Country": [ip_whois_result.get("country", None)],
+                "Creation Date": [ip_whois_result.get("creation_date", None)],
             }
         )
     tor = None
@@ -428,8 +459,10 @@ def _get_ip_record(domain, domain_validator, ti_prov):
                 observable=ip_record["IP Address"][0], providers=["VirusTotal"]
             )
         )
-        last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
-        prev_domains = [record["hostname"] for record in last_10]
+        try:
+            last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
+            prev_domains = [record["hostname"] for record in last_10]
+        except TypeError:
+            prev_domains = None
         ip_record["Last 10 resolutions"] = [prev_domains]
-    display(ip_record.T)
     return ip_record

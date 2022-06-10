@@ -184,7 +184,7 @@ class HostNetworkSummary(Notebooklet):
             ti_results, ti_results_merged = get_ti_results(
                 ti_prov, result.flows, remote_ip_col
             )
-            if ti_results and not ti_results.empty:
+            if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
                 result.flow_ti = ti_results_merged
 
         if "map" in self.options:
