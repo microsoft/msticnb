@@ -13,7 +13,6 @@ import tldextract
 from whois import whois
 import numpy as np
 import dns.resolver
-from ipwhois import IPWhois
 
 try:
     from msticpy.context.domain_utils import DomainValidator, screenshot
