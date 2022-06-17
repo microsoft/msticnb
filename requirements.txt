@@ -9,3 +9,5 @@ numpy>=1.17.3
 pandas>=0.25.3
 python-dateutil>=2.8.1
 tqdm>=4.41.1
+python-whois>=0.7.3
+tldextract>=3.3.0

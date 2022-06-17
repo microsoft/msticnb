@@ -245,6 +245,7 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
                 "LogonResult",
             ],
             hide=True,
+            title="Logon Events Over Time - Grouped by Result.",
         )
 
     return timeline.display_timeline(
@@ -257,6 +258,7 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
             "LogonTypeName",
             "LogonResult",
         ],
+        title="Logon Events Over Time - Grouped by Result.",
     )
 
 

@@ -4,6 +4,8 @@
 # license information.
 # --------------------------------------------------------------------------
 """IP Helper functions."""
+
+import contextlib
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -19,6 +21,7 @@ except ImportError:
 
 from .._version import VERSION
 from ..common import nb_markdown
+from .ti import get_ti_results
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -47,14 +50,7 @@ def get_ip_ti(
         DataFrame with TI results for IPs
 
     """
-    data = _normalize_ip4(data, ip_col)
-    src_ip_addrs = data[[ip_col]].dropna().drop_duplicates()
-    nb_markdown(f"Querying TI for {len(src_ip_addrs)} indicators...")
-    ti_results = ti_lookup.lookup_iocs(data=src_ip_addrs, obs_col=ip_col)
-    ti_results = ti_results[ti_results["Severity"].isin(["warning", "high"])]
-
-    ti_merged_df = data.merge(ti_results, how="left", left_on=ip_col, right_on="Ioc")
-    return ti_results, ti_merged_df, src_ip_addrs
+    return get_ti_results(ti_lookup, data, ip_col)
 
 
 def _normalize_ip4(data, ip_col):
@@ -211,11 +207,8 @@ def convert_to_ip_entities(  # noqa: MC0001
                 # pylint: disable=broad-except
                 # lookup_ip might raise a number of exception types
                 # we - just want to ignore here
-                try:
+                with contextlib.suppress(Exception):
                     geo_lookup.lookup_ip(ip_entity=ip_entity)
-                except Exception:  # nosec
-                    pass
-                # pylint: disable=broad-except
             ip_entities.append(ip_entity)
     return ip_entities
 

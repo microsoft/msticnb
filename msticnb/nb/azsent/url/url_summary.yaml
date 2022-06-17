@@ -1,0 +1,48 @@
+metadata:
+  name: URLSummary
+  description: HURLs summary
+  default_options:
+    - ti: Displays TI results for the URL
+    - whois: Display a summary of the URL
+    - ip_record: Display a summary of the IP address the URL resolves to
+    - cert: Display a summary of TLS certs used by the URL.
+    - alerts: Displays a DataFrame of all alerts associated with the URL
+    - bookmarks: Displays a DataFrame of all bookmarks associated with the URL
+    - dns: Displays a DataFrame of all DNS events associated with the URL
+    - hosts: Displays a DataFrame of all hosts associated with the URL
+  keywords:
+    - url
+  entity_types:
+    - url
+  req_providers:
+    - LogAnalytics|LocalData
+output:
+  run:
+    title: URL Summary
+    hd_level: 1
+    text:
+      This shows a summary of the URL and its presence in data.
+      It will display an overview of the URL, its associated domain, IP addresses and TLS certificates.
+      It will also display a screenshot of the URL.
+  display_alert_timeline:
+    title: Timeline of related alerts
+    text:
+      Each marker on the timeline indicates one or more alerts related to the
+      host.
+  browse_alerts:
+    title: Browse of related alerts
+    text:
+      Browse and select alerts related to
+  show_domain_record:
+    title: Domain WhoIs Record
+    text:
+      This shows an overview of the domain, including WhoIs data.
+      Highlighted rows are areas of interest.
+  show_TLS_cert:
+    title: TLS Certificate Details
+    text:
+      This shows details of a TLS certificate used by the URL.
+  show_IP_record:
+    title: IP Details
+    text:
+      This shows details of the IP address used by the URL.

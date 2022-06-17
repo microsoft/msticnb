@@ -435,7 +435,7 @@ class Notebooklet(ABC):
             1 for term in terms if re.search(term, search_text, re.IGNORECASE)
         )
 
-        return (bool(match_count == len(terms)), match_count)
+        return match_count == len(terms), match_count
 
     @staticmethod
     def _set_tqdm_notebook(verbose=False):

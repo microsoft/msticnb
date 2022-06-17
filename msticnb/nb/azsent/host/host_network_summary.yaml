@@ -1,0 +1,24 @@
+metadata:
+  name: HostNetworkSummary
+  description: Host network summary
+  default_options:
+    - map: Display a map of remote IP addresses communicating with the host.
+    - ti: Enrich network flow data with Threat Inteligence.
+    - whois: Enrich network flow data with WhoIs information.
+  keywords:
+    - host
+    - computer
+    - windows
+    - linux
+  entity_types:
+    - host
+  req_providers:
+    - LogAnalytics|LocalData
+output:
+  run:
+    title: Host Network Summary
+    hd_level: 1
+    text:
+      This shows a summary of network events for a host.
+
+      Depending on what data is avaliable it will use MDE network events or Azure Network Diagnostic Logs.

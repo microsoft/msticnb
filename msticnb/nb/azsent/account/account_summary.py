@@ -298,7 +298,7 @@ class AccountSummary(Notebooklet):
                 nb_display(output)
             if not self.silent:
                 self.display_alert_timeline()
-        else:
+        elif len(acct_index_df) > 1:
             # if multiple, create a selector
             nb_markdown("<hr>")
             nb_markdown(
