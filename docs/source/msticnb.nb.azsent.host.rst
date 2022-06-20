@@ -3,6 +3,7 @@ Host notebooklets
 
 .. autosummary::
    msticnb.nb.azsent.host.host_logons_summary
+   msticnb.nb.azsent.host.host_network_summary
    msticnb.nb.azsent.host.host_summary
    msticnb.nb.azsent.host.win_host_events
 
@@ -21,6 +22,14 @@ msticnb.nb.azsent.host.host\_summary module
 -------------------------------------------
 
 .. automodule:: msticnb.nb.azsent.host.host_summary
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+msticnb.nb.azsent.host.host\_network_summary module
+-------------------------------------------
+
+.. automodule:: msticnb.nb.azsent.host.host_network_summary
    :members:
    :undoc-members:
    :show-inheritance:
