@@ -61,6 +61,7 @@ def add_pivot_funcs(pivot: Pivot = None, **kwargs):
             continue
         nb_obj = nb_class()
         run_func = getattr(nb_obj, "run")
+        print("testing Pivot load in AML")
         wrp_func = _wrap_run_func(run_func, pivot.get_timespan) #Test
         func_new_name = _to_py_name(nb_name)
         entity_map: Dict[str, str] = {}
