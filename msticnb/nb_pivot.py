@@ -61,13 +61,11 @@ def add_pivot_funcs(pivot: Pivot = None, **kwargs):
             continue
         nb_obj = nb_class()
         run_func = getattr(nb_obj, "run")
-        print("testing Pivot load in AML")
         try:
-            timespan = pivot.get_timespan
-        except:
-            print("issue")
-            timespan = pivot().get_timespan
-        wrp_func = _wrap_run_func(run_func, timespan) #Test
+            pivot_timespan = pivot.get_timespan
+        except AttributeError:
+            pivot_timespan = pivot().get_timespan
+        wrp_func = _wrap_run_func(run_func, pivot_timespan)
         func_new_name = _to_py_name(nb_name)
         entity_map: Dict[str, str] = {}
         for entity in nb_class.metadata.entity_types:
