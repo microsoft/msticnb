@@ -1,0 +1,33 @@
+metadata:
+  version: 1
+  description: Local Data Alert Queries
+  data_environments: [LocalData]
+  data_families:
+    - LinuxSyslog
+  tags: ['alert', 'securityalert', 'process', 'account', 'network', 'host']
+defaults:
+  metadata:
+    data_source: 'security_alert'
+    parameters:
+sources:
+  list_logons_for_account:
+    description: Linux logon Activity
+    metadata:
+      data_families: [LinuxSyslog]
+    args:
+      query: lx_host_logons.pkl
+    parameters:
+  list_logons_for_source_ip:
+    description: Linux logon Activity
+    metadata:
+      data_families: [LinuxSyslog]
+    args:
+      query: lx_host_logons.pkl
+    parameters:
+  summarize_events:
+    description: Linux Event summary
+    metadata:
+      data_families: [LinuxSyslog]
+    args:
+      query: lx_host_logons.pkl
+    parameters:

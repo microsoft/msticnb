@@ -1,0 +1,42 @@
+metadata:
+  version: 1
+  description: Local Data Alert Queries
+  data_environments: [LocalData]
+  data_families:
+    - SecurityAlert
+    - SecurityEvent
+  tags: ['alert', 'securityalert', 'sentinel']
+defaults:
+  metadata:
+    data_source: 'security_alert'
+  parameters:
+sources:
+  # Alerts
+  list_alerts:
+    description: Retrieves list of alerts
+    metadata:
+      data_families: [SecurityAlert]
+    args:
+      query: alerts_list.pkl
+    parameters:
+  list_related_alerts:
+    description: Retrieves list of related alerts
+    metadata:
+      data_families: [SecurityAlert]
+    args:
+      query: alerts_list.pkl
+    parameters:
+  list_alerts_for_ip:
+    description: Retrieves list of related alerts
+    metadata:
+      data_families: [SecurityAlert]
+    args:
+      query: alerts_list.pkl
+  # Azure Sentinel tables
+  list_bookmarks_for_entity:
+    description: Retrieves list of related bookmarks.
+    metadata:
+      data_families: [AzureSentinel]
+    args:
+      query: bookmarks.csv
+    parameters:
