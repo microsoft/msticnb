@@ -30,7 +30,7 @@ output:
       Each marker on the timeline indicates one or more alerts related to the
       host.
   browse_alerts:
-    title: Browse of related alerts
+    title: Browse related alerts
     text:
       Browse and select alerts related to
   show_domain_record:
