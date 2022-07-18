@@ -52,7 +52,7 @@ def add_pivot_funcs(pivot: Pivot = None, **kwargs):
         piv_kwargs = {
             key: arg for key, arg in kwargs.items() if key in ("namespace", "providers")
         }
-        pivot = Pivot.current or Pivot(**piv_kwargs)
+        pivot = Pivot.current() or Pivot(**piv_kwargs)
     for nb_name, nb_class in nblts.iter_classes():
         if not issubclass(nb_class, Notebooklet) or nb_name == "TemplateNB":
             continue
@@ -61,7 +61,9 @@ def add_pivot_funcs(pivot: Pivot = None, **kwargs):
             continue
         nb_obj = nb_class()
         run_func = getattr(nb_obj, "run")
-        wrp_func = _wrap_run_func(run_func, pivot.get_timespan)
+        pivot_timespan = pivot.get_timespan
+
+        wrp_func = _wrap_run_func(run_func, pivot_timespan)
         func_new_name = _to_py_name(nb_name)
         entity_map: Dict[str, str] = {}
         for entity in nb_class.metadata.entity_types:

@@ -1,0 +1,70 @@
+metadata:
+  version: 1
+  description: Local Data Alert Queries
+  data_environments: [LocalData]
+  data_families:
+    - SecurityEvent
+    - WindowsSecurity
+  tags: ['process', 'account', 'network', 'host']
+defaults:
+  metadata:
+    data_source: 'security_alert'
+  parameters:
+sources:
+  # Windows
+  list_host_processes:
+    description: List processes on host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: processes_on_host.pkl
+    parameters:
+  list_host_logons:
+    description: List logons on host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: host_logons.pkl
+    parameters:
+  list_host_logon_failures:
+    description: List logon failures on host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: failed_logons.pkl
+    parameters:
+  list_logon_attempts_by_account:
+    description: Success and failed
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: win_logon_attempts.pkl
+    parameters:
+  list_host_events:
+    description: List events on host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: all_events_df.pkl
+    parameters:
+  get_process_tree:
+    description: Get process tree for a process
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: process_tree.pkl
+    parameters:
+  list_all_logons_by_host:
+    description: Return Logon Events For A Host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: win_host_logons.pkl
+    parameters:
+  summarize_events:
+    description: Summarize host events
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: all_events_df.pkl
+    parameters:
