@@ -8,19 +8,21 @@ import inspect
 import re
 import warnings
 from abc import ABC, abstractmethod
+from copy import copy
 from functools import wraps
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from IPython.core.getipython import get_ipython
 from IPython.display import HTML, display
-from tqdm.auto import tqdm
 from msticpy.common.timespan import TimeSpan
+from tqdm.auto import tqdm
 
 from ._version import VERSION
 from .common import MsticnbDataProviderError, MsticnbError
 from .data_providers import DataProviders
 from .nb_metadata import NBMetadata, read_mod_metadata
+from .notebooklet_func import NBFunc
 from .notebooklet_result import NotebookletResult
 from .options import get_opt, set_opt
 
@@ -36,10 +38,11 @@ class Notebooklet(ABC):
         name="Notebooklet", description="Base class", default_options=[]
     )
     module_path = ""
+    nb_functions: List[NBFunc] = []
 
     def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
-        Intialize a new instance of the notebooklet class.
+        Initialize a new instance of the notebooklet class.
 
         Parameters
         ----------
@@ -60,6 +63,7 @@ class Notebooklet(ABC):
         self._set_tqdm_notebook(get_opt("verbose"))
         self._last_result: Any = None
         self.timespan = TimeSpan(period="1d")
+        self.last_run_args: Dict[str, Any] = {}
         self._inst_default_silent: Optional[bool] = kwargs.get("silent")
         self._current_run_silent: Optional[bool] = None
         set_opt("temp_silent", self.silent)
@@ -198,6 +202,15 @@ class Notebooklet(ABC):
             self.timespan = TimeSpan(timespan=timespan)
         elif "start" in kwargs and "end" in kwargs:
             self.timespan = TimeSpan(start=kwargs.get("start"), end=kwargs.get("end"))
+        self.last_run_args = {
+            "value": value,
+            "data": data,
+            "timespan": timespan,
+            "options": options,
+            "silent": self.silent,
+            "qry_prov": self.query_provider,
+            **kwargs,
+        }
         return NotebookletResult(notebooklet=self)
 
     def get_pivot_run(self, get_timespan: Callable[[], TimeSpan]):
@@ -571,3 +584,123 @@ class Notebooklet(ABC):
             desc = f_doc.split("\n", maxsplit=1)[0] if f_doc else ""
             method_desc.append(f"{name} - '{desc}'")
         return method_desc
+
+    @classmethod
+    def add_nb_function(cls, nb_func: Union[str, NBFunc], **kwargs):
+        """
+        Add a notebooklet function to the class.
+
+        Functions added to the class will be run when run_nb_funcs is
+        called.
+
+        Parameters
+        ----------
+        nb_func : Union[str, NBFunc]
+            The fully-qualified name of the NB function or
+            an instance of the NBFunc class.
+
+        Optional Parameters
+        -------------------
+        options : Optional[Union[str, List[str]]], optional
+            Override the options controlling the running of the function.
+        header : Optional[str], optional
+            Override the header to display when running the function, by default None
+        text : Optional[str], optional
+            Override the text to display when running the function, by default None
+        result_attrib : Optional[str], optional
+            Override the name of the notebooklet result attribute to assign the
+            function return value to, by default None
+
+        """
+        nb_func_instance = cls._lookup_nb_func(nb_func)
+        nb_func_instance = cls._customize_nb_func(nb_func_instance, kwargs)
+        cls.nb_functions.append(nb_func_instance)
+
+    def run_nb_func(self, nb_func: Union[str, NBFunc], **kwargs):
+        """
+        Run the notebooklet function and return the results.
+
+        By default, the function will be passed the set of kwargs used
+        in the last call to notebooklet.run().
+        You can override some of the nb_func attributes as well as the
+        default runtime parameters by supplying the keyword
+        arguments with the same names.
+
+        Parameters
+        ----------
+        nb_func : Union[str, NBFunc]
+            The registered name of the function or an instance of
+            the NBFunc class
+
+        Optional Parameters
+        -------------------
+        options : Optional[Union[str, List[str]]], optional
+            Override the options controlling the running of the function.
+        header : Optional[str], optional
+            Override the header to display when running the function, by default None
+        text : Optional[str], optional
+            Override the text to display when running the function, by default None
+        result_attrib : Optional[str], optional
+            Override the name of the notebooklet result attribute to assign the
+            function return value to, by default None
+        kwargs : Any
+            Any other keyword parameters to supply to the function.
+
+        Returns
+        -------
+        Any :
+            The returned results from the function.
+
+        Notes
+        -----
+        If the notebooklet function has the `result_attrib` attribute set, the
+        results will also be saved to the notebooklet result with the
+        attribute of this name.
+
+        See Also
+        --------
+        NBFunc - the Notebooklet function class.
+        run_nb_funcs - Run all functions.
+
+        """
+        nb_func_instance = self._lookup_nb_func(nb_func)
+
+        nb_func_instance = self._customize_nb_func(nb_func=nb_func_instance, **kwargs)
+        # use the notebooklet default kwargs
+        func_def_kwargs = {**self.last_run_args}
+        # add any custom kwargs from invocation.
+        func_def_kwargs.update(kwargs)
+        return nb_func_instance.run(**func_def_kwargs)
+
+    @staticmethod
+    def _lookup_nb_func(nb_func: Union[str, NBFunc]) -> NBFunc:
+        """Return the NBFunc or find it in the funcs registry."""
+        if isinstance(nb_func, NBFunc):
+            return nb_func
+        if isinstance(nb_func, str):
+            # pylint: disable=import-outside-toplevel
+            import msticnb
+
+            nb_reg_func = msticnb.funcs.get(nb_func)
+            if not nb_reg_func:
+                raise LookupError(f"Function {nb_func} not found")
+            return nb_reg_func
+        raise TypeError(
+            f"Invalid type for `nb_func` parameter {nb_func} ({type(nb_func)})."
+        )
+
+    def run_nb_funcs(self):
+        """Run all notebooklet functions defined for the notebooklet."""
+        for nb_func in self.__class__.nb_functions:
+            nb_func.run(**(self.last_run_args))
+
+    @classmethod
+    def _customize_nb_func(cls, nb_func: NBFunc, kwargs) -> NBFunc:
+        """If any kwargs"""
+        valid_update_opts = {"options", "header", "text", "result_attrib"}
+        if kwargs and valid_update_opts & kwargs.keys():
+            nb_func = copy(nb_func)
+            for attrib, value in kwargs.items():
+                if attrib in valid_update_opts:
+                    setattr(nb_func, attrib, value)
+        return nb_func

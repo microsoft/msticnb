@@ -287,5 +287,5 @@ def mp_version():
 
 
 def check_mp_version(required_version: str) -> bool:
-    """Returns true if the installed version is >= `required_version`."""
-    return mp_version().major >= parse_version(required_version).major
+    """Return true if the installed version is >= `required_version`."""
+    return mp_version().major >= parse_version(required_version).major  # type: ignore
