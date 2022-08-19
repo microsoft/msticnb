@@ -1,7 +1,7 @@
 Notebooklet Class - HostNetworkSummary
-=====================================
+======================================
 
-Host Network Summary Notebooket class.
+Host Network Summary Notebooklet class.
 
 Queries and displays information about network connections by a host including:
 
@@ -18,13 +18,12 @@ Queries and displays information about network connections by a host including:
 Display Sections
 ----------------
 
---------------
 
 Results Class
 -------------
 
 HostNetworkSummaryResult
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Host Network Summary Results.
 

@@ -10,8 +10,6 @@ Enriches Azure Sentinel alerts with TI data.
 Display Sections
 ----------------
 
---------------
-
 Results Class
 -------------
 

@@ -38,13 +38,14 @@ for more help see https://msticnb.readthedocs.org/
 import sys
 from typing import Any, Dict, List, Optional
 
-from .data_providers import DataProviders, init as dp_init  # noqa:F401
-from .read_modules import discover_modules, nblts, nb_index, find  # noqa:F401
-from .options import get_opt, set_opt  # noqa:F401
+from ._version import VERSION
+from .data_providers import DataProviders  # noqa:F401
+from .data_providers import init as dp_init  # noqa:F401
 from .nb_browser import NBBrowser  # noqa:F401
 from .nb_pivot import add_pivot_funcs  # noqa:F401
-
-from ._version import VERSION
+from .options import get_opt, set_opt  # noqa:F401
+from .read_modules import discover_modules, find, nb_index, nblts  # noqa:F401
+from .template import create_template  # noqa:F401
 
 __version__ = VERSION
 

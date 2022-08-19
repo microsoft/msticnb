@@ -12,5 +12,5 @@ Notebooklets Details
    notebooklet_docs/LogonSessionsRarity
    notebooklet_docs/IpAddressSummary.rst
    notebooklet_docs/NetworkFlowSummary.rst
+   notebooklet_docs/URLSummary.rst
    notebooklet_docs/WinHostEvents.rst
-   notebooklet_docs/UrlSummary.rst
