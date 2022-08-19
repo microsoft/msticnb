@@ -215,7 +215,7 @@ class TemplateNB(Notebooklet):
         result.all_events = all_events_df
 
         if "plot_events" in self.options:
-            result.plot = _display_event_timeline(acct_event_data=all_events_df)
+            result.plot = _display_event_timeline(event_data=all_events_df)
 
         if "get_metadata" in self.options:
             result.additional_info = _get_metadata(host_name=value, timespan=timespan)
@@ -281,10 +281,24 @@ def _get_all_events(qry_prov, host_name, timespan):
     # Tell the user that you're fetching data
     # (doesn't display if nb.set_opt("silent", True))
     nb_data_wait("SecurityEvent")
-    return qry_prov.WindowsSecurity.list_host_events(
-        timespan,
-        host_name=host_name,
-        add_query_items="| where EventID != 4688 and EventID != 4624",
+
+    # example real query
+    # return qry_prov.WindowsSecurity.list_host_events(
+    #     timespan,
+    #     host_name=host_name,
+    #     add_query_items="| where EventID != 4688 and EventID != 4624",
+    # )
+
+    # dummy query
+    del qry_prov, host_name, timespan
+    return pd.DataFrame(
+        {
+            "TimeGenerated": pd.date_range("2022-01-01", periods=5, tz="utc", freq="H"),
+            "EventID": [4688, 4688, 4625, 4624, 4624],
+            "Computer": ["MyHost.dom"] * 5,
+            "Account": [f"user{n}" for n in range(5)],
+            "Activity": [f"activity_{s}" for s in "abcde"],
+        }
     )
 
 
@@ -292,11 +306,11 @@ def _get_all_events(qry_prov, host_name, timespan):
 # You can reference text from sections in your YAML file or specify
 # it inline (see later example)
 @set_text(docs=_CELL_DOCS, key="display_event_timeline")
-def _display_event_timeline(acct_event_data):
+def _display_event_timeline(event_data):
     # Plot events on a timeline
 
     return display_timeline(
-        data=acct_event_data,
+        data=event_data,
         group_by="EventID",
         source_columns=["Activity", "Account"],
         legend="right",
