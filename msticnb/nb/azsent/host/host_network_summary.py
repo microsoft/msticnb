@@ -86,6 +86,11 @@ class HostNetworkSummary(Notebooklet):
     __doc__ = update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the Host Network Summary notebooklet."""
+        super().__init__(*args, **kwargs)
+
+
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001
@@ -212,12 +217,14 @@ def _get_host_flows(host_name, ip_addr, qry_prov, timespan) -> pd.DataFrame:
     if host_name:
         nb_data_wait("Host flow events")
         host_flows = qry_prov.MDE.host_connections(timespan, host_name=host_name)
+        host_flows_csl = qry_prov.Network.host_network_connections_csl(timespan, host_name=host_name)
     elif ip_addr:
         nb_data_wait("Host flow events")
         host_flows = qry_prov.Network.list_azure_network_flows_by_ip(
             timespan, ip_address_list=[ip_addr]
         )
-    return host_flows
+        host_flows_csl = qry_prov.Network.ip_network_connections_csl(timespan, ip=ip_addr)
+    return pd.concat([host_flows, host_flows_csl], sort=False)
 
 
 def _get_whois_data(data, col) -> pd.DataFrame:

@@ -194,7 +194,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         else:
             # If data is provided do some required formatting
             data = _format_raw_data(data)
-
+       
         # Add description to results for context
         self._last_result = HostLogonsSummaryResult(
             notebooklet=self, description=self.metadata.description, timespan=timespan
@@ -202,11 +202,13 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
         # Check we have data
         if not isinstance(data, pd.DataFrame) or data.empty:
-            raise MsticnbDataProviderError("No valid data avaliable")
+            print("No valid data avaliable.")
+            return self._last_result
 
         # Conduct analysis and get visualizations
         nb_print("Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
+        
         if "timeline" in self.options:
             tl_plot = _gen_timeline(data, self.silent)
             self._last_result.timeline = tl_plot
@@ -247,19 +249,19 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
             hide=True,
             title="Logon Events Over Time - Grouped by Result.",
         )
-
-    return timeline.display_timeline(
-        data[data["LogonResult"] != "Unknown"],
-        group_by="LogonResult",
-        source_columns=[
-            "Account",
-            "LogonProcessName",
-            "SourceIP",
-            "LogonTypeName",
-            "LogonResult",
-        ],
-        title="Logon Events Over Time - Grouped by Result.",
-    )
+    else:
+        return timeline.display_timeline(
+            data[data["LogonResult"] != "Unknown"],
+            group_by="LogonResult",
+            source_columns=[
+                "Account",
+                "LogonProcessName",
+                "SourceIP",
+                "LogonTypeName",
+                "LogonResult",
+            ],
+            title="Logon Events Over Time - Grouped by Result.",
+        )
 
 
 @set_text(docs=_CELL_DOCS, key="show_map")

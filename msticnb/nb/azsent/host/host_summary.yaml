@@ -2,6 +2,7 @@ metadata:
   name: HostSummary
   description: Host summary
   default_options:
+    - summary: Get a Summary of the host.
     - heartbeat: Query Heartbeat table for host information.
     - azure_net: '
         Query AzureNetworkAnalytics table for host
@@ -9,6 +10,12 @@ metadata:
     - alerts: Query any alerts for the host.
     - bookmarks: Query any bookmarks for the host.
     - azure_api: Query Azure API for VM information.
+    - scheduled_tasks: Get details of scheduled tasks on a host.
+    - account_actions: Get account related events for the host.
+    - notable_events: Get key events from the host.
+    - processes: Get process execution events from the host.
+  other_options:
+    - process_ti: Lookup process command line events in TI.
   keywords:
     - host
     - computer

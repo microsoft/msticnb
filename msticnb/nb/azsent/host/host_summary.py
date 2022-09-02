@@ -124,6 +124,10 @@ class HostSummary(Notebooklet):
     __doc__ = update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the Host Summary notebooklet."""
+        super().__init__(*args, **kwargs)
+
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001
@@ -280,7 +284,7 @@ class HostSummary(Notebooklet):
                 result.host_entity.OSFamily,
             )
 
-        if "process_ti" in self.options and result.processes:
+        if "process_ti" in self.options and isinstance(result.processes, pd.DataFrame) and not result.processes.empty:
             cmd_column = (
                 "CommandLine"
                 if result.host_entity.OSFamily.name == "Windows"
@@ -499,7 +503,7 @@ def _get_related_alerts(qry_prov, timespan, host_name):
 
 
 @set_text(docs=_CELL_DOCS, key="show_alert_timeline")
-def _show_alert_timeline(related_alerts):
+def _show_alert_timeline(related_alerts, silent:bool=False):
     if len(related_alerts) > 1:
         return display_timeline(
             data=related_alerts,
