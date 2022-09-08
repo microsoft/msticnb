@@ -6,7 +6,7 @@
 """logons_summary - provides overview of host logon events."""
 import re
 from math import pi
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, Union
 
 import pandas as pd
 from bokeh.io import output_notebook
@@ -34,7 +34,6 @@ from ....common import (
 )
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
-from ....nblib.iptools import convert_to_ip_entities
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 pd.options.mode.chained_assignment = None
@@ -249,26 +248,25 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
             hide=True,
             title="Logon Events Over Time - Grouped by Result.",
         )
-    else:
-        return timeline.display_timeline(
-            data[data["LogonResult"] != "Unknown"],
-            group_by="LogonResult",
-            source_columns=[
-                "Account",
-                "LogonProcessName",
-                "SourceIP",
-                "LogonTypeName",
-                "LogonResult",
-            ],
-            title="Logon Events Over Time - Grouped by Result.",
-        )
+
+    return timeline.display_timeline(
+        data[data["LogonResult"] != "Unknown"],
+        group_by="LogonResult",
+        source_columns=[
+            "Account",
+            "LogonProcessName",
+            "SourceIP",
+            "LogonTypeName",
+            "LogonResult",
+        ],
+        title="Logon Events Over Time - Grouped by Result.",
+    )
 
 
 @set_text(docs=_CELL_DOCS, key="show_map")
-def _map_logons(data: pd.DataFrame, silent: bool, geo_lookup: Any = None) -> FoliumMap:
+def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     """Produce a map of source IP logon locations."""
-    # Seperate out failed and sucessful logons and clean the data
-    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) == False]
+    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) is False]
     if not isinstance(map_data, pd.DataFrame) or map_data.empty:
         if not silent:
             md("No plotable logins avaliable")
@@ -279,6 +277,7 @@ def _map_logons(data: pd.DataFrame, silent: bool, geo_lookup: Any = None) -> Fol
                 ip_column="IpAddress", layer_column="LogonResult"
             )
         )
+
     return map_data.mp_plot.folium_map(
         ip_column="IpAddress", layer_column="LogonResult"
     )
@@ -478,7 +477,7 @@ def _get_logon_result_lx(row: pd.Series) -> str:
     return "Success" if success_events["SyslogMessage"] is True else "Unknown"
 
 
-def _parse_user_lx(row: pd.Series) -> str:
+def _parse_user_lx(row: pd.Series) -> Union[str, Any, None]:
     """Extract a user name from Syslog message related to a logon."""
     if row.str.contains("publickey")["SyslogMessage"] is True:
         regex = re.compile("for ([^ ]*)")
@@ -490,7 +489,7 @@ def _parse_user_lx(row: pd.Series) -> str:
     return user[1] if user else None
 
 
-def _parse_ip_lx(row: pd.Series) -> str:
+def _parse_ip_lx(row: pd.Series) -> Union[str, Any, None]:
     """Extract an IP Address from an Syslog message."""
     regex = re.compile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3})")
     ips = re.search(regex, row["SyslogMessage"])

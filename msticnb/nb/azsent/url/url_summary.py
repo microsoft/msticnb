@@ -54,10 +54,7 @@ _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 # pylint: disable=too-few-public-methods
 class URLSummaryResult(NotebookletResult):
-    """
-    URL Summary Results.
-
-    """
+    """URL Summary Results."""
 
     def __init__(
         self,
@@ -65,21 +62,18 @@ class URLSummaryResult(NotebookletResult):
         timespan: Optional[TimeSpan] = None,
         notebooklet: Optional["Notebooklet"] = None,
     ):
-        """
-        Create new Notebooklet result instance.
-
-        """
+        """Create new Notebooklet result instance."""
         super().__init__(description, timespan, notebooklet)
-        self.summary: pd.DataFrame = None
-        self.domain_record: pd.DataFrame = None
-        self.cert_details: pd.DataFrame = None
-        self.ip_record: pd.DataFrame = None
-        self.related_alerts: pd.DataFrame = None
-        self.bookmarks: pd.DataFrame = None
-        self.dns_results: pd.DataFrame = None
-        self.hosts: List = None
-        self.flows: pd.DataFrame = None
-        self.flow_graph: LayoutDOM = None
+        self.summary: pd.DataFrame = None  # type: ignore
+        self.domain_record: pd.DataFrame = None  # type: ignore
+        self.cert_details: pd.DataFrame = None  # type: ignore
+        self.ip_record: pd.DataFrame = None  # type: ignore
+        self.related_alerts: pd.DataFrame = None  # type: ignore
+        self.bookmarks: pd.DataFrame = None  # type: ignore
+        self.dns_results: pd.DataFrame = None  # type: ignore
+        self.hosts: List = None  # type: ignore
+        self.flows: pd.DataFrame = None  # type: ignore
+        self.flow_graph: LayoutDOM = None  # type: ignore
 
 
 # pylint: disable=too-few-public-methods
@@ -221,15 +215,17 @@ class URLSummary(Notebooklet):
 
         if "screenshot" in self.options:
             image_data = screenshot(url)
-            with open("screenshot.png", "wb") as f:
-                f.write(image_data.content)
+            with open("screenshot.png", "wb") as screenshot_file:
+                screenshot_file.write(image_data.content)
             if not self.silent:
                 nb_markdown(f"Screenshot of {url}")
                 display(Image(filename="screenshot.png"))
 
         if "alerts" in self.options:
             alerts = self.query_provider.SecurityAlert.list_alerts(timespan)
-            result.related_alerts = alerts[alerts["Entities"].str.contains(url)]
+            result.related_alerts = alerts[
+                alerts["Entities"].str.contains(url, case=False)
+            ]
             if not self.silent and not result.related_alerts.empty:
                 nb_markdown(f"Alerts related to {url}")
                 display(result.related_alerts)
@@ -313,16 +309,18 @@ class URLSummary(Notebooklet):
         if self.check_valid_result_data("related_alerts"):
             if len(self._last_result.related_alerts) > 1:
                 return _show_alert_timeline(self._last_result.related_alerts)
-            print("Cannot plot timeline with 0 or 1 event.")
+            md("Cannot plot timeline with 0 or 1 event.")
         return None
 
 
 def entropy(data):
-    s, lens = Counter(data), np.float(len(data))
-    return -sum(count / lens * np.log2(count / lens) for count in s.values())
+    """Calculate Entropy of a String."""
+    strings, lens = Counter(data), np.float(len(data))
+    return -sum(count / lens * np.log2(count / lens) for count in strings.values())
 
 
 def color_domain_record_cells(val):
+    """Color Code Rows With Odd Entropy."""
     if isinstance(val, int):
         color = "yellow" if val < 3 else None
     elif isinstance(val, float):
@@ -334,6 +332,7 @@ def color_domain_record_cells(val):
 
 @set_text(docs=_CELL_DOCS, key="display_alert_timeline")
 def _show_alert_timeline(related_alerts):
+    """Display An Alert Timeline."""
     if len(related_alerts) > 1:
         return display_timeline(
             data=related_alerts,
@@ -350,6 +349,7 @@ def _show_alert_timeline(related_alerts):
 
 @set_text(docs=_CELL_DOCS, key="show_domain_record")
 def _domain_whois_record(domain, ti_prov):
+    """Build a Domain Whois Record."""
     dom_record = pd.DataFrame()
     whois_result = whois(domain)
     if whois_result.domain_name is not None:
@@ -410,6 +410,7 @@ def _domain_whois_record(domain, ti_prov):
 
 @set_text(docs=_CELL_DOCS, key="show_TLS_cert")
 def _get_tls_cert_details(url, domain_validator):
+    """Get details of a TLS certificate used by a domain."""
     result, x509 = domain_validator.in_abuse_list(url)
     cert_df = pd.DataFrame()
     if x509 is not None:
@@ -427,6 +428,7 @@ def _get_tls_cert_details(url, domain_validator):
 
 @set_text(docs=_CELL_DOCS, key="show_IP_record")
 def _get_ip_record(domain, domain_validator, ti_prov):
+    """Get IP addresses assoicated with a domain."""
     if domain_validator.is_resolvable(domain) is True:
         try:
             answer = dns.resolver.query(domain, "A")
