@@ -94,16 +94,16 @@ class HostSummaryResult(NotebookletResult):
 
         """
         super().__init__(description, timespan, notebooklet)
-        self.host_entity: entities.Host = None
-        self.related_alerts: pd.DataFrame = None
-        self.alert_timeline: Union[LayoutDOM, Figure] = None
-        self.related_bookmarks: pd.DataFrame = None
-        self.summary: pd.DataFrame = None
-        self.scheduled_tasks: pd.DataFrame = None
-        self.account_actions: pd.DataFrame = None
-        self.notable_events: pd.DataFrame = None
-        self.processes: pd.DataFrame = None
-        self.process_ti: pd.DataFrame = None
+        self.host_entity: entities.Host = None  # type: ignore
+        self.related_alerts: pd.DataFrame = None  # type: ignore
+        self.alert_timeline: Union[LayoutDOM, Figure] = None  # type: ignore
+        self.related_bookmarks: pd.DataFrame = None  # type: ignore
+        self.summary: pd.DataFrame = None  # type: ignore
+        self.scheduled_tasks: pd.DataFrame = None  # type: ignore
+        self.account_actions: pd.DataFrame = None  # type: ignore
+        self.notable_events: pd.DataFrame = None  # type: ignore
+        self.processes: pd.DataFrame = None  # type: ignore
+        self.process_ti: pd.DataFrame = None  # type: ignore
 
 
 # pylint: disable=too-few-public-methods
@@ -284,7 +284,11 @@ class HostSummary(Notebooklet):
                 result.host_entity.OSFamily,
             )
 
-        if "process_ti" in self.options and isinstance(result.processes, pd.DataFrame) and not result.processes.empty:
+        if (
+            "process_ti" in self.options
+            and isinstance(result.processes, pd.DataFrame)
+            and not result.processes.empty
+        ):
             cmd_column = (
                 "CommandLine"
                 if result.host_entity.OSFamily.name == "Windows"
@@ -503,7 +507,7 @@ def _get_related_alerts(qry_prov, timespan, host_name):
 
 
 @set_text(docs=_CELL_DOCS, key="show_alert_timeline")
-def _show_alert_timeline(related_alerts, silent:bool=False):
+def _show_alert_timeline(related_alerts):
     if len(related_alerts) > 1:
         return display_timeline(
             data=related_alerts,

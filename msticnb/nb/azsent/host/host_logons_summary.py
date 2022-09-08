@@ -15,6 +15,7 @@ from bokeh.plotting import figure, show
 from bokeh.transform import cumsum
 from IPython.display import display
 from msticpy.common.timespan import TimeSpan
+from msticpy.common.utility import md
 
 try:
     from msticpy.vis import timeline
@@ -26,7 +27,6 @@ except ImportError:
 
 from ...._version import VERSION
 from ....common import (
-    MsticnbDataProviderError,
     MsticnbMissingParameterError,
     nb_data_wait,
     nb_print,
@@ -194,7 +194,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         else:
             # If data is provided do some required formatting
             data = _format_raw_data(data)
-       
+
         # Add description to results for context
         self._last_result = HostLogonsSummaryResult(
             notebooklet=self, description=self.metadata.description, timespan=timespan
@@ -208,7 +208,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
         # Conduct analysis and get visualizations
         nb_print("Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
-        
+
         if "timeline" in self.options:
             tl_plot = _gen_timeline(data, self.silent)
             self._last_result.timeline = tl_plot
@@ -268,33 +268,20 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
 def _map_logons(data: pd.DataFrame, silent: bool, geo_lookup: Any = None) -> FoliumMap:
     """Produce a map of source IP logon locations."""
     # Seperate out failed and sucessful logons and clean the data
-    remote_logons = data[data["LogonResult"] == "Success"]
-    failed_logons = data[data["LogonResult"] == "Failure"]
-    ip_list = [
-        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
-        for ip in remote_logons["SourceIP"]
-        if ip not in ("", "-", "NaN")
-    ]
-    ip_list = [ip for ip_ents in ip_list for ip in ip_ents]
-    ip_fail_list = [
-        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
-        for ip in failed_logons["SourceIP"]
-        if ip not in ("", "-", "NaN")
-    ]
-    ip_fail_list = [ip for ip_ents in ip_fail_list for ip in ip_ents]
-
-    # Get center point of logons and build map acount that
-    folium_map = FoliumMap(zoom_start=4)
-    folium_map.center_map()
-    if ip_fail_list:
-        icon_props = {"color": "red"}
-        folium_map.add_ip_cluster(ip_entities=ip_fail_list, **icon_props)
-    if ip_list:
-        icon_props = {"color": "green"}
-        folium_map.add_ip_cluster(ip_entities=ip_list, **icon_props)
+    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) == False]
+    if not isinstance(map_data, pd.DataFrame) or map_data.empty:
+        if not silent:
+            md("No plotable logins avaliable")
+        return None
     if not silent:
-        display(folium_map)
-    return folium_map
+        display(
+            map_data.mp_plot.folium_map(
+                ip_column="IpAddress", layer_column="LogonResult"
+            )
+        )
+    return map_data.mp_plot.folium_map(
+        ip_column="IpAddress", layer_column="LogonResult"
+    )
 
 
 @set_text(docs=_CELL_DOCS, key="show_pie")
@@ -446,19 +433,18 @@ def _failed_success_user(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
     combined = host_logons[
         host_logons["Account"].isin(failed_logons["Account"].drop_duplicates())
     ]
+
     if not silent:
-        if not combined.empty:
-            display(combined)
-        else:
+        if combined.empty:
             nb_print("No accounts with both a successful and failed logon on.")
+        else:
+            display(combined)
     return combined
 
 
 def _win_remote_ip(row: pd.Series) -> str:
     """Return remote IP address from Windows log if logon type is remote."""
-    if row["LogonType"] == 3:
-        return row["IpAddress"]
-    return "NaN"
+    return row["IpAddress"] if row["LogonType"] == 3 else "NaN"
 
 
 def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
@@ -482,15 +468,14 @@ def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
 def _get_logon_result_lx(row: pd.Series) -> str:
     """Identify if a Linux syslog event is for a sucessful or failed logon."""
     failure_events = row.str.contains(
-        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",  # pylint: disable=line-too-long # noqa
+        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",
         regex=True,
     )
+
     success_events = row.str.contains("Accepted|Successful", regex=True)
     if failure_events["SyslogMessage"] is True:
         return "Failure"
-    if success_events["SyslogMessage"] is True:
-        return "Success"
-    return "Unknown"
+    return "Success" if success_events["SyslogMessage"] is True else "Unknown"
 
 
 def _parse_user_lx(row: pd.Series) -> str:
@@ -516,6 +501,4 @@ def _event_id_to_result(row: pd.Series):
     """Transform Windows event id to string for logon results."""
     if row["EventID"] == 4624:
         return "Success"
-    if row["EventID"] == 4625:
-        return "Failure"
-    return "Unknown"
+    return "Failure" if row["EventID"] == 4625 else "Unknown"
