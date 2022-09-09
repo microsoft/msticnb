@@ -88,11 +88,11 @@ class HostLogonsSummaryResult(NotebookletResult):
 
         """
         super().__init__(description, timespan, notebooklet)
-        self.logon_sessions: pd.DataFrame = None
-        self.logon_matrix: pd.DataFrame = None
-        self.logon_map: FoliumMap = None
-        self.timeline: figure = None
-        self.failed_success: pd.DataFrame = None
+        self.logon_sessions: Optional[pd.DataFrame] = None
+        self.logon_matrix: Optional[pd.DataFrame] = None
+        self.logon_map: Optional[FoliumMap] = None
+        self.timeline: Optional[figure] = None
+        self.failed_success: Optional[pd.DataFrame] = None
         self.plots: Optional[Dict[str, figure]] = None
 
 

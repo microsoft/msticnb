@@ -201,17 +201,29 @@ class URLSummary(Notebooklet):
 
         if "cert" in self.options:
             result.cert_details = _get_tls_cert_details(url, domain_validator)
-            if not self.silent and not result.cert_details.empty:
-                nb_markdown(f"TLS Certificate Details for {url}.")
-                display(result.cert_details)
+            if not self.silent:
+                if (
+                    isinstance(result.cert_details, pd.DataFrame)
+                    and not result.cert_details.empty
+                ):
+                    nb_markdown(f"TLS Certificate Details for {url}.")
+                    display(result.cert_details)
+                else:
+                    print("No TLS certificate found.")
 
         if "ip_record" in self.options:
             result.ip_record = _get_ip_record(
                 domain, domain_validator, self.data_providers.providers["tilookup"]
             )
             if not self.silent:
-                nb_markdown(f"IP Address Details for {url}.")
-                display(result.ip_record.T)
+                if (
+                    isinstance(result.ip_record, pd.DataFrame)
+                    and not result.ip_record.empty
+                ):
+                    nb_markdown(f"IP Address Details for {url}.")
+                    display(result.ip_record.T)
+                else:
+                    print("No current IP found.")
 
         if "screenshot" in self.options:
             image_data = screenshot(url)
@@ -391,7 +403,7 @@ def _domain_whois_record(domain, ti_prov):
         )
         try:
             sub_doms = url_ti["RawResult"][0]["subdomains"]
-        except TypeError:
+        except (TypeError, KeyError):
             sub_doms = "None found"
         dom_record["Sub Domains"] = [sub_doms]
 
@@ -429,6 +441,7 @@ def _get_tls_cert_details(url, domain_validator):
 @set_text(docs=_CELL_DOCS, key="show_IP_record")
 def _get_ip_record(domain, domain_validator, ti_prov):
     """Get IP addresses assoicated with a domain."""
+    ip_record = None
     if domain_validator.is_resolvable(domain) is True:
         try:
             answer = dns.resolver.query(domain, "A")
@@ -446,24 +459,27 @@ def _get_ip_record(domain, domain_validator, ti_prov):
             }
         )
     tor = None
-    if "Tor" in ti_prov.loaded_providers:
-        tor = ti_prov.result_to_df(
-            ti_prov.lookup_ioc(observable=ip_record["IP Address"][0], providers=["Tor"])
-        )
-    if tor is None or tor["Details"][0] == "Not found.":
-        ip_record["Tor Node?"] = "No"
-    else:
-        ip_record["Tor Node?"] = "Yes"
-    if "VirusTotal" in ti_prov.loaded_providers:
-        ip_ti_results = ti_prov.result_to_df(
-            ti_prov.lookup_ioc(
-                observable=ip_record["IP Address"][0], providers=["VirusTotal"]
+    if isinstance(ip_record, pd.DataFrame) and not ip_record.empty:
+        if "Tor" in ti_prov.loaded_providers:
+            tor = ti_prov.result_to_df(
+                ti_prov.lookup_ioc(
+                    observable=ip_record["IP Address"][0], providers=["Tor"]
+                )
             )
-        )
-        try:
-            last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
-            prev_domains = [record["hostname"] for record in last_10]
-        except TypeError:
-            prev_domains = None
-        ip_record["Last 10 resolutions"] = [prev_domains]
+        if tor is None or tor["Details"][0] == "Not found.":
+            ip_record["Tor Node?"] = "No"
+        else:
+            ip_record["Tor Node?"] = "Yes"
+        if "VirusTotal" in ti_prov.loaded_providers:
+            ip_ti_results = ti_prov.result_to_df(
+                ti_prov.lookup_ioc(
+                    observable=ip_record["IP Address"][0], providers=["VirusTotal"]
+                )
+            )
+            try:
+                last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
+                prev_domains = [record["hostname"] for record in last_10]
+            except TypeError:
+                prev_domains = None
+            ip_record["Last 10 resolutions"] = [prev_domains]
     return ip_record
