@@ -6,14 +6,15 @@
 """Test the nb_template class."""
 from pathlib import Path
 
-# from contextlib import redirect_stdout
-import pytest_check as check
-
 import pandas as pd
 
+# from contextlib import redirect_stdout
+import pytest_check as check
 from msticpy.common.timespan import TimeSpan
+
 from msticnb import data_providers
 from msticnb.nb.template.nb_template import TemplateNB
+
 from ...unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 

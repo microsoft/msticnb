@@ -14,8 +14,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import pandas as pd
 from IPython.core.getipython import get_ipython
 from IPython.display import HTML, display
-from tqdm.auto import tqdm
 from msticpy.common.timespan import TimeSpan
+from tqdm.auto import tqdm
 
 from ._version import VERSION
 from .common import MsticnbDataProviderError, MsticnbError
@@ -39,7 +39,7 @@ class Notebooklet(ABC):
 
     def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
-        Intialize a new instance of the notebooklet class.
+        Initialize a new instance of the notebooklet class.
 
         Parameters
         ----------

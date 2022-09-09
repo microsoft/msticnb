@@ -19,12 +19,12 @@ except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
     from msticpy.nbtools.foliummap import FoliumMap
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, discover_modules, nblts
 
 from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 
 # nosec
-# pylint: disable=no-member
+# pylint: disable=protected-access, no-member, redefined-outer-name, unused-argument
 
 
 @pytest.fixture
@@ -32,6 +32,7 @@ def nbltdata(monkeypatch):
     """Generate test nblt output."""
     test_file = Path.cwd().joinpath(TEST_DATA_PATH).joinpath("lx_host_logons.pkl")
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    discover_modules()
     data_providers.init("LocalData", providers=["tilookup", "geolitelookup"])
     test_nblt = nblts.azsent.host.HostLogonsSummary()
     test_df = pd.read_pickle(test_file)

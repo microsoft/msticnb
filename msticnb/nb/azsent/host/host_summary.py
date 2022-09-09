@@ -36,8 +36,8 @@ from ....common import (
 from ....nb_metadata import read_mod_metadata, update_class_doc
 from ....nblib.azsent.alert import browse_alerts
 from ....nblib.azsent.host import get_aznet_topology, get_heartbeat, verify_host_name
+from ....nblib.ti import extract_iocs, get_ti_results
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
-from ....nblib.ti import get_ti_results, extract_iocs
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -124,7 +124,7 @@ class HostSummary(Notebooklet):
     __doc__ = update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
 
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches, too-many-statements
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001
         self,

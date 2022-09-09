@@ -4,15 +4,17 @@
 # license information.
 # --------------------------------------------------------------------------
 """common test class."""
-from contextlib import redirect_stdout
 import io
 import warnings
+from contextlib import redirect_stdout
 
 import pytest
 import pytest_check as check
+
+from msticnb import init, options
 from msticnb.common import add_result, nb_data_wait, nb_debug, nb_print
-from msticnb import options, init
 from msticnb.options import get_opt, set_opt
+
 from .nb_test import TstNBSummary
 
 # pylint: disable=too-many-statements

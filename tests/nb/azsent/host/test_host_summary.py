@@ -4,30 +4,38 @@
 # license information.
 # --------------------------------------------------------------------------
 """Test the nb_template class."""
-# from contextlib import redirect_stdout
 from pathlib import Path
 
 import pandas as pd
+import pytest
 import pytest_check as check
-from msticnb import nblts
-from msticnb import data_providers
 from msticpy.common.timespan import TimeSpan
 
-from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
+from msticnb import data_providers, discover_modules, nblts
 
-# pylint: disable=no-member
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock, TILookupMock
+
+# pylint: disable=protected-access, no-member, redefined-outer-name, unused-argument
 
 
-def test_host_summary_notebooklet(monkeypatch):
-    """Test basic run of notebooklet."""
-    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+@pytest.fixture
+def init_notebooklets(monkeypatch):
+    """Initialize notebooklets."""
     test_data = str(Path(TEST_DATA_PATH).absolute())
+
+    discover_modules()
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],
+        providers=["tilookup", "geolitelookup"],
     )
 
+
+def test_host_summary_notebooklet(init_notebooklets):
+    """Test basic run of notebooklet."""
     test_nb = nblts.azsent.host.HostSummary()
     tspan = TimeSpan(period="1D")
 

@@ -115,7 +115,12 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
     """
     found_classes = {}
     pkg_root = pkg_folder.resolve().parent
-    relative_path = folder.relative_to(pkg_root)
+    try:
+        relative_path = folder.relative_to(pkg_root)
+        # This may fail if environment messes around with package paths
+        # - this happens in Spark/Synapse
+    except ValueError:
+        relative_path = _get_pkg_relative_folder(folder)
     for item in folder.glob("*.py"):
         if item.name.startswith("_"):
             continue
@@ -224,3 +229,12 @@ def find(keywords: str, full_match=True) -> List[Tuple[str, Notebooklet]]:
     # return list sorted by full_match, then match count, highest to lowest
     results = sorted(matches, key=itemgetter(0, 1), reverse=True)
     return [(result[2], result[3]) for result in results]
+
+
+def _get_pkg_relative_folder(folder: Path):
+    """Return relative path based on location of 'msticnb' in the folder path."""
+    relative_parts: List[str] = []
+    for folder_part in folder.parts:
+        if folder_part == "msticnb" or relative_parts:
+            relative_parts.append(folder_part)
+    return Path(*relative_parts)

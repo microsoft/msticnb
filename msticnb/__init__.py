@@ -51,8 +51,6 @@ __version__ = VERSION
 
 # pylint: disable=invalid-name
 browse = NBBrowser
-discover_modules()
-print(f"Notebooklets: {len(list(nblts.iter_classes()))} notebooklets loaded.")
 
 
 def init(
@@ -85,6 +83,8 @@ def init(
     of accepted providers.
 
     """
+    discover_modules()
+    print(f"Notebooklets: {len(list(nblts.iter_classes()))} notebooklets loaded.")
     dp_init(query_provider=query_provider, providers=providers, **kwargs)
     if not namespace:
         # Try to get the globals namespace from top-level caller

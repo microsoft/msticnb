@@ -7,24 +7,20 @@
 import sys
 from pathlib import Path
 
-# from contextlib import redirect_stdout
-import pytest_check as check
-
-from bokeh.models import LayoutDOM
 import pandas as pd
 import pytest
-
+import pytest_check as check
+from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
-from msticnb import nblts
-from msticnb import data_providers
+
+from msticnb import data_providers, nblts
 
 from ....unit_test_lib import (
-    TEST_DATA_PATH,
     DEF_PROV_TABLES,
+    TEST_DATA_PATH,
     GeoIPLiteMock,
     TILookupMock,
 )
-
 
 # pylint: disable=no-member
 

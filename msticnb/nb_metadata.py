@@ -5,12 +5,11 @@
 # --------------------------------------------------------------------------
 """Notebooklet base classes."""
 from pathlib import Path
-from typing import List, Set, Tuple, Dict, Union, Any, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import attr
-from attr import Factory
 import yaml
-
+from attr import Factory
 
 from ._version import VERSION
 

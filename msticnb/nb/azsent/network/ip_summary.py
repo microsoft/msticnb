@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------------
 """IP Address Summary notebooklet."""
 import json
+from contextlib import suppress
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from json import JSONDecodeError
 from typing import Any, Dict, Iterable, List, Optional, Union
@@ -12,6 +13,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import numpy as np
 import pandas as pd
 from bokeh.plotting.figure import Figure
+from msticpy.common.exceptions import MsticpyException
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel.entities import GeoLocation, Host, IpAddress
 
@@ -999,12 +1001,28 @@ def _get_passv_dns(ti_lookup, src_ip, result):
     nb_data_wait("Passive DNS")
     if not ti_lookup:
         return
-    passv_dns = ti_lookup.lookup_ioc(
-        observable=src_ip,
-        ioc_type="ipv4",
-        ioc_query_type="passivedns",
-        providers=["XForce"],
-    )
-    result.passive_dns = ti_lookup.result_to_df(passv_dns)
+    try:
+        ip_class = ip_address(src_ip)
+    except ValueError:
+        ip_class = None
+    if not hasattr(ti_lookup, "available_query_types"):
+        return
+    if (
+        isinstance(ip_class, IPv6Address)
+        and "ipv6-passivedns" not in ti_lookup.available_query_types
+    ):
+        return
+    if (
+        isinstance(ip_class, IPv4Address)
+        and "ipv4-passivedns" not in ti_lookup.available_query_types
+    ):
+        return
+    with suppress(MsticpyException):
+        passv_dns = ti_lookup.lookup_ioc(
+            observable=src_ip,
+            ioc_type="ipv4" if isinstance(ip_class, IPv4Address) else "ipv6",
+            ioc_query_type="passivedns",
+        )
+        result.passive_dns = ti_lookup.result_to_df(passv_dns)
     if result.passive_dns is not None and not result.passive_dns.empty:
         nb_markdown(f"{len(result.passive_dns)} Passive DNS results found.")

@@ -7,13 +7,12 @@
 from pathlib import Path
 
 import pandas as pd
-
-# from contextlib import redirect_stdout
+import pytest
 import pytest_check as check
 from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, discover_modules, nblts
 
 from ....unit_test_lib import (
     DEF_PROV_TABLES,
@@ -24,7 +23,7 @@ from ....unit_test_lib import (
 
 
 def create_mocked_exec_query(func):
-    """Create decorator for mocked exec_query"""
+    """Create decorator for mocked exec_query."""
 
     def exec_query_mock(query, *args, **kwargs):
         """Mock exec query for driver."""
@@ -73,15 +72,17 @@ def create_check_table(valid_tables):
     return check_table_exists
 
 
-# pylint: disable=no-member
+# pylint: disable=protected-access, no-member, redefined-outer-name, unused-argument
 
 
-def test_ip_summary_notebooklet(monkeypatch):
-    """Test basic run of notebooklet."""
+@pytest.fixture
+def init_notebooklets(monkeypatch):
+    """Initialize notebooklets."""
     test_data = str(Path(TEST_DATA_PATH).absolute())
+
+    discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
-
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
@@ -89,6 +90,9 @@ def test_ip_summary_notebooklet(monkeypatch):
         providers=["tilookup", "geolitelookup"],
     )
 
+
+def test_ip_summary_notebooklet(init_notebooklets, monkeypatch):
+    """Test basic run of notebooklet."""
     test_nb = nblts.azsent.network.IpAddressSummary()
     valid_tables = ["SigninLogs", "AzureActivity", "OfficeActivity"]
     # test_nb.query_provider.schema.update(
@@ -111,21 +115,21 @@ def test_ip_summary_notebooklet(monkeypatch):
     check.is_not_none(result.whois)
     check.is_instance(result.related_alerts, pd.DataFrame)
     check.is_not_none(test_nb.browse_alerts())
-    check.is_instance(result.passive_dns, pd.DataFrame)
+    # check.is_instance(result.passive_dns, pd.DataFrame)
     check.is_instance(result.ti_results, pd.DataFrame)
 
 
-def test_ip_summary_notebooklet_internal(monkeypatch):
+def test_ip_summary_notebooklet_internal(init_notebooklets, monkeypatch):
     """Test basic run of notebooklet."""
-    test_data = str(Path(TEST_DATA_PATH).absolute())
-    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
-    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
-    data_providers.init(
-        query_provider="LocalData",
-        LocalData_data_paths=[test_data],
-        LocalData_query_paths=[test_data],
-        providers=["tilookup", "geolitelookup"],
-    )
+    # test_data = str(Path(TEST_DATA_PATH).absolute())
+    # monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    # monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    # data_providers.init(
+    #     query_provider="LocalData",
+    #     LocalData_data_paths=[test_data],
+    #     LocalData_query_paths=[test_data],
+    #     providers=["tilookup", "geolitelookup"],
+    # )
 
     test_nb = nblts.azsent.network.IpAddressSummary()
     eq_mock = create_mocked_exec_query(test_nb.query_provider.exec_query)
@@ -150,21 +154,20 @@ def test_ip_summary_notebooklet_internal(monkeypatch):
     check.is_instance(result.related_alerts, pd.DataFrame)
     check.is_instance(result.heartbeat, pd.DataFrame)
     check.is_instance(result.az_network_if, pd.DataFrame)
-    check.is_none(result.passive_dns)
     check.is_none(result.ti_results)
 
 
-def test_ip_summary_notebooklet_all(monkeypatch):
+def test_ip_summary_notebooklet_all(init_notebooklets, monkeypatch):
     """Test basic run of notebooklet."""
-    test_data = str(Path(TEST_DATA_PATH).absolute())
-    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
-    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
-    data_providers.init(
-        query_provider="LocalData",
-        LocalData_data_paths=[test_data],
-        LocalData_query_paths=[test_data],
-        providers=["tilookup", "geolitelookup"],
-    )
+    # test_data = str(Path(TEST_DATA_PATH).absolute())
+    # monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    # monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    # data_providers.init(
+    #     query_provider="LocalData",
+    #     LocalData_data_paths=[test_data],
+    #     LocalData_query_paths=[test_data],
+    #     providers=["tilookup", "geolitelookup"],
+    # )
 
     opts = ["+az_netflow", "+passive_dns", "+az_activity", "+office_365", "+ti"]
     test_nb = nblts.azsent.network.IpAddressSummary()
@@ -195,21 +198,20 @@ def test_ip_summary_notebooklet_all(monkeypatch):
 
     check.is_not_none(result.whois)
     check.is_instance(result.related_alerts, pd.DataFrame)
-    check.is_instance(result.passive_dns, pd.DataFrame)
     check.is_instance(result.ti_results, pd.DataFrame)
 
 
-def test_ip_summary_mde_data(monkeypatch):
+def test_ip_summary_mde_data(init_notebooklets, monkeypatch):
     """Test MDE data sets in run of notebooklet."""
-    test_data = str(Path(TEST_DATA_PATH).absolute())
-    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
-    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
-    data_providers.init(
-        query_provider="LocalData",
-        LocalData_data_paths=[test_data],
-        LocalData_query_paths=[test_data],
-        providers=["tilookup", "geolitelookup"],
-    )
+    # test_data = str(Path(TEST_DATA_PATH).absolute())
+    # monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    # monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    # data_providers.init(
+    #     query_provider="LocalData",
+    #     LocalData_data_paths=[test_data],
+    #     LocalData_query_paths=[test_data],
+    #     providers=["tilookup", "geolitelookup"],
+    # )
 
     opts = ["+az_netflow", "+passive_dns", "+az_activity", "+office_365", "+ti"]
     test_nb = nblts.azsent.network.IpAddressSummary()
@@ -249,5 +251,4 @@ def test_ip_summary_mde_data(monkeypatch):
 
     check.is_not_none(result.whois)
     check.is_instance(result.related_alerts, pd.DataFrame)
-    check.is_instance(result.passive_dns, pd.DataFrame)
     check.is_instance(result.ti_results, pd.DataFrame)
