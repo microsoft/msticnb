@@ -55,11 +55,11 @@ class HostNetworkSummaryResult(NotebookletResult):
     ):
         """Create new Notebooklet result instance."""
         super().__init__(description, timespan, notebooklet)
-        self.flows: pd.DataFrame = None  # type: ignore
-        self.flow_matrix: LayoutDOM = None  # type: ignore
-        self.flow_whois: pd.DataFrame = None  # type: ignore
-        self.flow_map: FoliumMap = None  # type: ignore
-        self.flow_ti: pd.DataFrame = None  # type: ignore
+        self.flows: Optional[pd.DataFrame] = None
+        self.flow_matrix: Optional[LayoutDOM] = None
+        self.flow_whois: Optional[pd.DataFrame] = None
+        self.flow_map: Optional[FoliumMap] = None
+        self.flow_ti: Optional[pd.DataFrame] = None
 
 
 # pylint: disable=too-few-public-methods

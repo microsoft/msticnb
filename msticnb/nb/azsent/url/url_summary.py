@@ -64,16 +64,16 @@ class URLSummaryResult(NotebookletResult):
     ):
         """Create new Notebooklet result instance."""
         super().__init__(description, timespan, notebooklet)
-        self.summary: pd.DataFrame = None  # type: ignore
-        self.domain_record: pd.DataFrame = None  # type: ignore
-        self.cert_details: pd.DataFrame = None  # type: ignore
-        self.ip_record: pd.DataFrame = None  # type: ignore
-        self.related_alerts: pd.DataFrame = None  # type: ignore
-        self.bookmarks: pd.DataFrame = None  # type: ignore
-        self.dns_results: pd.DataFrame = None  # type: ignore
-        self.hosts: List = None  # type: ignore
-        self.flows: pd.DataFrame = None  # type: ignore
-        self.flow_graph: LayoutDOM = None  # type: ignore
+        self.summary: Optional[pd.DataFrame] = None
+        self.domain_record: Optional[pd.DataFrame] = None
+        self.cert_details: Optional[pd.DataFrame] = None
+        self.ip_record: Optional[pd.DataFrame] = None
+        self.related_alerts: Optional[pd.DataFrame] = None
+        self.bookmarks: Optional[pd.DataFrame] = None
+        self.dns_results: Optional[pd.DataFrame] = None
+        self.hosts: Optional[List] = None
+        self.flows: Optional[pd.DataFrame] = None
+        self.flow_graph: Optional[LayoutDOM] = None
 
 
 # pylint: disable=too-few-public-methods
