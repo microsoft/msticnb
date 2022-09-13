@@ -499,10 +499,8 @@ class IpAddressSummary(Notebooklet):
         self, src_ip, result, timespan: TimeSpan
     ) -> pd.DataFrame:
         nb_data_wait("Bookmarks")
-        result.related_bookmarks = (
-            self.query_provider.AzureSentinel.list_bookmarks_for_entity(  # type: ignore
-                timespan, entity_id=src_ip
-            )
+        result.related_bookmarks = self.query_provider.AzureSentinel.list_bookmarks_for_entity(  # type: ignore
+            timespan, entity_id=src_ip
         )
         _display_df_summary(result.related_bookmarks, "related bookmarks")
 
