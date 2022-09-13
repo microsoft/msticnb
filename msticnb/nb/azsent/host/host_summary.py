@@ -94,16 +94,16 @@ class HostSummaryResult(NotebookletResult):
 
         """
         super().__init__(description, timespan, notebooklet)
-        self.host_entity: entities.Host = None
-        self.related_alerts: pd.DataFrame = None
-        self.alert_timeline: Union[LayoutDOM, Figure] = None
-        self.related_bookmarks: pd.DataFrame = None
-        self.summary: pd.DataFrame = None
-        self.scheduled_tasks: pd.DataFrame = None
-        self.account_actions: pd.DataFrame = None
-        self.notable_events: pd.DataFrame = None
-        self.processes: pd.DataFrame = None
-        self.process_ti: pd.DataFrame = None
+        self.host_entity: entities.Host = None  # type: ignore
+        self.related_alerts: pd.DataFrame = None  # type: ignore
+        self.alert_timeline: Union[LayoutDOM, Figure] = None  # type: ignore
+        self.related_bookmarks: pd.DataFrame = None  # type: ignore
+        self.summary: pd.DataFrame = None  # type: ignore
+        self.scheduled_tasks: pd.DataFrame = None  # type: ignore
+        self.account_actions: pd.DataFrame = None  # type: ignore
+        self.notable_events: pd.DataFrame = None  # type: ignore
+        self.processes: pd.DataFrame = None  # type: ignore
+        self.process_ti: pd.DataFrame = None  # type: ignore
 
 
 # pylint: disable=too-few-public-methods
@@ -123,6 +123,10 @@ class HostSummary(Notebooklet):
     metadata = _CLS_METADATA
     __doc__ = update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the Host Summary notebooklet."""
+        super().__init__(*args, **kwargs)
 
     # pylint: disable=too-many-branches, too-many-statements
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
@@ -280,7 +284,11 @@ class HostSummary(Notebooklet):
                 result.host_entity.OSFamily,
             )
 
-        if "process_ti" in self.options and result.processes:
+        if (
+            "process_ti" in self.options
+            and isinstance(result.processes, pd.DataFrame)
+            and not result.processes.empty
+        ):
             cmd_column = (
                 "CommandLine"
                 if result.host_entity.OSFamily.name == "Windows"

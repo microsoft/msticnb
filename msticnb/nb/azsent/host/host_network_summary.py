@@ -17,6 +17,7 @@ try:
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
     from msticpy.nbtools.foliummap import FoliumMap
+    from msticpy.sectools.ip_utils import get_whois_info
 
 from msticpy.common.timespan import TimeSpan
 from msticpy.common.utility import md
@@ -44,10 +45,7 @@ _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
 
 # pylint: disable=too-few-public-methods
 class HostNetworkSummaryResult(NotebookletResult):
-    """
-    Host Network Summary Results.
-
-    """
+    """Host Network Summary Results."""
 
     def __init__(
         self,
@@ -55,16 +53,13 @@ class HostNetworkSummaryResult(NotebookletResult):
         timespan: Optional[TimeSpan] = None,
         notebooklet: Optional["Notebooklet"] = None,
     ):
-        """
-        Create new Notebooklet result instance.
-
-        """
+        """Create new Notebooklet result instance."""
         super().__init__(description, timespan, notebooklet)
-        self.flows: pd.DataFrame = None
-        self.flow_matrix: LayoutDOM = None
-        self.flow_whois: pd.DataFrame = None
-        self.flow_map: FoliumMap = None
-        self.flow_ti: pd.DataFrame = None
+        self.flows: Optional[pd.DataFrame] = None
+        self.flow_matrix: Optional[LayoutDOM] = None
+        self.flow_whois: Optional[pd.DataFrame] = None
+        self.flow_map: Optional[FoliumMap] = None
+        self.flow_ti: Optional[pd.DataFrame] = None
 
 
 # pylint: disable=too-few-public-methods
@@ -84,6 +79,10 @@ class HostNetworkSummary(Notebooklet):
     metadata = _CLS_METADATA
     __doc__ = update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the Host Network Summary notebooklet."""
+        super().__init__(*args, **kwargs)
 
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
@@ -185,18 +184,20 @@ class HostNetworkSummary(Notebooklet):
             )
             if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
                 result.flow_ti = ti_results_merged
-
-        if "map" in self.options:
-            if "geolitelookup" in self.data_providers.providers:
-                geo_prov = self.data_providers.providers["geolitelookup"]
-            elif "ipstacklookup" in self.data_providers.providers:
-                geo_prov = self.data_providers.providers["ipstacklookup"]
+                if not self.silent:
+                    md("TI results found in Network Traffic:")
+                    display(ti_results_merged)
             else:
-                raise MsticnbDataProviderError("No Geolookup providers avaliable")
-            result.flow_map = map_ips(
-                result.flows, ip_col=remote_ip_col, geo_lookup=geo_prov
-            )
+                md("No results found in TI")
+
+        if (
+            "map" in self.options
+            and isinstance(result.flows, pd.DataFrame)
+            and not result.flows.empty
+        ):
+            result.flow_map = result.flows.mp_plot.folium_map(ip_column=remote_ip_col)
             if not self.silent:
+                md("Map of remote network locations connected to", "bold")
                 display(result.flow_map)
 
         if "whois" in self.options:
@@ -211,12 +212,18 @@ def _get_host_flows(host_name, ip_addr, qry_prov, timespan) -> pd.DataFrame:
     if host_name:
         nb_data_wait("Host flow events")
         host_flows = qry_prov.MDE.host_connections(timespan, host_name=host_name)
+        host_flows_csl = qry_prov.Network.host_network_connections_csl(
+            timespan, host_name=host_name
+        )
     elif ip_addr:
         nb_data_wait("Host flow events")
         host_flows = qry_prov.Network.list_azure_network_flows_by_ip(
             timespan, ip_address_list=[ip_addr]
         )
-    return host_flows
+        host_flows_csl = qry_prov.Network.ip_network_connections_csl(
+            timespan, ip=ip_addr
+        )
+    return pd.concat([host_flows, host_flows_csl], sort=False)
 
 
 def _get_whois_data(data, col) -> pd.DataFrame:

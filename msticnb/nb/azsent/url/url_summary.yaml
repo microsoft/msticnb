@@ -10,6 +10,8 @@ metadata:
     - bookmarks: Displays a DataFrame of all bookmarks associated with the URL
     - dns: Displays a DataFrame of all DNS events associated with the URL
     - hosts: Displays a DataFrame of all hosts associated with the URL
+  other_options:
+    - screenshot: Capture a screenshot of the website using Browshot
   keywords:
     - url
   entity_types:

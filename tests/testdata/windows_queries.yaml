@@ -68,3 +68,24 @@ sources:
     args:
       query: all_events_df.pkl
     parameters:
+  schdld_tasks_and_services:
+    description: Scheduled Tasks and Services from host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: all_events_df.pkl
+    parameters:
+  account_change_events:
+    description: Account change events from host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: all_events_df.pkl
+    parameters:
+  notable_events:
+    description: Notable events from host
+    metadata:
+      data_families: [WindowsSecurity]
+    args:
+      query: all_events_df.pkl
+    parameters:

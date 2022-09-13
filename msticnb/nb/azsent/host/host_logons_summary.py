@@ -6,7 +6,7 @@
 """logons_summary - provides overview of host logon events."""
 import re
 from math import pi
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, Union
 
 import pandas as pd
 from bokeh.io import output_notebook
@@ -15,6 +15,7 @@ from bokeh.plotting import figure, show
 from bokeh.transform import cumsum
 from IPython.display import display
 from msticpy.common.timespan import TimeSpan
+from msticpy.common.utility import md
 
 try:
     from msticpy.vis import timeline
@@ -26,7 +27,6 @@ except ImportError:
 
 from ...._version import VERSION
 from ....common import (
-    MsticnbDataProviderError,
     MsticnbMissingParameterError,
     nb_data_wait,
     nb_print,
@@ -34,7 +34,6 @@ from ....common import (
 )
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
-from ....nblib.iptools import convert_to_ip_entities
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 pd.options.mode.chained_assignment = None
@@ -89,11 +88,11 @@ class HostLogonsSummaryResult(NotebookletResult):
 
         """
         super().__init__(description, timespan, notebooklet)
-        self.logon_sessions: pd.DataFrame = None
-        self.logon_matrix: pd.DataFrame = None
-        self.logon_map: FoliumMap = None
-        self.timeline: figure = None
-        self.failed_success: pd.DataFrame = None
+        self.logon_sessions: Optional[pd.DataFrame] = None
+        self.logon_matrix: Optional[pd.DataFrame] = None
+        self.logon_map: Optional[FoliumMap] = None
+        self.timeline: Optional[figure] = None
+        self.failed_success: Optional[pd.DataFrame] = None
         self.plots: Optional[Dict[str, figure]] = None
 
 
@@ -202,11 +201,13 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
 
         # Check we have data
         if not isinstance(data, pd.DataFrame) or data.empty:
-            raise MsticnbDataProviderError("No valid data avaliable")
+            print("No valid data avaliable.")
+            return self._last_result
 
         # Conduct analysis and get visualizations
         nb_print("Performing analytics and generating visualizations")
         logon_sessions_df = data[data["LogonResult"] != "Unknown"]
+
         if "timeline" in self.options:
             tl_plot = _gen_timeline(data, self.silent)
             self._last_result.timeline = tl_plot
@@ -263,36 +264,23 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
 
 
 @set_text(docs=_CELL_DOCS, key="show_map")
-def _map_logons(data: pd.DataFrame, silent: bool, geo_lookup: Any = None) -> FoliumMap:
+def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     """Produce a map of source IP logon locations."""
-    # Seperate out failed and sucessful logons and clean the data
-    remote_logons = data[data["LogonResult"] == "Success"]
-    failed_logons = data[data["LogonResult"] == "Failure"]
-    ip_list = [
-        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
-        for ip in remote_logons["SourceIP"]
-        if ip not in ("", "-", "NaN")
-    ]
-    ip_list = [ip for ip_ents in ip_list for ip in ip_ents]
-    ip_fail_list = [
-        convert_to_ip_entities(ip, geo_lookup=geo_lookup)
-        for ip in failed_logons["SourceIP"]
-        if ip not in ("", "-", "NaN")
-    ]
-    ip_fail_list = [ip for ip_ents in ip_fail_list for ip in ip_ents]
-
-    # Get center point of logons and build map acount that
-    folium_map = FoliumMap(zoom_start=4)
-    folium_map.center_map()
-    if ip_fail_list:
-        icon_props = {"color": "red"}
-        folium_map.add_ip_cluster(ip_entities=ip_fail_list, **icon_props)
-    if ip_list:
-        icon_props = {"color": "green"}
-        folium_map.add_ip_cluster(ip_entities=ip_list, **icon_props)
+    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) is False]
+    if not isinstance(map_data, pd.DataFrame) or map_data.empty:
+        if not silent:
+            md("No plotable logins avaliable")
+        return None
     if not silent:
-        display(folium_map)
-    return folium_map
+        display(
+            map_data.mp_plot.folium_map(
+                ip_column="IpAddress", layer_column="LogonResult"
+            )
+        )
+
+    return map_data.mp_plot.folium_map(
+        ip_column="IpAddress", layer_column="LogonResult"
+    )
 
 
 @set_text(docs=_CELL_DOCS, key="show_pie")
@@ -444,19 +432,18 @@ def _failed_success_user(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
     combined = host_logons[
         host_logons["Account"].isin(failed_logons["Account"].drop_duplicates())
     ]
+
     if not silent:
-        if not combined.empty:
-            display(combined)
-        else:
+        if combined.empty:
             nb_print("No accounts with both a successful and failed logon on.")
+        else:
+            display(combined)
     return combined
 
 
 def _win_remote_ip(row: pd.Series) -> str:
     """Return remote IP address from Windows log if logon type is remote."""
-    if row["LogonType"] == 3:
-        return row["IpAddress"]
-    return "NaN"
+    return row["IpAddress"] if row["LogonType"] == 3 else "NaN"
 
 
 def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
@@ -480,18 +467,17 @@ def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
 def _get_logon_result_lx(row: pd.Series) -> str:
     """Identify if a Linux syslog event is for a sucessful or failed logon."""
     failure_events = row.str.contains(
-        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",  # pylint: disable=line-too-long # noqa
+        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",
         regex=True,
     )
+
     success_events = row.str.contains("Accepted|Successful", regex=True)
     if failure_events["SyslogMessage"] is True:
         return "Failure"
-    if success_events["SyslogMessage"] is True:
-        return "Success"
-    return "Unknown"
+    return "Success" if success_events["SyslogMessage"] is True else "Unknown"
 
 
-def _parse_user_lx(row: pd.Series) -> str:
+def _parse_user_lx(row: pd.Series) -> Union[str, Any, None]:
     """Extract a user name from Syslog message related to a logon."""
     if row.str.contains("publickey")["SyslogMessage"] is True:
         regex = re.compile("for ([^ ]*)")
@@ -503,7 +489,7 @@ def _parse_user_lx(row: pd.Series) -> str:
     return user[1] if user else None
 
 
-def _parse_ip_lx(row: pd.Series) -> str:
+def _parse_ip_lx(row: pd.Series) -> Union[str, Any, None]:
     """Extract an IP Address from an Syslog message."""
     regex = re.compile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3})")
     ips = re.search(regex, row["SyslogMessage"])
@@ -514,6 +500,4 @@ def _event_id_to_result(row: pd.Series):
     """Transform Windows event id to string for logon results."""
     if row["EventID"] == 4624:
         return "Success"
-    if row["EventID"] == 4625:
-        return "Failure"
-    return "Unknown"
+    return "Failure" if row["EventID"] == 4625 else "Unknown"

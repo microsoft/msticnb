@@ -21,4 +21,4 @@ output:
     text:
       This shows a summary of network events for a host.
 
-      Depending on what data is avaliable it will use MDE network events or Azure Network Diagnostic Logs.
+      Depending on what data is avaliable it will use MDE network events, Common Security Logs, or Azure Network Diagnostic Logs.

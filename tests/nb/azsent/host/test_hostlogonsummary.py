@@ -79,5 +79,4 @@ def test_local_data(monkeypatch):
     assert isinstance(nbltlocaldata.plots["Process Bar Chart"], Figure)
     assert isinstance(nbltlocaldata.logon_matrix, pd.io.formats.style.Styler)
     assert nbltlocaldata.logon_matrix.index[0][0] == "Font Driver Host\\UMFD-0"
-    assert isinstance(nbltlocaldata.logon_map, FoliumMap)
     assert isinstance(nbltlocaldata.timeline, Column)
