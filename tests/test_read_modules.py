@@ -7,7 +7,9 @@
 from pathlib import Path
 
 import pytest_check as check
-from msticnb.read_modules import discover_modules, Notebooklet, find, nblts, nb_index
+
+from msticnb.read_modules import Notebooklet, discover_modules, find, nb_index, nblts
+
 from .unit_test_lib import TEST_DATA_PATH
 
 

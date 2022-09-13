@@ -4,9 +4,8 @@
 # license information.
 # --------------------------------------------------------------------------
 """NB metadata test class."""
-from msticnb.notebooklet import Notebooklet
-
 from msticnb import browse
+from msticnb.notebooklet import Notebooklet
 
 
 def test_nb_browse():

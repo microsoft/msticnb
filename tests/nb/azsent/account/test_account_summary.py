@@ -7,6 +7,7 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 import pytest_check as check
 from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
@@ -21,24 +22,31 @@ except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
     from msticpy.nbtools import nbwidgets
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, discover_modules, nblts
 
-from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock, TILookupMock
 
-# pylint: disable=protected-access, no-member
+# pylint: disable=protected-access, no-member, redefined-outer-name, unused-argument
 
 
-def test_account_summary_notebooklet(monkeypatch):
-    """Test basic run of notebooklet."""
+@pytest.fixture
+def init_notebooklets(monkeypatch):
+    """Initialize notebooklets."""
     test_data = str(Path(TEST_DATA_PATH).absolute())
+
+    discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     data_providers.init(
-        "LocalData",
-        providers=["-tilookup"],
+        query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],
+        providers=["tilookup", "geolitelookup"],
     )
 
+
+def test_account_summary_notebooklet(init_notebooklets):
+    """Test basic run of notebooklet."""
     test_nb = nblts.azsent.account.AccountSummary()
     tspan = TimeSpan(period="1D")
 

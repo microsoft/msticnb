@@ -21,6 +21,9 @@ and specifying the path to the notebooklets package with the ``nb_path``
 parameter.
 (see :py:func:`discover_modules<msticnb.read_modules.discover_modules>`)
 
+See later sections: `Creating a Template Notebooklet`_ and
+`Importing Custom Notebooklets`_
+
 Notebooklet module
 ------------------
 The notebooklet module has three main sections:
@@ -503,3 +506,67 @@ Each section has the following sub-keys:
 - text: the body text to display. This will display as plain text by default
 - md: set to True to process the "text" value as Markdown.
 
+Creating a Template Notebooklet
+-------------------------------
+
+MSTIC Notebooklets has a function that creates a skeleton notebooklet module
+and yaml file for you. Use the skeleton to add your own functionality
+that can be imported into msticnb at runtime
+
+.. code:: python3
+
+    import msticnb as nb
+
+    nb.create_template(nb_name="MyNotebooklet", folder="mynotebooklet")
+
+This will create a module (mynotebooklet.py) and yaml (mynotebooklet.yaml)
+in the mynotebooklet directory. The notebooklet and results class
+are named MyNotebooklet and MyNotebookletResult, respectively.
+
+You should normally create notebooklets in their own folder (although
+you can have several uniquely named notebooklet modules in the same folder).
+
+.. note:: This method is primarily for creating standalone custom notebooklet
+    that are intended to be imported into the msticnb package at runtime.
+    If you are creating a notebooklet to check in to the msticnb project
+    use the :py:class:`msticnb.nb.template.nbtemplate`` class as a starting point
+    instead.
+
+:py:func:`create_notebooklet <msticnb.template.create_notebooklet>` has
+some optional parameters:
+
+- author (str) - the Author name to put in the notebooklet Python module, by default "Author"
+- subfolder (bool) - If True create a subfolder (of the parameter ``folder`` or the
+  current directory, if ``folder`` is not specified. The foldername will the same as
+  the notebooklet module (the ``nb_name``) parameter, converted to lowercase. If
+  False, the template files are written to the ``folder`` directory.
+- overwrite (bool) - if True, ``create_template`` will overwrite existing files
+  with the same name. The default is False.
+
+
+
+Importing Custom Notebooklets
+-----------------------------
+
+Your custom notebooklets should be collected in a folder. They can also be
+in multiple folders or in nested sub-folders.
+
+Use the :py:func:`msticnb.read_modules.discover_modules` function.
+
+.. code:: python3
+
+    import msticnb as nb
+    nb.discover_modules(nb_path="./custom")
+
+
+``discover_modules`` will search all modules in the specified folder
+and find any modules with classes derived from
+:py:class:`msticnb.notebooklet.Notebooklet`. These are imported into the
+nb.nblts collection and can be used from notebooks.
+
+You can also specify a list of paths for the ``nb_path`` parameter.
+
+.. code:: python3
+
+    import msticnb as nb
+    nb.discover_modules(nb_path=["./custom", "./custom2"])

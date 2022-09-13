@@ -12,8 +12,8 @@ from bokeh.models import LayoutDOM
 from IPython.display import display
 
 try:
+    from msticpy.analysis.ip_utils import get_whois_info
     from msticpy.vis.foliummap import FoliumMap
-    from msticpy.context.ip_utils import get_whois_info
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
     from msticpy.nbtools.foliummap import FoliumMap
@@ -21,7 +21,6 @@ except ImportError:
 
 from msticpy.common.timespan import TimeSpan
 from msticpy.common.utility import md
-
 
 from ...._version import VERSION
 from ....common import (
@@ -31,8 +30,9 @@ from ....common import (
     set_text,
 )
 from ....nb_metadata import read_mod_metadata, update_class_doc
-from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
+from ....nblib.iptools import map_ips
 from ....nblib.ti import get_ti_results
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Pete Bryan"

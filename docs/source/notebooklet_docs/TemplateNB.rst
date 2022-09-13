@@ -1,52 +1,79 @@
-Notebooklet Class - HostLogonsSummary
-=====================================
+Notebooklet Class - TemplateNB
+==============================
 
-Host Logons Summary Notebooket class.
+Template Notebooklet class.
 
-Queries and displays information about logons to a host including:
+Detailed description of things this notebooklet does:
 
--  Summary of sucessfull logons
+-  Fetches all events from XYZ
 
--  Visualizations of logon event times
+-  Plots interesting stuff
 
--  Geolocation of remote logon sources
+-  Returns extended metadata about the thing
 
--  Visualizations of various logon elements depending on host type
+Document the options that the Notebooklet takes, if any,
 
--  Data on users with failed and sucessful logons
+Use these control which parts of the notebooklet get run.
+
+**Default Options**
+
+-  all_events: Gets all events about blah
+
+-  plot_events: Display and summary and timeline of events.
+
+**Other Options**
+
+-  get_metadata: fetches additional metadata about the entity
 
 --------------
 
 Display Sections
 ----------------
 
+Title for the run method (main title)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Write your introductory text here Data and plots are stored in the
+result class returned by this function. If you use **markdown** syntax
+in this block add the following to use markdown processing.
+
+Display the timeline.
+^^^^^^^^^^^^^^^^^^^^^
+
+This may take some time to complete for large numbers of events. It will
+do: - Item one - Item two Since some groups will be undefined these can
+show up as ``NaN``. Note: use a quoted string if you want to include
+yaml reserved chars such as ":"
+
+Do something else
+'''''''''''''''''
+
+This may take some time to complete for large numbers of events.
+
+It will do: - Item one - Item two
+
+--------------
+
 Results Class
 -------------
 
-HostLogonsSummaryResult
-~~~~~~~~~~~~~~~~~~~~~~~
+TemplateResult
+~~~~~~~~~~~~~~
 
-Host Logons Summary Results.
+Template Results.
 
 Attributes
 ~~~~~~~~~~
 
--  | logon_sessions: pd.DataFrame
-   | A Dataframe summarizing all sucessfull and failed logon attempts
-     observed during the specified time period.
+-  | all_events : pd.DataFrame
+   | DataFrame of all raw events retrieved.
 
--  |
+-  | plot : bokeh.models.LayoutDOM
+   | Bokeh plot figure showing the account events on an interactive
+     timeline.
 
--  | logon_map: FoliumMap
-   | A map showing remote logon attempt source locations. Red points
-     represent failed logons, green successful.
-
--  |
-
--  | plots: Dict
-   | A collection of Bokeh plot figures showing various aspects of
-     observed logons. Keys are a descriptive name of the plot and values
-     are the plot figures.
+-  | additional_info: dict
+   | Additional information for my notebooklet.
 
 --------------
 
@@ -71,8 +98,15 @@ run
   Optional[pandas.core.frame.DataFrame] = None, timespan:
   Optional[msticpy.common.timespan.TimeSpan] = None, options:
   Optional[Iterable[str]] = None, \**kwargs) ->
-  msticnb.nb.azsent.host.host_logons_summary.HostLogonsSummaryResult
-| Return host summary data.
+  msticnb.nb.template.nb_template.TemplateResult
+| Return XYZ summary.
+
+run_additional_operation
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+| run_additional_operation(self, event_ids: Union[int, Iterable[int],
+  NoneType] = None) -> pandas.core.frame.DataFrame
+| Addition method.
 
 Inherited methods
 ~~~~~~~~~~~~~~~~~
@@ -231,7 +265,7 @@ silent [property] Get the current instance setting for silent running.
 ``run`` function documentation
 ------------------------------
 
-Return host summary data.
+Return XYZ summary.
 
 
 Parameters
@@ -239,28 +273,27 @@ Parameters
 
 
 value : str
-    Host name
+    Host name - The key for searches - e.g. host, account, IPaddress
 
 data : Optional[pd.DataFrame], optional
-    Optionally pass raw data to use for analysis, by default None
+    Alternatively use a DataFrame as input.
 
 timespan : TimeSpan
-    Timespan over which operations such as queries will be
-    performed, by default None.
-    This can be a TimeStamp object or another object that
-    has valid `start`, `end`, or `period` attributes.
-    Alternatively you can pass `start` and `end` datetime objects.
+    Timespan for queries
 
 options : Optional[Iterable[str]], optional
-    List of options to use, by default None
+    List of options to use, by default None.
     A value of None means use default options.
+    Options prefixed with "+" will be added to the default options.
+    To see the list of available options type `help(cls)` where
+    "cls" is the notebooklet class or an instance of this class.
 
 
 Returns
 ~~~~~~~
 
 
-HostLogonsSummaryResults
+TemplateResult
     Result object with attributes for each result type.
 
 
@@ -272,22 +305,15 @@ MsticnbMissingParameterError
     If required parameters are missing
 
 
-MsticnbDataProviderError
-    If data is not avaliable
-
-
 
 Default Options
 ~~~~~~~~~~~~~~~
 
-- map: Display a map of logon attempt locations.
-- timeline: Display a timeline of logon atttempts.
-- charts: Display a range of charts depicting different elements of logon events.
-- failed_success: Displays a DataFrame of all users with both successful and failed logons.
+- all_events: Gets all events about blah
+- plot_events: Display and summary and timeline of events.
 
 
 Other Options
 ~~~~~~~~~~~~~
 
-
-None
+- get_metadata: fetches additional metadata about the entity

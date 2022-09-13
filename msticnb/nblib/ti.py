@@ -6,8 +6,8 @@
 """Threat Intelligence notebooklet feature support"""
 from typing import Any, Tuple
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from .._version import VERSION
 from ..common import nb_markdown

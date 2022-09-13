@@ -5,9 +5,10 @@
 # --------------------------------------------------------------------------
 """NB metadata test class."""
 import pytest_check as check
+
 from msticnb import data_providers, nblts
-from msticnb.nb_metadata import NBMetadata, read_mod_metadata
 from msticnb.nb.azsent.host import host_summary
+from msticnb.nb_metadata import NBMetadata, read_mod_metadata
 
 from .unit_test_lib import GeoIPLiteMock
 

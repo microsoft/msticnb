@@ -9,16 +9,14 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
-# from contextlib import redirect_stdout
 import pytest_check as check
 from msticpy.common.timespan import TimeSpan
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, discover_modules, nblts
 
-from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock, TILookupMock
 
-# pylint: disable=no-member
+# pylint: disable=protected-access, no-member, redefined-outer-name, unused-argument
 
 if not sys.platform.startswith("win"):
     pytest.skip(
@@ -27,16 +25,24 @@ if not sys.platform.startswith("win"):
     )
 
 
-def test_winhostevents_notebooklet(monkeypatch):
-    """Test basic run of notebooklet."""
+@pytest.fixture
+def init_notebooklets(monkeypatch):
+    """Initialize notebooklets."""
     test_data = str(Path(TEST_DATA_PATH).absolute())
+
+    discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],
+        providers=["tilookup", "geolitelookup"],
     )
 
+
+def test_winhostevents_notebooklet(init_notebooklets):
+    """Test basic run of notebooklet."""
     test_nb = nblts.azsent.host.WinHostEvents()
     tspan = TimeSpan(period="1D")
 

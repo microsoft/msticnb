@@ -161,6 +161,7 @@ class AccountSummary(Notebooklet):
     Retrieves account summary for the selected account.
 
     Main operations:
+
     - Searches for matches for the account name in Active Directory,
       Windows and Linux host logs.
     - If one or more matches are found it will return a selection

@@ -4,19 +4,20 @@
 # license information.
 # --------------------------------------------------------------------------
 """Notebooklet for URL Summary."""
-from typing import Any, Dict, Iterable, Optional, List
 from collections import Counter
+from typing import Any, Dict, Iterable, List, Optional
 
-import pandas as pd
-from IPython.display import display, Image
-import tldextract
-from whois import whois
-import numpy as np
 import dns.resolver
+import numpy as np
+import pandas as pd
+import tldextract
+from IPython.display import Image, display
+from whois import whois
 
+# pylint: disable=ungrouped-imports
 try:
-    from msticpy.context.domain_utils import DomainValidator, screenshot
     from msticpy import nbwidgets
+    from msticpy.context.domain_utils import DomainValidator, screenshot
     from msticpy.vis.timeline import display_timeline, display_timeline_values
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
@@ -24,24 +25,22 @@ except ImportError:
     from msticpy.nbtools import nbwidgets
     from msticpy.nbtools.nbdisplay import display_timeline, display_timeline_values
 
-
+from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
 from msticpy.common.utility import md
-
-from bokeh.models import LayoutDOM
 
 from ...._version import VERSION
 from ....common import (
     MsticnbDataProviderError,
     MsticnbMissingParameterError,
-    nb_markdown,
     nb_data_wait,
+    nb_markdown,
     set_text,
 )
 from ....nb_metadata import read_mod_metadata, update_class_doc
-from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
-from ....nblib.ti import get_ti_results
 from ....nblib.azsent.alert import browse_alerts
+from ....nblib.ti import get_ti_results
+from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Pete Bryan"
@@ -93,7 +92,7 @@ class URLSummary(Notebooklet):
     __doc__ = update_class_doc(__doc__, metadata)
     _cell_docs = _CELL_DOCS
 
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches, too-many-locals, too-many-statements
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001
         self,

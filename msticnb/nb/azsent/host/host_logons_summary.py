@@ -113,7 +113,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
     metadata = _CLS_METADATA
 
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
-    # pylint: disable=too-many-locals, too-many-branches
+    # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     def run(  # noqa:MC0001
         self,
         value: Any = None,

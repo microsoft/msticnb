@@ -10,9 +10,8 @@ from typing import List
 
 from markdown import markdown
 
-from .notebooklet import Notebooklet, NotebookletResult
-
 from ._version import VERSION
+from .notebooklet import Notebooklet, NotebookletResult
 
 __version__ = VERSION
 __author__ = "Ian Hellen"

@@ -12,3 +12,4 @@ Subpackages
    msticnb.nb.azsent.alert
    msticnb.nb.azsent.host
    msticnb.nb.azsent.network
+   msticnb.nb.azsent.url

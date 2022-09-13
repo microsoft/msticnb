@@ -10,7 +10,7 @@ Submodules
 msticnb.nb.azsent.url.url\_summary module
 ---------------------------------------------------
 
-.. automodule:: msticnb.nb.azsent.urs.url_summary
+.. automodule:: msticnb.nb.azsent.url.url_summary
    :members:
    :undoc-members:
    :show-inheritance:

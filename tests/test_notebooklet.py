@@ -8,21 +8,20 @@
 from contextlib import redirect_stdout
 from io import StringIO
 
+import pandas as pd
 import pytest
 import pytest_check as check
-
-import pandas as pd
 from lxml import etree  # nosec
 from markdown import markdown
-from msticnb.common import MsticnbDataProviderError
+from msticpy.common.timespan import TimeSpan
+
 from msticnb import data_providers
+from msticnb.common import MsticnbDataProviderError
 from msticnb.nb.azsent.host.host_summary import HostSummaryResult
 from msticnb.read_modules import Notebooklet, nblts
-from msticpy.common.timespan import TimeSpan
 
 from .nb_test import TstNBSummary
 from .unit_test_lib import GeoIPLiteMock
-
 
 # pylint: disable=c-extension-no-member, protected-access
 

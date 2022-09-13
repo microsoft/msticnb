@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, discover_modules, nblts
 
 try:
     from msticpy.nbwidgets import SelectAlert
@@ -24,7 +24,7 @@ from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
 def nbltdata(monkeypatch):
     """Generate test nblt output."""
     test_file = Path.cwd().joinpath(TEST_DATA_PATH).joinpath("alerts_list.pkl")
-
+    discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     data_providers.init("LocalData", providers=["tilookup", "geolitelookup"])
     test_nblt = nblts.azsent.alert.EnrichAlerts()  # pylint: disable=no-member

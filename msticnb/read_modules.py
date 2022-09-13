@@ -4,22 +4,21 @@
 # license information.
 # --------------------------------------------------------------------------
 """read_modules - handles reading notebooklets modules."""
-from collections import namedtuple
-from functools import partial
 import importlib
 import inspect
+import sys
+from collections import namedtuple
+from functools import partial
 from operator import itemgetter
 from pathlib import Path
-import sys
-from typing import Iterable, Tuple, Dict, List, Union
+from typing import Dict, Iterable, List, Tuple, Union
 from warnings import warn
 
 from . import nb
-from .class_doc import get_class_doc
-from .common import NBContainer, MsticnbError, nb_debug
-from .notebooklet import Notebooklet
-
 from ._version import VERSION
+from .class_doc import get_class_doc
+from .common import MsticnbError, NBContainer, nb_debug
+from .notebooklet import Notebooklet
 
 __version__ = VERSION
 __author__ = "Ian Hellen"
@@ -73,8 +72,11 @@ def _import_from_folder(nb_folder: Path, pkg_folder: Path):
     # specify customer_container to put them in their own subtree.
     custom_container = pkg_folder.stem if pkg_folder.stem != __package__ else ""
 
-    # Iterate through all subfolders
-    folders = [f for f in nb_folder.glob("./**") if f.is_dir() and f != nb_folder]
+    # Iterate through folder and all subfolders
+    folders = [
+        nb_folder,
+        *(f for f in nb_folder.glob("./**") if f.is_dir() and f != nb_folder),
+    ]
     for folder in folders:
         rel_folder_parts = folder.relative_to(nb_folder).parts
         # skip hidden folder paths with . or _ prefix
@@ -113,7 +115,12 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
     """
     found_classes = {}
     pkg_root = pkg_folder.resolve().parent
-    relative_path = folder.relative_to(pkg_root)
+    try:
+        relative_path = folder.relative_to(pkg_root)
+        # This may fail if environment messes around with package paths
+        # - this happens in Spark/Synapse
+    except ValueError:
+        relative_path = _get_pkg_relative_folder(folder)
     for item in folder.glob("*.py"):
         if item.name.startswith("_"):
             continue
@@ -125,7 +132,7 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
             try:
                 imp_module = importlib.import_module(mod_name, package=nb.__package__)
             except ImportError as err:
-                warn(f"Import failed for {item}.\n" + str(err))
+                warn(f"Import failed for {item}.\n {err}")
                 nb_debug("import failed", item, err)
                 continue
             # extract the classes in the module and look for any classes
@@ -222,3 +229,12 @@ def find(keywords: str, full_match=True) -> List[Tuple[str, Notebooklet]]:
     # return list sorted by full_match, then match count, highest to lowest
     results = sorted(matches, key=itemgetter(0, 1), reverse=True)
     return [(result[2], result[3]) for result in results]
+
+
+def _get_pkg_relative_folder(folder: Path):
+    """Return relative path based on location of 'msticnb' in the folder path."""
+    relative_parts: List[str] = []
+    for folder_part in folder.parts:
+        if folder_part == "msticnb" or relative_parts:
+            relative_parts.append(folder_part)
+    return Path(*relative_parts)

@@ -86,6 +86,15 @@ msticnb.read\_modules module
    :undoc-members:
    :show-inheritance:
 
+msticnb.template module
+-----------------------
+
+.. automodule:: msticnb.template
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
 msticnb.data\viewers module
 ---------------------------
 
