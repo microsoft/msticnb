@@ -509,7 +509,7 @@ Each section has the following sub-keys:
 Creating a Template Notebooklet
 -------------------------------
 
-Notebooklets has a function that creates a skeleton notebooklet module
+MSTIC Notebooklets has a function that creates a skeleton notebooklet module
 and yaml file for you. Use the skeleton to add your own functionality
 that can be imported into msticnb at runtime
 
@@ -526,7 +526,7 @@ are named MyNotebooklet and MyNotebookletResult, respectively.
 You should normally create notebooklets in their own folder (although
 you can have several uniquely named notebooklet modules in the same folder).
 
-.. note:: This method is primary for creating standalone custom notebooklet
+.. note:: This method is primarily for creating standalone custom notebooklet
     that are intended to be imported into the msticnb package at runtime.
     If you are creating a notebooklet to check in to the msticnb project
     use the :py:class:`msticnb.nb.template.nbtemplate`` class as a starting point
