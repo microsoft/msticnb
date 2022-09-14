@@ -3,8 +3,8 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-"""Threat Intelligence notebooklet feature support"""
-from typing import Any, Tuple
+"""Threat Intelligence notebooklet feature support."""
+from typing import Any, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ def get_ti_results(
     ti_lookup,
     data: pd.DataFrame,
     col: str,
-) -> Tuple[Any, pd.DataFrame]:
+) -> Tuple[Any, Optional[pd.DataFrame]]:
     """
     Lookup Threat Intel.
 
@@ -30,11 +30,8 @@ def get_ti_results(
         TI Lookup provider
     data : pd.DataFrame
         Input data frame
-    cols : List
+    col : List
         Name of Ip address column
-    b64_extact: bool
-        Try and extract B64 encoded iocs in columns first
-        Defult is false
 
     Returns
     -------
@@ -56,7 +53,7 @@ def extract_iocs(
     data: pd.DataFrame, col: str, b64_extract: bool = False
 ) -> pd.DataFrame:
     """
-    Extract IoCs from a dataframe
+    Extract IoCs from a dataframe.
 
     Parameters
     ----------

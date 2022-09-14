@@ -30,7 +30,6 @@ from ....common import (
     set_text,
 )
 from ....nb_metadata import read_mod_metadata, update_class_doc
-from ....nblib.iptools import map_ips
 from ....nblib.ti import get_ti_results
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
 

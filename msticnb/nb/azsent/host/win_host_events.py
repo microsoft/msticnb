@@ -91,12 +91,12 @@ class WinHostEventsResult(NotebookletResult):
         """
         super().__init__(description, timespan, notebooklet)
         self.description: str = "Windows Host Security Events"
-        self.all_events: pd.DataFrame = None
-        self.event_pivot: pd.DataFrame = None
-        self.account_events: pd.DataFrame = None
-        self.account_pivot: pd.DataFrame = None
+        self.all_events: Optional[pd.DataFrame] = None
+        self.event_pivot: Optional[pd.DataFrame] = None
+        self.account_events: Optional[pd.DataFrame] = None
+        self.account_pivot: Optional[pd.DataFrame] = None
         self.account_timeline: Union[Figure, LayoutDOM] = None
-        self.expanded_events: pd.DataFrame = None
+        self.expanded_events: Optional[pd.DataFrame] = None
 
 
 class WinHostEvents(Notebooklet):
@@ -209,7 +209,7 @@ class WinHostEvents(Notebooklet):
 
     def expand_events(
         self, event_ids: Optional[Union[int, Iterable[int]]] = None
-    ) -> pd.DataFrame:
+    ) -> Optional[pd.DataFrame]:
         """
         Expand `EventData` for `event_ids` into separate columns.
 

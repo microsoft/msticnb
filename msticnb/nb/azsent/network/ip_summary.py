@@ -157,29 +157,29 @@ class IpSummaryResult(NotebookletResult):
         self.host_entities: List[Host] = []
         self.geoip: Optional[Dict[str, Any]] = None
         self.location: Optional[GeoLocation] = None
-        self.whois: pd.DataFrame = None
-        self.whois_nets: pd.DataFrame = None
-        self.heartbeat: pd.DataFrame = None
-        self.az_network_if: pd.DataFrame = None
-        self.vmcomputer: pd.DataFrame = None
-        self.az_network_flows: pd.DataFrame = None
-        self.az_network_flow_summary: pd.DataFrame = None
+        self.whois: Optional[pd.DataFrame] = None
+        self.whois_nets: Optional[pd.DataFrame] = None
+        self.heartbeat: Optional[pd.DataFrame] = None
+        self.az_network_if: Optional[pd.DataFrame] = None
+        self.vmcomputer: Optional[pd.DataFrame] = None
+        self.az_network_flows: Optional[pd.DataFrame] = None
+        self.az_network_flow_summary: Optional[pd.DataFrame] = None
         self.az_network_flows_timeline: Figure = None
-        self.aad_signins: pd.DataFrame = None
-        self.azure_activity: pd.DataFrame = None
-        self.azure_activity_summary: pd.DataFrame = None
-        self.office_activity: pd.DataFrame = None
-        self.common_security: pd.DataFrame = None
-        self.related_alerts: pd.DataFrame = None
-        self.related_bookmarks: pd.DataFrame = None
+        self.aad_signins: Optional[pd.DataFrame] = None
+        self.azure_activity: Optional[pd.DataFrame] = None
+        self.azure_activity_summary: Optional[pd.DataFrame] = None
+        self.office_activity: Optional[pd.DataFrame] = None
+        self.common_security: Optional[pd.DataFrame] = None
+        self.related_alerts: Optional[pd.DataFrame] = None
+        self.related_bookmarks: Optional[pd.DataFrame] = None
         self.alert_timeline: Figure = None
-        self.ti_results: pd.DataFrame = None
-        self.passive_dns: pd.DataFrame = None
-        self.host_logons: pd.DataFrame = None
-        self.related_accounts: pd.DataFrame = None
-        self.associated_hosts: pd.DataFrame = None
-        self.device_info: pd.DataFrame = None
-        self.network_connections: pd.DataFrame = None
+        self.ti_results: Optional[pd.DataFrame] = None
+        self.passive_dns: Optional[pd.DataFrame] = None
+        self.host_logons: Optional[pd.DataFrame] = None
+        self.related_accounts: Optional[pd.DataFrame] = None
+        self.associated_hosts: Optional[pd.DataFrame] = None
+        self.device_info: Optional[pd.DataFrame] = None
+        self.network_connections: Optional[pd.DataFrame] = None
 
 
 # pylint: enable=too-few-public-methods, too-many-instance-attributes
@@ -298,7 +298,9 @@ class IpAddressSummary(Notebooklet):
         if "alerts" in self.options:
             self._get_related_alerts(src_ip=value, result=result, timespan=timespan)
         if "bookmarks" in self.options:
-            self._get_related_bookmarks(src_ip=value, result=result, timespan=timespan)
+            result = self._get_related_bookmarks(
+                src_ip=value, result=result, timespan=timespan
+            )
         # Azure NSG netflow
         if "az_netflow" in self.options:
             self._get_azure_netflow(src_ip=value, result=result, timespan=timespan)
@@ -501,10 +503,13 @@ class IpAddressSummary(Notebooklet):
         self, src_ip, result, timespan: TimeSpan
     ) -> pd.DataFrame:
         nb_data_wait("Bookmarks")
-        result.related_bookmarks = self.query_provider.AzureSentinel.list_bookmarks_for_entity(  # type: ignore
-            timespan, entity_id=src_ip
+        result.related_bookmarks = (
+            self.query_provider.AzureSentinel.list_bookmarks_for_entity(  # type: ignore
+                timespan, entity_id=src_ip
+            )
         )
         _display_df_summary(result.related_bookmarks, "related bookmarks")
+        return result
 
 
 # %%

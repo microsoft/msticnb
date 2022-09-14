@@ -83,8 +83,8 @@ class TIEnrichResult(NotebookletResult):
         """
         super().__init__(description, timespan, notebooklet)
         self.description: str = "Enriched Alerts"
-        self.enriched_results: pd.DataFrame = None
-        self.picker: SelectAlert = None
+        self.enriched_results: Optional[pd.DataFrame] = None
+        self.picker: Optional[SelectAlert] = None
 
 
 # pylint: enable=too-few-public-methods

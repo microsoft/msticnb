@@ -164,7 +164,7 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             raise MsticnbMissingParameterError("data, or a hostname and timespan.")
 
         # If data is not provided use host_name and timespan to get data
-        if data is None and timespan is not None:
+        if not isinstance(data, pd.DataFrame) or data.empty and timespan:
             nb_data_wait(f"{value}")
             host_verif = verify_host_name(
                 qry_prov=self.query_provider, timespan=timespan, host_name=value
@@ -184,11 +184,11 @@ class HostLogonsSummary(Notebooklet):  # pylint: disable=too-few-public-methods
             if host_type == "Windows" or not host_type == "Linux":
                 # If no known data type try Windows
                 data = self.query_provider.WindowsSecurity.list_all_logons_by_host(  # type: ignore
-                    host_name=host_name, start=timespan.start, end=timespan.end
+                    host_name=host_name, start=timespan.start, end=timespan.end  # type: ignore
                 )
             else:
                 data = self.query_provider.LinuxSyslog.list_logons_for_host(  # type: ignore
-                    host_name=host_name, start=timespan.start, end=timespan.end
+                    host_name=host_name, start=timespan.start, end=timespan.end  # type: ignore
                 )
         else:
             # If data is provided do some required formatting
@@ -365,7 +365,7 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
     results = ["Success", "Failure"]
     colors = ["#536d4c", "#832828"]
 
-    data = {"processes": procs, "Success": s_data, "Failure": f_data}
+    graph_data = {"processes": procs, "Success": s_data, "Failure": f_data}
 
     viz = figure(
         x_range=processes,
@@ -381,7 +381,7 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
         x="processes",
         width=0.75,
         color=colors,
-        source=data,
+        source=graph_data,
         legend_label=results,
     )
 
@@ -408,13 +408,13 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
 def _logon_matrix(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
     """Produce DataFrame showing logons grouped by user and process."""
     logon_by_type = (
-        data[(data["Account"] != "") & (data["LogonResult"] != "Unknown")][
+        data[(data["Account"] != "") & (data["LogonResult"] != "Unknown")][  # type: ignore
             ["Account", "LogonTypeName", "LogonResult", "TimeGenerated"]
         ]
         .groupby(["Account", "LogonTypeName", "LogonResult"])
         .count()
         .unstack()
-        .sort_values(by=[("TimeGenerated", "Success")])
+        .sort_values(by=["TimeGenerated", "Success"])
         .rename(columns={"EventID": "LogonCount"})
         .fillna(0)
         .style.background_gradient(cmap="viridis", low=0.5, high=0)
@@ -467,7 +467,7 @@ def _format_raw_data(data: pd.DataFrame) -> pd.DataFrame:
 def _get_logon_result_lx(row: pd.Series) -> str:
     """Identify if a Linux syslog event is for a sucessful or failed logon."""
     failure_events = row.str.contains(
-        "failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]",
+        """failure|failed|invalid|unable to negotiate|authentication failures|did not receive identification|bad protocol version identification|^Connection closed .* [preauth]""",  # pylint: disable=line-too-long
         regex=True,
     )
 

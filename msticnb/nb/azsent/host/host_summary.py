@@ -94,16 +94,16 @@ class HostSummaryResult(NotebookletResult):
 
         """
         super().__init__(description, timespan, notebooklet)
-        self.host_entity: entities.Host = None  # type: ignore
-        self.related_alerts: pd.DataFrame = None  # type: ignore
-        self.alert_timeline: Union[LayoutDOM, Figure] = None  # type: ignore
-        self.related_bookmarks: pd.DataFrame = None  # type: ignore
-        self.summary: pd.DataFrame = None  # type: ignore
-        self.scheduled_tasks: pd.DataFrame = None  # type: ignore
-        self.account_actions: pd.DataFrame = None  # type: ignore
-        self.notable_events: pd.DataFrame = None  # type: ignore
-        self.processes: pd.DataFrame = None  # type: ignore
-        self.process_ti: pd.DataFrame = None  # type: ignore
+        self.host_entity: entities.Host = None
+        self.related_alerts: Optional[pd.DataFrame] = None
+        self.alert_timeline: Union[LayoutDOM, Figure] = None
+        self.related_bookmarks: Optional[pd.DataFrame] = None
+        self.summary: Optional[pd.DataFrame] = None
+        self.scheduled_tasks: Optional[pd.DataFrame] = None
+        self.account_actions: Optional[pd.DataFrame] = None
+        self.notable_events: Optional[pd.DataFrame] = None
+        self.processes: Optional[pd.DataFrame] = None
+        self.process_ti: Optional[pd.DataFrame] = None
 
 
 # pylint: disable=too-few-public-methods
@@ -325,7 +325,7 @@ class HostSummary(Notebooklet):
         return None
 
 
-def _process_ti(data, col, ti_prov) -> pd.DataFrame:
+def _process_ti(data, col, ti_prov) -> Optional[pd.DataFrame]:
     extracted_iocs = extract_iocs(data, col, True)
     _, ti_merged_df = get_ti_results(ti_lookup=ti_prov, data=extracted_iocs, col="IoC")
     return ti_merged_df
@@ -333,7 +333,7 @@ def _process_ti(data, col, ti_prov) -> pd.DataFrame:
 
 @lru_cache()
 def _get_process_events(qry_prov, timespan, host_name, os_family) -> pd.DataFrame:
-    process_events = pd.DataFrame
+    process_events = pd.DataFrame()
     if os_family.name == "Windows":
         nb_data_wait("Process Events")
         process_events = qry_prov.WindowsSecurity.list_host_processes(
@@ -353,7 +353,7 @@ def _get_process_events(qry_prov, timespan, host_name, os_family) -> pd.DataFram
 
 @lru_cache()
 def _get_host_event_summary(qry_prov, timespan, host_name, os_family) -> pd.DataFrame:
-    host_events = pd.DataFrame
+    host_events = pd.DataFrame()
     if os_family.name == "Windows":
         nb_data_wait("Events")
         host_events = qry_prov.WindowsSecurity.summarize_events(

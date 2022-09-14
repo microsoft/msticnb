@@ -107,14 +107,14 @@ class NetworkFlowResult(NotebookletResult):
         super().__init__(description, timespan, notebooklet)
         self.description: str = "Network flow results"
         self.host_entity: entities.Host = None
-        self.network_flows: pd.DataFrame = None
+        self.network_flows: Optional[pd.DataFrame] = None
         self.plot_flows_by_protocol: Figure = None
         self.plot_flows_by_direction: Figure = None
         self.plot_flow_values: Figure = None
-        self.flow_index: pd.DataFrame = None
-        self.flow_index_data: pd.DataFrame = None
-        self.flow_summary: pd.DataFrame = None
-        self.ti_results: pd.DataFrame = None
+        self.flow_index: Optional[pd.DataFrame] = None
+        self.flow_index_data: Optional[pd.DataFrame] = None
+        self.flow_summary: Optional[pd.DataFrame] = None
+        self.ti_results: Optional[pd.DataFrame] = None
         self.geo_map: foliummap.FoliumMap = None
 
 
