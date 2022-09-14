@@ -83,9 +83,9 @@ class LogonSessionsRarityResult(NotebookletResult):
         # Add attributes as needed here.
         # Make sure they are documented in the Attributes section
         # above.
-        self.process_clusters: pd.DataFrame = None
-        self.processes_with_cluster: pd.DataFrame = None
-        self.session_rarity: pd.DataFrame = None
+        self.process_clusters: Optional[pd.DataFrame] = None
+        self.processes_with_cluster: Optional[pd.DataFrame] = None
+        self.session_rarity: Optional[pd.DataFrame] = None
 
 
 # pylint: enable=too-few-public-methods

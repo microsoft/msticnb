@@ -55,8 +55,12 @@ class AccountType(Flag):
     Office365 = auto()
     Windows = auto()
     Linux = auto()
-    Azure = AzureActiveDirectory | AzureActivity | Office365
-    All = Azure | Windows | Linux
+    Azure = (
+        AzureActiveDirectory
+        | AzureActivity
+        | Office365  # pylint:disable=unsupported-binary-operation
+    )
+    All = Azure | Windows | Linux  # pylint:disable=unsupported-binary-operation
 
     def in_list(self, acct_types: Iterable[Union["AccountType", str]]):
         """Is the current value in the `acct_types` list."""
@@ -137,20 +141,20 @@ class AccountSummaryResult(NotebookletResult):
         super().__init__(description, timespan, notebooklet)
         self.description: str = "Account Activity Summary"
         self.account_entity: entities.Account = None
-        self.account_activity: pd.DataFrame = None
+        self.account_activity: Optional[pd.DataFrame] = None
         self.account_selector: nbwidgets.SelectItem = None
-        self.related_alerts: pd.DataFrame = None
+        self.related_alerts: Optional[pd.DataFrame] = None
         self.alert_timeline: LayoutDOM = None
-        self.related_bookmarks: pd.DataFrame = None
-        self.host_logons: pd.DataFrame = None
-        self.host_logon_summary: pd.DataFrame = None
-        self.azure_activity: pd.DataFrame = None
-        self.azure_activity_summary: pd.DataFrame = None
+        self.related_bookmarks: Optional[pd.DataFrame] = None
+        self.host_logons: Optional[pd.DataFrame] = None
+        self.host_logon_summary: Optional[pd.DataFrame] = None
+        self.azure_activity: Optional[pd.DataFrame] = None
+        self.azure_activity_summary: Optional[pd.DataFrame] = None
         self.azure_timeline_by_provider: LayoutDOM = None
         self.account_timeline_by_ip: LayoutDOM = None
         self.azure_timeline_by_operation: LayoutDOM = None
-        self.ip_summary: pd.DataFrame = None
-        self.ip_all_data: pd.DataFrame = None
+        self.ip_summary: Optional[pd.DataFrame] = None
+        self.ip_all_data: Optional[pd.DataFrame] = None
 
 
 # pylint: enable=too-few-public-methods
@@ -418,22 +422,14 @@ class AccountSummary(Notebooklet):
         return None
 
     @set_text(docs=_CELL_DOCS, key="find_additional_data")
-    def get_additional_data(self) -> pd.DataFrame:
-        """
-        Find additional data for the selected account.
-
-        Returns
-        -------
-        pd.DataFrame
-            Results with expanded columns.
-
-        """
+    def get_additional_data(self):
+        """Find additional data for the selected account."""
         if not self.check_valid_result_data():
-            return
+            return None
         acct, source = self._get_selected_account()
         if not acct or not source:
             print("Please use select an account before using this method.")
-            return
+            return None
         self._last_result.host_logons = None
         self._last_result.host_logon_summary = None
         self._last_result.account_timeline_by_ip = None
@@ -464,6 +460,7 @@ class AccountSummary(Notebooklet):
                 geoip=self._geo_lookup,
             )
             nb_display(self._last_result.ip_summary)
+            return None
         if acct_type == AccountType.Windows:
             self._last_result.host_logons = _get_windows_add_activity(
                 self.query_provider, acct, self.timespan
@@ -483,6 +480,7 @@ class AccountSummary(Notebooklet):
                 geoip=self._geo_lookup,
             )
             nb_display(self._last_result.ip_summary)
+            return None
         if acct_type in [
             AccountType.AzureActiveDirectory,
             AccountType.AzureActivity,
@@ -508,6 +506,8 @@ class AccountSummary(Notebooklet):
                 geoip=self._geo_lookup,
             )
             nb_display(self._last_result.ip_summary)
+            return None
+        return None
 
     def _get_selected_account(self):
         if (

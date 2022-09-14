@@ -107,14 +107,14 @@ class NetworkFlowResult(NotebookletResult):
         super().__init__(description, timespan, notebooklet)
         self.description: str = "Network flow results"
         self.host_entity: entities.Host = None
-        self.network_flows: pd.DataFrame = None
+        self.network_flows: Optional[pd.DataFrame] = None
         self.plot_flows_by_protocol: Figure = None
         self.plot_flows_by_direction: Figure = None
         self.plot_flow_values: Figure = None
-        self.flow_index: pd.DataFrame = None
-        self.flow_index_data: pd.DataFrame = None
-        self.flow_summary: pd.DataFrame = None
-        self.ti_results: pd.DataFrame = None
+        self.flow_index: Optional[pd.DataFrame] = None
+        self.flow_index_data: Optional[pd.DataFrame] = None
+        self.flow_summary: Optional[pd.DataFrame] = None
+        self.ti_results: Optional[pd.DataFrame] = None
         self.geo_map: foliummap.FoliumMap = None
 
 
@@ -535,35 +535,47 @@ def _get_flow_summary(flow_index):
     nb_markdown(f"Found {num_ips} unique IP Addresses.")
 
     nb_data_wait("Whois")
-    flows_df = get_whois_df(
-        flows_df,
-        ip_column="dest",
-        asn_col="DestASN",
-        whois_col="DestASNFull",
-        show_progress=True,
-    )
-    flows_df = get_whois_df(
-        flows_df,
-        ip_column="source",
-        asn_col="SourceASN",
-        whois_col="SourceASNFull",
-        show_progress=True,
-    )
-
-    return (
-        flows_df.groupby(["DestASN", "SourceASN"])
-        .agg(
-            TotalAllowedFlows=pd.NamedAgg(column="TotalAllowedFlows", aggfunc="sum"),
-            L7Protocols=pd.NamedAgg(
-                column="L7Protocol", aggfunc=lambda x: x.unique().tolist()
-            ),
-            source_ips=pd.NamedAgg(
-                column="source", aggfunc=lambda x: x.unique().tolist()
-            ),
-            dest_ips=pd.NamedAgg(column="dest", aggfunc=lambda x: x.unique().tolist()),
+    asn_columns = []
+    if flows_df["dest"].apply(get_ip_type).unique() != ["Private"]:
+        flows_df = get_whois_df(
+            flows_df,
+            ip_column="dest",
+            asn_col="DestASN",
+            whois_col="DestASNFull",
+            show_progress=True,
         )
-        .reset_index()
-    )
+        asn_columns.append("DestASN")
+    if flows_df["source"].apply(get_ip_type).unique() != ["Private"]:
+        flows_df = get_whois_df(
+            flows_df,
+            ip_column="source",
+            asn_col="SourceASN",
+            whois_col="SourceASNFull",
+            show_progress=True,
+        )
+        asn_columns.append("SourceASN")
+
+    if isinstance(flows_df, pd.DataFrame) and not flows_df.empty:
+        return (
+            flows_df.groupby(asn_columns)
+            .agg(
+                TotalAllowedFlows=pd.NamedAgg(
+                    column="TotalAllowedFlows", aggfunc="sum"
+                ),
+                L7Protocols=pd.NamedAgg(
+                    column="L7Protocol", aggfunc=lambda x: x.unique().tolist()
+                ),
+                source_ips=pd.NamedAgg(
+                    column="source", aggfunc=lambda x: x.unique().tolist()
+                ),
+                dest_ips=pd.NamedAgg(
+                    column="dest", aggfunc=lambda x: x.unique().tolist()
+                ),
+            )
+            .reset_index()
+        )
+
+    return None
 
 
 # %%

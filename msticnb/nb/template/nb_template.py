@@ -120,7 +120,7 @@ class TemplateResult(NotebookletResult):
         # Add attributes as needed here.
         # Make sure they are documented in the Attributes section
         # above.
-        self.all_events: pd.DataFrame = None
+        self.all_events: Optional[pd.DataFrame] = None
         self.plot: Figure = None
         self.additional_info: Optional[dict] = None
 
@@ -234,7 +234,7 @@ class TemplateNB(Notebooklet):
     # does something with this choice.
     def run_additional_operation(
         self, event_ids: Optional[Union[int, Iterable[int]]] = None
-    ) -> pd.DataFrame:
+    ) -> Optional[pd.DataFrame]:
         """
         Addition method.
 

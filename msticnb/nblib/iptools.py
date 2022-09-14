@@ -6,7 +6,7 @@
 """IP Helper functions."""
 
 import contextlib
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 
 import pandas as pd
 from msticpy.datamodel.entities import IpAddress
@@ -31,7 +31,7 @@ def get_ip_ti(
     ti_lookup,
     data: pd.DataFrame,
     ip_col: str,
-) -> pd.DataFrame:
+) -> Tuple[Any, Optional[pd.DataFrame]]:
     """
     Lookup Threat Intel for IPAddress.
 
@@ -185,7 +185,7 @@ def convert_to_ip_entities(  # noqa: MC0001
     if ip_str:
         addrs = arg_to_list(ip_str)
     elif data is not None and ip_col:
-        addrs = data[ip_col].values
+        addrs = list(data[ip_col].values)
     else:
         raise ValueError("Must specify either ip_str or data + ip_col parameters.")
 

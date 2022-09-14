@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import tldextract
 from IPython.display import Image, display
-from whois import whois
+from whois import whois  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
@@ -189,10 +189,14 @@ class URLSummary(Notebooklet):
             result.domain_record = _domain_whois_record(
                 domain, self.data_providers.providers["tilookup"]
             )
-            if not self.silent:
+            if (
+                not self.silent
+                and isinstance(result, pd.DataFrame)
+                and not result.domain_record.empty  # type: ignore
+            ):
                 nb_markdown(f"WhoIs Results for {url}.")
                 display(
-                    result.domain_record.T.style.applymap(
+                    result.domain_record.T.style.applymap(  # type: ignore
                         color_domain_record_cells,
                         subset=pd.IndexSlice[["Page Rank", "Domain Name Entropy"], 0],
                     )
@@ -237,7 +241,11 @@ class URLSummary(Notebooklet):
             result.related_alerts = alerts[
                 alerts["Entities"].str.contains(url, case=False)
             ]
-            if not self.silent and not result.related_alerts.empty:
+            if (
+                not self.silent
+                and isinstance(result, pd.DataFrame)
+                and not result.related_alerts.empty  # type: ignore
+            ):
                 nb_markdown(f"Alerts related to {url}")
                 display(result.related_alerts)
 
@@ -247,7 +255,11 @@ class URLSummary(Notebooklet):
                     url=url, start=timespan.start, end=timespan.end
                 )
             )
-            if not self.silent and not result.bookmarks.empty:
+            if (
+                not self.silent
+                and isinstance(result, pd.DataFrame)
+                and not result.bookmarks.empty  # type: ignore
+            ):
                 nb_markdown(f"Bookmarks related to {url}")
                 display(result.bookmarks)
 
@@ -257,7 +269,7 @@ class URLSummary(Notebooklet):
                     domain=domain, start=timespan.start, end=timespan.end
                 )
             )
-            if not self.silent and not result.dns_results.empty:
+            if not self.silent and not result.dns_results.empty:  # type: ignore
                 nb_markdown(f"DNS events related to {url}")
                 display(result.dns_results)
 
@@ -457,28 +469,38 @@ def _get_ip_record(domain, domain_validator, ti_prov):
                 "Creation Date": [ip_whois_result.get("creation_date", None)],
             }
         )
-    tor = None
+
     if isinstance(ip_record, pd.DataFrame) and not ip_record.empty:
-        if "Tor" in ti_prov.loaded_providers:
-            tor = ti_prov.result_to_df(
-                ti_prov.lookup_ioc(
-                    observable=ip_record["IP Address"][0], providers=["Tor"]
-                )
-            )
-        if tor is None or tor["Details"][0] == "Not found.":
-            ip_record["Tor Node?"] = "No"
-        else:
-            ip_record["Tor Node?"] = "Yes"
-        if "VirusTotal" in ti_prov.loaded_providers:
-            ip_ti_results = ti_prov.result_to_df(
-                ti_prov.lookup_ioc(
-                    observable=ip_record["IP Address"][0], providers=["VirusTotal"]
-                )
-            )
-            try:
-                last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
-                prev_domains = [record["hostname"] for record in last_10]
-            except TypeError:
-                prev_domains = None
-            ip_record["Last 10 resolutions"] = [prev_domains]
+        ip_record = _process_tor_ip_record(ip_record, ti_prov)
+        ip_record = _process_previous_resolutions(ip_record, ti_prov)
+    return ip_record
+
+
+def _process_tor_ip_record(ip_record, ti_prov):
+    """See if IP record contains Tor IP."""
+    tor = None
+    if "Tor" in ti_prov.loaded_providers:
+        tor = ti_prov.result_to_df(
+            ti_prov.lookup_ioc(observable=ip_record["IP Address"][0], providers=["Tor"])
+        )
+    if tor is None or tor["Details"][0] == "Not found.":
+        ip_record["Tor Node?"] = "No"
+    else:
+        ip_record["Tor Node?"] = "Yes"
+    return ip_record
+
+
+def _process_previous_resolutions(ip_record, ti_prov):
+    """Get previous resolutions for IP in ip_record."""
+    ip_ti_results = ti_prov.result_to_df(
+        ti_prov.lookup_ioc(
+            observable=ip_record["IP Address"][0], providers=["VirusTotal"]
+        )
+    )
+    try:
+        last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
+        prev_domains = [record["hostname"] for record in last_10]
+    except TypeError:
+        prev_domains = None
+    ip_record["Last 10 resolutions"] = [prev_domains]
     return ip_record
