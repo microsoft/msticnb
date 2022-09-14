@@ -26,7 +26,7 @@ sources:
     args:
       query: az_net_comms_df.pkl
     parameters:
-  get_heartbeat_for_ip:
+  get_heartbeat_for_ip: 
     description: Heartbeat record
     metadata:
       data_families: [Network]

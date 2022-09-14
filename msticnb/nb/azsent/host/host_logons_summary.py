@@ -266,7 +266,7 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
 @set_text(docs=_CELL_DOCS, key="show_map")
 def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     """Produce a map of source IP logon locations."""
-    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) is False]
+    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) == False]  # noqa: E712
     if not isinstance(map_data, pd.DataFrame) or map_data.empty:
         if not silent:
             md("No plotable logins avaliable")
@@ -407,6 +407,7 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
 @set_text(docs=_CELL_DOCS, key="logon_matrix")
 def _logon_matrix(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
     """Produce DataFrame showing logons grouped by user and process."""
+    print(data.columns)
     logon_by_type = (
         data[(data["Account"] != "") & (data["LogonResult"] != "Unknown")][  # type: ignore
             ["Account", "LogonTypeName", "LogonResult", "TimeGenerated"]
@@ -414,7 +415,7 @@ def _logon_matrix(data: pd.DataFrame, silent: bool) -> pd.DataFrame:
         .groupby(["Account", "LogonTypeName", "LogonResult"])
         .count()
         .unstack()
-        .sort_values(by=["TimeGenerated", "Success"])
+        .sort_values(by=[("TimeGenerated", "Success")])
         .rename(columns={"EventID": "LogonCount"})
         .fillna(0)
         .style.background_gradient(cmap="viridis", low=0.5, high=0)

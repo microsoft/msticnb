@@ -13,7 +13,7 @@ import pytest_check as check
 from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, discover_modules, nblts
 
 from ....unit_test_lib import (
     DEF_PROV_TABLES,
@@ -33,6 +33,7 @@ if not sys.platform.startswith("win"):
 
 def test_network_flow_summary_notebooklet(monkeypatch):
     """Test basic run of notebooklet."""
+    discover_modules()
     test_data = str(Path(TEST_DATA_PATH).absolute())
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)

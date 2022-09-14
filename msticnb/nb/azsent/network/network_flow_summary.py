@@ -535,35 +535,47 @@ def _get_flow_summary(flow_index):
     nb_markdown(f"Found {num_ips} unique IP Addresses.")
 
     nb_data_wait("Whois")
-    flows_df = get_whois_df(
-        flows_df,
-        ip_column="dest",
-        asn_col="DestASN",
-        whois_col="DestASNFull",
-        show_progress=True,
-    )
-    flows_df = get_whois_df(
-        flows_df,
-        ip_column="source",
-        asn_col="SourceASN",
-        whois_col="SourceASNFull",
-        show_progress=True,
-    )
-
-    return (
-        flows_df.groupby(["DestASN", "SourceASN"])
-        .agg(
-            TotalAllowedFlows=pd.NamedAgg(column="TotalAllowedFlows", aggfunc="sum"),
-            L7Protocols=pd.NamedAgg(
-                column="L7Protocol", aggfunc=lambda x: x.unique().tolist()
-            ),
-            source_ips=pd.NamedAgg(
-                column="source", aggfunc=lambda x: x.unique().tolist()
-            ),
-            dest_ips=pd.NamedAgg(column="dest", aggfunc=lambda x: x.unique().tolist()),
+    asn_columns = []
+    if flows_df["dest"].apply(get_ip_type).unique() != ["Private"]:
+        flows_df = get_whois_df(
+            flows_df,
+            ip_column="dest",
+            asn_col="DestASN",
+            whois_col="DestASNFull",
+            show_progress=True,
         )
-        .reset_index()
-    )
+        asn_columns.append("DestASN")
+    if flows_df["source"].apply(get_ip_type).unique() != ["Private"]:
+        flows_df = get_whois_df(
+            flows_df,
+            ip_column="source",
+            asn_col="SourceASN",
+            whois_col="SourceASNFull",
+            show_progress=True,
+        )
+        asn_columns.append("SourceASN")
+
+    if isinstance(flows_df, pd.DataFrame) and not flows_df.empty:
+        return (
+            flows_df.groupby(asn_columns)
+            .agg(
+                TotalAllowedFlows=pd.NamedAgg(
+                    column="TotalAllowedFlows", aggfunc="sum"
+                ),
+                L7Protocols=pd.NamedAgg(
+                    column="L7Protocol", aggfunc=lambda x: x.unique().tolist()
+                ),
+                source_ips=pd.NamedAgg(
+                    column="source", aggfunc=lambda x: x.unique().tolist()
+                ),
+                dest_ips=pd.NamedAgg(
+                    column="dest", aggfunc=lambda x: x.unique().tolist()
+                ),
+            )
+            .reset_index()
+        )
+
+    return None
 
 
 # %%

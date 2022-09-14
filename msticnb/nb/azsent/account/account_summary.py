@@ -56,8 +56,10 @@ class AccountType(Flag):
     Windows = auto()
     Linux = auto()
     Azure = (
-        AzureActiveDirectory | AzureActivity | Office365
-    )  # pylint:disable=unsupported-binary-operation
+        AzureActiveDirectory
+        | AzureActivity
+        | Office365  # pylint:disable=unsupported-binary-operation
+    )
     All = Azure | Windows | Linux  # pylint:disable=unsupported-binary-operation
 
     def in_list(self, acct_types: Iterable[Union["AccountType", str]]):
