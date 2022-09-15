@@ -2,14 +2,14 @@ metadata:
   name: URLSummary
   description: HURLs summary
   default_options:
-    - ti: Displays TI results for the URL
-    - whois: Display a summary of the URL
-    - ip_record: Display a summary of the IP address the URL resolves to
+    - ti: Displays TI results for the URL.
+    - whois: Display a summary of the URL.
+    - ip_record: Display a summary of the IP address the URL resolves to.
     - cert: Display a summary of TLS certs used by the URL.
-    - alerts: Displays a DataFrame of all alerts associated with the URL
-    - bookmarks: Displays a DataFrame of all bookmarks associated with the URL
-    - dns: Displays a DataFrame of all DNS events associated with the URL
-    - hosts: Displays a DataFrame of all hosts associated with the URL
+    - alerts: Displays a DataFrame of all alerts associated with the URL.
+    - bookmarks: Displays a DataFrame of all bookmarks associated with the URL.
+    - dns: Displays a DataFrame of all DNS events associated with the URL.
+    - hosts: Displays a DataFrame of all hosts associated with the URL.
   other_options:
     - screenshot: Capture a screenshot of the website using Browshot
   keywords:

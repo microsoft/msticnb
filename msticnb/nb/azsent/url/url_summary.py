@@ -33,9 +33,9 @@ from ...._version import VERSION
 from ....common import (
     MsticnbDataProviderError,
     MsticnbMissingParameterError,
-    nb_data_wait,
     nb_markdown,
     set_text,
+    check_current_result,
 )
 from ....nb_metadata import read_mod_metadata, update_class_doc
 from ....nblib.azsent.alert import browse_alerts
@@ -156,6 +156,8 @@ class URLSummary(Notebooklet):
         result = URLSummaryResult(
             notebooklet=self, description=self.metadata.description, timespan=timespan
         )
+        if not self._last_result:
+            self._last_result = result
 
         url = value.strip().lower()
         _, domain, tld = tldextract.extract(url)
@@ -175,26 +177,24 @@ class URLSummary(Notebooklet):
                 ti_prov = self.data_providers.providers["tilookup"]
             else:
                 raise MsticnbDataProviderError("No TI providers avaliable")
-            nb_data_wait("Threat Intelligence Results")
             ti_results, ti_results_merged = get_ti_results(
                 ti_prov, result.summary, "URL"
             )
             if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
                 result.summary = ti_results_merged
             if not self.silent:
-                nb_markdown(f"Threat Intelligence Results for {url}.")
-                display(ti_results_merged)
+                if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
+                    nb_markdown(f"Threat Intelligence Results for {url}.", "bold")
+                    display(ti_results_merged)
+                else:
+                    nb_markdown(f"No TI results found for {url}")
 
         if "whois" in self.options:
             result.domain_record = _domain_whois_record(
                 domain, self.data_providers.providers["tilookup"]
             )
-            if (
-                not self.silent
-                and isinstance(result, pd.DataFrame)
-                and not result.domain_record.empty  # type: ignore
-            ):
-                nb_markdown(f"WhoIs Results for {url}.")
+            if not self.silent and check_current_result(result, "domain_record"):
+                nb_markdown(f"WhoIs Results for {url}.", "bold")
                 display(
                     result.domain_record.T.style.applymap(  # type: ignore
                         color_domain_record_cells,
@@ -205,28 +205,23 @@ class URLSummary(Notebooklet):
         if "cert" in self.options:
             result.cert_details = _get_tls_cert_details(url, domain_validator)
             if not self.silent:
-                if (
-                    isinstance(result.cert_details, pd.DataFrame)
-                    and not result.cert_details.empty
-                ):
-                    nb_markdown(f"TLS Certificate Details for {url}.")
+                if check_current_result(result, "cert_details", silent=True):
+                    nb_markdown(f"TLS Certificate Details for {url}.", "bold")
                     display(result.cert_details)
                 else:
-                    print("No TLS certificate found.")
+                    print(f"No TLS certificate found for {url}.")
 
         if "ip_record" in self.options:
+            result.ip_record = None
             result.ip_record = _get_ip_record(
                 domain, domain_validator, self.data_providers.providers["tilookup"]
             )
             if not self.silent:
-                if (
-                    isinstance(result.ip_record, pd.DataFrame)
-                    and not result.ip_record.empty
-                ):
-                    nb_markdown(f"IP Address Details for {url}.")
+                if check_current_result(result, "ip_record", silent=True):
+                    nb_markdown(f"IP Address Details for {url}.", "bold")
                     display(result.ip_record.T)
                 else:
-                    print("No current IP found.")
+                    nb_markdown(f"No current IP found for {url}.")
 
         if "screenshot" in self.options:
             image_data = screenshot(url)
@@ -241,12 +236,10 @@ class URLSummary(Notebooklet):
             result.related_alerts = alerts[
                 alerts["Entities"].str.contains(url, case=False)
             ]
-            if (
-                not self.silent
-                and isinstance(result, pd.DataFrame)
-                and not result.related_alerts.empty  # type: ignore
-            ):
-                nb_markdown(f"Alerts related to {url}")
+            if not self.silent and check_current_result(
+                result, "related_alerts", silent=True
+            ):  # type: ignore
+                nb_markdown(f"Alerts related to {url}", "bold")
                 display(result.related_alerts)
 
         if "bookmarks" in self.options:
@@ -255,12 +248,10 @@ class URLSummary(Notebooklet):
                     url=url, start=timespan.start, end=timespan.end
                 )
             )
-            if (
-                not self.silent
-                and isinstance(result, pd.DataFrame)
-                and not result.bookmarks.empty  # type: ignore
+            if not self.silent and check_current_result(
+                result, "bookmarks", silent=True
             ):
-                nb_markdown(f"Bookmarks related to {url}")
+                nb_markdown(f"Bookmarks related to {url}", "bold")
                 display(result.bookmarks)
 
         if "dns" in self.options:
@@ -269,8 +260,11 @@ class URLSummary(Notebooklet):
                     domain=domain, start=timespan.start, end=timespan.end
                 )
             )
-            if not self.silent and not result.dns_results.empty:  # type: ignore
-                nb_markdown(f"DNS events related to {url}")
+            if (
+                not self.silent
+                and check_current_result(result, "dns_results", silent=True)
+            ):
+                nb_markdown(f"DNS events related to {url}", "bold")
                 display(result.dns_results)
 
         if "hosts" in self.options:
@@ -293,8 +287,8 @@ class URLSummary(Notebooklet):
             )["Computer"].unique()
             all_hosts = list(syslog_hosts) + list(mde_hosts) + list(windows_hosts)
             result.hosts = all_hosts
-            if not self.silent:
-                nb_markdown(f"Hosts connecting to {url}")
+            if not self.silent and result.hosts:
+                nb_markdown(f"Hosts connecting to {url}", "bold")
                 display(result.hosts)
 
         if "flows" in self.options:
@@ -312,9 +306,11 @@ class URLSummary(Notebooklet):
                 value_col="sum_SentBytes",
                 title=f"Network traffic volume to {url}",
             )
-            if not self.silent:
+            if not self.silent and check_current_result(
+                result, "flow_graph", silent=True
+            ):
                 display(result.flow_graph)
-                nb_markdown(f"Network connections to {url}")
+                nb_markdown(f"Network connections to {url}", "bold")
                 display(result.flows)
 
         self._last_result = result
@@ -397,26 +393,34 @@ def _domain_whois_record(domain, ti_prov):
         ns_domains = []
 
         # Identity domains populatirty with Open Page Rank
-        page_rank = ti_prov.result_to_df(
-            ti_prov.lookup_ioc(observable=domain, providers=["OPR"])
-        )
-        if page_rank["RawResult"][0]:
-            page_rank_score = page_rank["RawResult"][0]["response"][0][
-                "page_rank_integer"
-            ]
+        if "OPR" in ti_prov.loaded_providers:
+            page_rank = ti_prov.result_to_df(
+                ti_prov.lookup_ioc(observable=domain, providers=["OPR"])
+            )
+            if page_rank["RawResult"][0]:
+                page_rank_score = page_rank["RawResult"][0]["response"][0][
+                    "page_rank_integer"
+                ]
+            else:
+                page_rank_score = 0
+            dom_record["Page Rank"] = [page_rank_score]
         else:
-            page_rank_score = 0
-        dom_record["Page Rank"] = [page_rank_score]
+            nb_markdown("OPR TI provider needed to calculate Page Rank score.")
+            dom_record["Page Rank"] = ["Not known - OPR provider needed"]
 
         # Get a list of subdomains for the domain
-        url_ti = ti_prov.result_to_df(
-            ti_prov.lookup_ioc(observable=domain, providers=["VirusTotal"])
-        )
-        try:
-            sub_doms = url_ti["RawResult"][0]["subdomains"]
-        except (TypeError, KeyError):
-            sub_doms = "None found"
-        dom_record["Sub Domains"] = [sub_doms]
+        if "VirusTotal" in ti_prov.loaded_providers:
+            url_ti = ti_prov.result_to_df(
+                ti_prov.lookup_ioc(observable=domain, providers=["VirusTotal"])
+            )
+            try:
+                sub_doms = url_ti["RawResult"][0]["subdomains"]
+            except (TypeError, KeyError):
+                sub_doms = "None found"
+            dom_record["Sub Domains"] = [sub_doms]
+        else:
+            nb_markdown("VT TI provider needed to get sub-domains.")
+            dom_record["Page Rank"] = ["Not known - OPR provider needed"]
 
         # Work out domain entropy to identity possible DGA
         dom_ent = entropy(domain)
@@ -469,7 +473,6 @@ def _get_ip_record(domain, domain_validator, ti_prov):
                 "Creation Date": [ip_whois_result.get("creation_date", None)],
             }
         )
-
     if isinstance(ip_record, pd.DataFrame) and not ip_record.empty:
         ip_record = _process_tor_ip_record(ip_record, ti_prov)
         ip_record = _process_previous_resolutions(ip_record, ti_prov)
@@ -480,6 +483,7 @@ def _process_tor_ip_record(ip_record, ti_prov):
     """See if IP record contains Tor IP."""
     tor = None
     if "Tor" in ti_prov.loaded_providers:
+        print(ti_prov.loaded_providers)
         tor = ti_prov.result_to_df(
             ti_prov.lookup_ioc(observable=ip_record["IP Address"][0], providers=["Tor"])
         )
@@ -492,15 +496,20 @@ def _process_tor_ip_record(ip_record, ti_prov):
 
 def _process_previous_resolutions(ip_record, ti_prov):
     """Get previous resolutions for IP in ip_record."""
-    ip_ti_results = ti_prov.result_to_df(
-        ti_prov.lookup_ioc(
-            observable=ip_record["IP Address"][0], providers=["VirusTotal"]
+    if "VirusTotal" in ti_prov.loaded_providers:
+        ip_ti_results = ti_prov.result_to_df(
+            ti_prov.lookup_ioc(
+                observable=ip_record["IP Address"][0], providers=["VirusTotal"]
+            )
         )
-    )
-    try:
-        last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
-        prev_domains = [record["hostname"] for record in last_10]
-    except TypeError:
-        prev_domains = None
+        try:
+            last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
+            prev_domains = [record["hostname"] for record in last_10]
+        except TypeError:
+            prev_domains = None
+    else:
+        prev_domains = (
+            "Unknown - VirusTotal provider required for previous resolution details."
+        )
     ip_record["Last 10 resolutions"] = [prev_domains]
     return ip_record

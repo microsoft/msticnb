@@ -266,7 +266,9 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
 @set_text(docs=_CELL_DOCS, key="show_map")
 def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     """Produce a map of source IP logon locations."""
-    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) == False]  # noqa: E712
+    map_data = data[
+        data["IpAddress"].isin(["-", "::1", "", "NaN"]) == False
+    ]  # noqa: E712
     if not isinstance(map_data, pd.DataFrame) or map_data.empty:
         if not silent:
             md("No plotable logins avaliable")
