@@ -1,16 +1,15 @@
-Alerts notebooklets
-===================
+msticnb.nb.azsent.alert package
+===============================
 
-.. autosummary::
-   msticnb.nb.azsent.alert.ti_enrich
+.. automodule:: msticnb.nb.azsent.alert
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Submodules
 ----------
 
-msticnb.nb.azsent.alert.ti\_enrich module
------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: msticnb.nb.azsent.alert.ti_enrich
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   msticnb.nb.azsent.alert.ti_enrich

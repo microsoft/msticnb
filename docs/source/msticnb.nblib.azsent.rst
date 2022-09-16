@@ -1,21 +1,16 @@
-Azure Sentinel library modules
-==============================
+msticnb.nblib.azsent package
+============================
+
+.. automodule:: msticnb.nblib.azsent
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Submodules
 ----------
 
-msticnb.nblib.azsent.host module
---------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: msticnb.nblib.azsent.host
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.nblib.azsent.alert module
----------------------------------
-
-.. automodule:: msticnb.nblib.azsent.alert
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   msticnb.nblib.azsent.alert
+   msticnb.nblib.azsent.host

@@ -1,7 +1,12 @@
-Notebook Common Library modules
-===============================
+msticnb.nblib package
+=====================
 
-Categories
+.. automodule:: msticnb.nblib
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Subpackages
 -----------
 
 .. toctree::
@@ -9,10 +14,12 @@ Categories
 
    msticnb.nblib.azsent
 
-msticnb.nblib.iptools module
-----------------------------
+Submodules
+----------
 
-.. automodule:: msticnb.nblib.iptools
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 4
+
+   msticnb.nblib.entity_tools
+   msticnb.nblib.iptools
+   msticnb.nblib.ti

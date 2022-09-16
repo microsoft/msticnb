@@ -213,7 +213,7 @@ def add_result(result: Any, attr_name: Union[str, List[str]]):
     result : Any
         Object that will have result attributes set.
     attr_name: str or List[str]
-        Name of return attribute to set on `result`
+        Name of return attribute to set on `result`.
 
     Returns
     -------

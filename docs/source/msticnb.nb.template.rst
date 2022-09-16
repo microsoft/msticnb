@@ -1,14 +1,15 @@
-Template notebooklet
-====================
+msticnb.nb.template package
+===========================
 
-Submodules
-----------
-
-msticnb.nb.template.nb\_template module
----------------------------------------
-
-.. automodule:: msticnb.nb.template.nb_template
+.. automodule:: msticnb.nb.template
    :members:
    :undoc-members:
    :show-inheritance:
 
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   msticnb.nb.template.nb_template

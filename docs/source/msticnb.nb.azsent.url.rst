@@ -1,17 +1,15 @@
-URL notebooklets
-=================
+msticnb.nb.azsent.url package
+=============================
 
-.. autosummary::
-   msticnb.nb.azsent.url.UrlSummary
-
-Submodules
-----------
-
-msticnb.nb.azsent.url.url\_summary module
----------------------------------------------------
-
-.. automodule:: msticnb.nb.azsent.url.url_summary
+.. automodule:: msticnb.nb.azsent.url
    :members:
    :undoc-members:
    :show-inheritance:
 
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   msticnb.nb.azsent.url.url_summary

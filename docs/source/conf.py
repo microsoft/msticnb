@@ -9,6 +9,14 @@
 # full list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
 
+# type: ignore
+
+# pylint: disable=invalid-name, missing-module-docstring, import-error
+
+# noqa D100
+
+# flake8: noqa
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -19,6 +27,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.abspath("../.."))
@@ -30,17 +39,21 @@ project = "msticnb"
 copyright = "2020, (c) Microsoft Corporation."
 author = "Ian Hellen, Pete Bryan"
 
-# The short X.Y version
-version = ""
-# The full version, including alpha/beta/rc tags
-release = "0.2.0"
 
+with open(f"../../{project}/_version.py", "r", encoding="utf-8") as fd:
+    v_match = re.search(r'^VERSION\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE)
+    _ver = v_match[1] if v_match else "no version"
+
+# The full version, including alpha/beta/rc tags
+release = _ver
+# The short X.Y version
+version = _ver
 
 # -- General configuration ---------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# needs_sphinx = '1.0'
+needs_sphinx = "5.0"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -51,10 +64,14 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.githubpages",
     "sphinx.ext.napoleon",
-    "sphinx.ext.intersphinx",
+    "sphinx.ext.autosectionlabel",
+    # "sphinx.ext.intersphinx",
+    # "seed_intersphinx_mapping",
 ]
 
-intersphinx_mapping = {"msticpy": ("https://msticpy.readthedocs.io/en/latest", None)}
+autosectionlabel_prefix_document = True
+
+intersphinx_mapping = {"msticnb": ("https://msticnb.readthedocs.io/en/latest", None)}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -73,7 +90,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -148,9 +165,9 @@ latex_elements: dict = {
 latex_documents = [
     (
         master_doc,
-        "mstinb.tex",
-        "mstic Notebooklets Documentation",
-        "Ian Hellen",
+        "msticnb.tex",
+        "MSTIC Notebooklets Documentation",
+        author,
         "manual",
     )
 ]
@@ -160,7 +177,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "msticnb", "mstic Notebooklets Documentation", [author], 1)]
+man_pages = [(master_doc, project, "MSTIC Notebooklets Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------------
@@ -171,10 +188,10 @@ man_pages = [(master_doc, "msticnb", "mstic Notebooklets Documentation", [author
 texinfo_documents = [
     (
         master_doc,
-        "msticnb",
+        project,
         "mstic Notebooklets Documentation",
         author,
-        "msticnb",
+        project,
         "MSTIC notebooklets Jupyter notebook snippets for InfoSec investigators.",
     )
 ]
@@ -206,3 +223,66 @@ autodoc_default_options = {
 }
 
 autoclass_content = "both"
+
+autoapi_dirs = ["../../msticnb"]
+
+autodoc_mock_imports = [
+    "adal",
+    "azure",
+    "azure.common.exceptions",
+    "azure.core.exceptions",
+    "azure.core.pipeline.policies",
+    "azure.core.pipeline.transport",
+    "azure.core.pipeline",
+    "azure.identity",
+    "azure.keyvault.secrets",
+    "azure.keyvault",
+    "azure.mgmt.compute.models",
+    "azure.mgmt.compute",
+    "azure.mgmt.keyvault.models",
+    "azure.mgmt.keyvault",
+    "azure.mgmt.monitor",
+    "azure.mgmt.network",
+    "azure.mgmt.resource",
+    "azure.mgmt.resourcegraph",
+    "azure.mgmt.subscription",
+    "azure.storage.blob",
+    "azure.storage",
+    "bokeh",
+    "dnspython",
+    "dns",
+    "folium",
+    "geoip2",
+    "ipwhois",
+    "IPython",
+    "ipywidgets",
+    "keyring",
+    "Kqlmagic",
+    "matplotlib.pyplot",
+    "matplotlib",
+    "mo-sql-parsing",
+    "msal",
+    "msal_extensions",
+    "msrest",
+    "msrestazure",
+    "msrest.authentication",
+    "nest_asyncio",
+    "networkx",
+    "openpyxl",
+    "passivetotal",
+    "pygeohash",
+    "pygments",
+    "python-dateutil",
+    "respx",
+    "scipy",
+    "seaborn",
+    "sklearn",
+    "splunk-sdk",
+    "splunklib",
+    "statsmodels",
+    "sumologic",
+    "tldextract",
+    "tqdm",
+    "vt_graph_api",
+    "vt",
+]

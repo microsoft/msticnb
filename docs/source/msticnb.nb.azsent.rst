@@ -1,12 +1,16 @@
-Azure Sentinel Notebooklets
-===========================
+msticnb.nb.azsent package
+=========================
+
+.. automodule:: msticnb.nb.azsent
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Subpackages
 -----------
 
 .. toctree::
    :maxdepth: 4
-   :caption: Categories
 
    msticnb.nb.azsent.account
    msticnb.nb.azsent.alert

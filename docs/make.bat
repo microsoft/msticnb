@@ -12,6 +12,10 @@ set BUILDDIR=build
 
 if "%1" == "" goto help
 
+REM Re-generate API module docs
+sphinx-apidoc --o source --force --module-first --separate ../msticnb
+DEL %SOURCE%/modules.rst
+
 %SPHINXBUILD% >NUL 2>NUL
 if errorlevel 9009 (
 	echo.

@@ -7,39 +7,41 @@
 msticnb Notebooklets main package.
 
 To start using notebooklets:
->>> import msticnb as nb
->>> # optionally give a query provider nb.init(query_provider=qry_prov)
->>> nb.init()
->>>
->>> # Auto-complete tree of notebooklets
->>> nb.nblts
->>>
->>> # List notebooklets
->>> nb.nb_index
->>>
->>> # Use a notebooklet
->>> host_summary = nb.nblts.azent.host.HostSummary()
->>> host_summary.run();
->>>
->>> # help
->>> help(host_summary)
->>> print("Options:", host_summary.all_options())
->>> print("Settings:", host_summary.get_settings())
->>>
->>> # find a notebooklet
->>> nb.find("host linux azure")
->>>
->>> # Interactive notebook browser
->>> nb.browse()
+
+.. code:: python
+    >>> import msticnb as nb
+    >>> # optionally give a query provider nb.init(query_provider=qry_prov)
+    >>> nb.init()
+    >>>
+    >>> # Auto-complete tree of notebooklets
+    >>> nb.nblts
+    >>>
+    >>> # List notebooklets
+    >>> nb.nb_index
+    >>>
+    >>> # Use a notebooklet
+    >>> host_summary = nb.nblts.azent.host.HostSummary()
+    >>> host_summary.run();
+    >>>
+    >>> # help
+    >>> help(host_summary)
+    >>> print("Options:", host_summary.all_options())
+    >>> print("Settings:", host_summary.get_settings())
+    >>>
+    >>> # find a notebooklet
+    >>> nb.find("host linux azure")
+    >>>
+    >>> # Interactive notebook browser
+    >>> nb.browse()
 
 for more help see https://msticnb.readthedocs.org/
 
 """
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ._version import VERSION
-from .data_providers import DataProviders  # noqa:F401
+from .data_providers import DataProviders, QueryProvider  # noqa:F401
 from .data_providers import init as dp_init  # noqa:F401
 from .nb_browser import NBBrowser  # noqa:F401
 from .nb_pivot import add_pivot_funcs  # noqa:F401
@@ -54,18 +56,20 @@ browse = NBBrowser
 
 
 def init(
-    query_provider: str,
+    query_provider: Union[str, QueryProvider] = "MSSentinel",
     namespace: Optional[Dict[str, Any]] = None,
     providers: Optional[List[str]] = None,
     **kwargs,
 ):
     """
-    Initialize notebooklets dataproviders and pivots.
+    Initialize notebooklets data providers and pivots.
 
     Parameters
     ----------
-    query_provider : str
-        The default query provider to use with notebooklets
+    query_provider : Union[str, QueryProvider], optional
+        DataEnvironment name of the primary query provider,
+        or an instance of an existing query provider,
+        by default "MSSentinel"
     namespace : Optional[Dict[str, Any]], optional
         The global namespace - used to add pivot functions
     providers : Optional[List[str]], optional

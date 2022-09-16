@@ -1,16 +1,15 @@
-Account notebooklets
-====================
+msticnb.nb.azsent.account package
+=================================
 
-.. autosummary::
-   msticnb.nb.azsent.account.account_summary
+.. automodule:: msticnb.nb.azsent.account
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Submodules
 ----------
 
-msticnb.nb.azsent.account.account\_summary module
--------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: msticnb.nb.azsent.account.account_summary
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   msticnb.nb.azsent.account.account_summary
