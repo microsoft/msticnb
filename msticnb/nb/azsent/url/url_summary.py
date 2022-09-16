@@ -6,6 +6,7 @@
 """Notebooklet for URL Summary."""
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Optional
+from os.path import exists
 
 import dns.resolver
 import numpy as np
@@ -73,6 +74,7 @@ class URLSummaryResult(NotebookletResult):
         self.hosts: Optional[List] = None
         self.flows: Optional[pd.DataFrame] = None
         self.flow_graph: Optional[LayoutDOM] = None
+        self.ti_results: Optional[pd.DataFrame] = None
 
 
 # pylint: disable=too-few-public-methods
@@ -159,18 +161,15 @@ class URLSummary(Notebooklet):
         if not self._last_result:
             self._last_result = result
 
-        url = value.strip().lower()
-        _, domain, tld = tldextract.extract(url)
+        self.url = value.strip().lower()
+        _, domain, tld = tldextract.extract(self.url)
         domain = f"{domain.lower()}.{tld.lower()}"
         domain_validator = DomainValidator()
         validated = domain_validator.validate_tld(domain)
 
         result.summary = pd.DataFrame(
-            {"URL": [url], "Domain": [domain], "Validated TLD": [validated]}
+            {"URL": [self.url], "Domain": [domain], "Validated TLD": [validated]}
         )
-        if not self.silent:
-            nb_markdown(f"Summary of {url}:")
-            display(result.summary)
 
         if "ti" in self.options:
             if "tilookup" in self.data_providers.providers:
@@ -181,78 +180,39 @@ class URLSummary(Notebooklet):
                 ti_prov, result.summary, "URL"
             )
             if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
-                result.summary = ti_results_merged
-            if not self.silent:
-                if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
-                    nb_markdown(f"Threat Intelligence Results for {url}.", "bold")
-                    display(ti_results_merged)
-                else:
-                    nb_markdown(f"No TI results found for {url}")
+                result.ti_results = ti_results_merged
 
         if "whois" in self.options:
             result.domain_record = _domain_whois_record(
                 domain, self.data_providers.providers["tilookup"]
             )
-            if not self.silent and check_current_result(result, "domain_record"):
-                nb_markdown(f"WhoIs Results for {url}.", "bold")
-                display(
-                    result.domain_record.T.style.applymap(  # type: ignore
-                        color_domain_record_cells,
-                        subset=pd.IndexSlice[["Page Rank", "Domain Name Entropy"], 0],
-                    )
-                )
 
         if "cert" in self.options:
-            result.cert_details = _get_tls_cert_details(url, domain_validator)
-            if not self.silent:
-                if check_current_result(result, "cert_details", silent=True):
-                    nb_markdown(f"TLS Certificate Details for {url}.", "bold")
-                    display(result.cert_details)
-                else:
-                    print(f"No TLS certificate found for {url}.")
+            result.cert_details = _get_tls_cert_details(self.url, domain_validator)
 
         if "ip_record" in self.options:
             result.ip_record = None
             result.ip_record = _get_ip_record(
                 domain, domain_validator, self.data_providers.providers["tilookup"]
             )
-            if not self.silent:
-                if check_current_result(result, "ip_record", silent=True):
-                    nb_markdown(f"IP Address Details for {url}.", "bold")
-                    display(result.ip_record.T)
-                else:
-                    nb_markdown(f"No current IP found for {url}.")
 
         if "screenshot" in self.options:
-            image_data = screenshot(url)
+            image_data = screenshot(self.url)
             with open("screenshot.png", "wb") as screenshot_file:
                 screenshot_file.write(image_data.content)
-            if not self.silent:
-                nb_markdown(f"Screenshot of {url}")
-                display(Image(filename="screenshot.png"))
 
         if "alerts" in self.options:
             alerts = self.query_provider.SecurityAlert.list_alerts(timespan)
             result.related_alerts = alerts[
-                alerts["Entities"].str.contains(url, case=False)
+                alerts["Entities"].str.contains(self.url, case=False)
             ]
-            if not self.silent and check_current_result(
-                result, "related_alerts", silent=True
-            ):  # type: ignore
-                nb_markdown(f"Alerts related to {url}", "bold")
-                display(result.related_alerts)
 
         if "bookmarks" in self.options:
             result.bookmarks = (
                 self.query_provider.AzureSentinel.list_bookmarks_for_entity(
-                    url=url, start=timespan.start, end=timespan.end
+                    url=self.url, start=timespan.start, end=timespan.end
                 )
             )
-            if not self.silent and check_current_result(
-                result, "bookmarks", silent=True
-            ):
-                nb_markdown(f"Bookmarks related to {url}", "bold")
-                display(result.bookmarks)
 
         if "dns" in self.options:
             result.dns_results = (
@@ -260,36 +220,27 @@ class URLSummary(Notebooklet):
                     domain=domain, start=timespan.start, end=timespan.end
                 )
             )
-            if (
-                not self.silent
-                and check_current_result(result, "dns_results", silent=True)
-            ):
-                nb_markdown(f"DNS events related to {url}", "bold")
-                display(result.dns_results)
 
         if "hosts" in self.options:
             syslog_hosts = self.query_provider.LinuxSyslog.all_syslog(
-                add_query_items=f"| where SyslogMessage has '{url}'",
+                add_query_items=f"| where SyslogMessage has '{self.url}'",
                 start=timespan.start,
                 end=timespan.end,
             )["Computer"].unique()
             mde_hosts = self.query_provider.MDE.host_connections(
                 time_column="TimeGenerated",
                 host_name="",
-                add_query_items=f"| where RemoteUrl has '{url}'",
+                add_query_items=f"| where RemoteUrl has '{self.url}'",
                 start=timespan.start,
                 end=timespan.end,
             )["DeviceName"].unique()
             windows_hosts = self.query_provider.WindowsSecurity.list_events(
-                add_query_items=f"| where CommandLine has '{url}'",
+                add_query_items=f"| where CommandLine has '{self.url}'",
                 start=timespan.start,
                 end=timespan.end,
             )["Computer"].unique()
             all_hosts = list(syslog_hosts) + list(mde_hosts) + list(windows_hosts)
             result.hosts = all_hosts
-            if not self.silent and result.hosts:
-                nb_markdown(f"Hosts connecting to {url}", "bold")
-                display(result.hosts)
 
         if "flows" in self.options:
             result.flows = self.query_provider.Network.network_connections_to_url(
@@ -304,17 +255,96 @@ class URLSummary(Notebooklet):
             result.flow_graph = display_timeline_values(
                 flow_graph_data,
                 value_col="sum_SentBytes",
-                title=f"Network traffic volume to {url}",
+                title=f"Network traffic volume to {self.url}",
             )
-            if not self.silent and check_current_result(
-                result, "flow_graph", silent=True
-            ):
-                display(result.flow_graph)
-                nb_markdown(f"Network connections to {url}", "bold")
-                display(result.flows)
 
         self._last_result = result
+
+        if not self.silent:
+            self._display_results()
+
         return self._last_result
+
+    @set_text(docs=_CELL_DOCS, key="display_summary")
+    def _display_summary(self):
+        if self.check_valid_result_data("summary", silent=True):
+            display(self._last_result.summary)
+
+    @set_text(docs=_CELL_DOCS, key="show_ti_details")
+    def _display_ti_data(self):
+        if self.check_valid_result_data("ti_results", silent=True):
+            display(self._last_result.ti_results)
+        else:
+            nb_markdown(f"No TI results found for {self.url}")
+
+    @set_text(docs=_CELL_DOCS, key="show_domain_record")
+    def _display_domain_record(self):
+        if self.check_valid_result_data("domain_record", silent=True):
+            display(
+                self._last_result.domain_record.T.style.applymap(  # type: ignore
+                    color_domain_record_cells,
+                    subset=pd.IndexSlice[["Page Rank", "Domain Name Entropy"], 0],
+                )
+            )
+
+    @set_text(docs=_CELL_DOCS, key="show_TLS_cert")
+    def _display_cert_details(self):
+        if self.check_valid_result_data("cert_details", silent=True):
+            display(self._last_result.cert_details)
+        else:
+            nb_markdown(f"No TLS certificate found for {self.url}.")
+
+    @set_text(docs=_CELL_DOCS, key="show_IP_record")
+    def _display_ip_record(self):
+        if self.check_valid_result_data("ip_record", silent=True):
+            display(self._last_result.ip_record.T)
+        else:
+            nb_markdown(f"No current IP found for {self.url}.")
+
+    @set_text(docs=_CELL_DOCS, key="show_screenshot")
+    def _display_screenshot(self):
+        if exists("screenshot.png"):
+            nb_markdown(f"Screenshot of {self.url}")
+            display(Image(filename="screenshot.png"))
+
+    @set_text(docs=_CELL_DOCS, key="show_related_alerts")
+    def _display_related_alerts(self):
+        if self.check_valid_result_data("related_alerts", silent=True):
+            display(self._last_result.related_alerts)
+        else:
+            nb_markdown(f"No Alerts related to {self.url}")
+
+    @set_text(docs=_CELL_DOCS, key="show_bookmarks")
+    def _display_bookmarks(self):
+        if self.check_valid_result_data("bookmarks", silent=True):
+            display(self._last_result.bookmarks)
+        else:
+            nb_markdown(f"No Bookmarks related to {self.url}")
+
+    @set_text(docs=_CELL_DOCS, key="show_dns_results")
+    def _display_dns_results(self):
+        if self.check_valid_result_data("dns_results", silent=True):
+            nb_markdown(f"DNS events related to {self.url}", "bold")
+            display(self._last_result.dns_results)
+        else:
+            nb_markdown(f"No DNS resolutions found for {self.url}")
+
+    @set_text(docs=_CELL_DOCS, key="show_hosts")
+    def _display_hosts(self):
+        if self.check_valid_result_data("hosts", silent=True) and self._last_result.hosts:
+            nb_markdown(f"Hosts connecting to {self.url}", "bold")
+            display(self._last_result.hosts)
+        else:
+            nb_markdown(f"No hosts found connecting to {self.url}")
+
+    @set_text(docs=_CELL_DOCS, key="show_flows")
+    def _display_flows(self):
+        if self.check_valid_result_data("flow_graph", silent=True):
+            display(self._last_result.flow_graph)
+            nb_markdown(f"Network connections to {self.url}", "bold")
+            display(self._last_result.flows)
+        else:
+            nb_markdown(f"No flow data found for {self.url}")
 
     @set_text(docs=_CELL_DOCS, key="browse_alerts")
     def browse_alerts(self) -> nbwidgets.SelectAlert:
@@ -330,6 +360,20 @@ class URLSummary(Notebooklet):
                 return _show_alert_timeline(self._last_result.related_alerts)
             md("Cannot plot timeline with 0 or 1 event.")
         return None
+
+    def _display_results(self):
+        """Display all the notebooklet results."""
+        self._display_summary()
+        self._display_domain_record()
+        self._display_ip_record()
+        self._display_cert_details()
+        self._display_ti_data()
+        self._display_screenshot()
+        self._display_related_alerts()
+        self._display_bookmarks()
+        self._display_dns_results()
+        self._display_hosts()
+        self._display_flows()
 
 
 def entropy(data):
@@ -366,7 +410,6 @@ def _show_alert_timeline(related_alerts):
     return None
 
 
-@set_text(docs=_CELL_DOCS, key="show_domain_record")
 def _domain_whois_record(domain, ti_prov):
     """Build a Domain Whois Record."""
     dom_record = pd.DataFrame()
@@ -435,7 +478,6 @@ def _domain_whois_record(domain, ti_prov):
     return dom_record
 
 
-@set_text(docs=_CELL_DOCS, key="show_TLS_cert")
 def _get_tls_cert_details(url, domain_validator):
     """Get details of a TLS certificate used by a domain."""
     result, x509 = domain_validator.in_abuse_list(url)
@@ -453,7 +495,6 @@ def _get_tls_cert_details(url, domain_validator):
     return cert_df
 
 
-@set_text(docs=_CELL_DOCS, key="show_IP_record")
 def _get_ip_record(domain, domain_validator, ti_prov):
     """Get IP addresses assoicated with a domain."""
     ip_record = None
