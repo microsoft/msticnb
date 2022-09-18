@@ -183,11 +183,6 @@ class HostNetworkSummary(Notebooklet):
             )
             if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
                 result.flow_ti = ti_results_merged
-                if not self.silent:
-                    md("TI results found in Network Traffic:")
-                    display(ti_results_merged)
-            else:
-                md("No results found in TI")
 
         if (
             "map" in self.options
@@ -195,15 +190,51 @@ class HostNetworkSummary(Notebooklet):
             and not result.flows.empty
         ):
             result.flow_map = result.flows.mp_plot.folium_map(ip_column=remote_ip_col)
-            if not self.silent:
-                md("Map of remote network locations connected to", "bold")
-                display(result.flow_map)
 
         if "whois" in self.options:
             result.flow_whois = _get_whois_data(result.flows, col=remote_ip_col)
 
         self._last_result = result
+
+        if not self.silent:
+            self._display_results()
+
         return self._last_result
+
+    @set_text(docs=_CELL_DOCS, key="flows")
+    def _display_flows(self):
+        if self.check_valid_result_data("flow_whois", silent=True):
+            display(self._last_result.flow_whois)
+        elif self.check_valid_result_data("flows", silent=True):
+            display(self._last_result.flows)
+        else:
+            nb_markdown("No network flow data found.")
+
+    @set_text(docs=_CELL_DOCS, key="ti")
+    def _display_ti_results(self):
+        if self.check_valid_result_data("flow_ti", silent=True):
+            display(self._last_result.flow_ti)
+        else:
+            nb_markdown("No Threat Intelligence results found.")
+
+    @set_text(docs=_CELL_DOCS, key="map")
+    def _display_map(self):
+        if (
+            self.check_valid_result_data("flows", silent=True)
+            and self._last_result.flow_map
+        ):
+            display(self._last_result.flow_map)
+
+    @set_text(docs=_CELL_DOCS, key="matrix")
+    def _display_matrix(self):
+        if self._last_result.flow_matrix:
+            display(self._last_result.flow_matrix)
+
+    def _display_results(self):
+        self._display_flows()
+        self._display_ti_results()
+        self._display_map()
+        self._display_matrix()
 
 
 @lru_cache()

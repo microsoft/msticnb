@@ -54,5 +54,27 @@ output:
     text:
       Each marker on the timeline indicates one or more alerts related to the
       host.
-
-
+  show_bookmarks:
+    title: Related Bookmarks
+    text:
+      Bookmarks related to the host.
+  show_scheduled_tasks:
+    title: Scheduled Tasks
+    text:
+      These are the scheduled tasks observed being created and run on the host.
+  show_account_actions:
+    title: Account Actions
+    text:
+      These are actions observed on the host where accounts have been created or modified.
+  show_notable_events:
+    title: Noteable Host Events
+    text:
+      These are noteable events on the host, either in the type of event or severity.
+  show_process_ti:
+    title: Process Threat Intelligence
+    text:
+      This shows Threat Intelligence results from indicators present in Command Line activty on the host.
+  show_processes:
+    title: Host Processes
+    text:
+      Process execution events from the host.

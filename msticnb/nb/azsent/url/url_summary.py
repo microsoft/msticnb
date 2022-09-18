@@ -267,11 +267,13 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="display_summary")
     def _display_summary(self):
+        """Display URL summary."""
         if self.check_valid_result_data("summary", silent=True):
             display(self._last_result.summary)
 
     @set_text(docs=_CELL_DOCS, key="show_ti_details")
     def _display_ti_data(self):
+        """Display TI results."""
         if self.check_valid_result_data("ti_results", silent=True):
             display(self._last_result.ti_results)
         else:
@@ -279,6 +281,7 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_domain_record")
     def _display_domain_record(self):
+        """Display Domain Record."""
         if self.check_valid_result_data("domain_record", silent=True):
             display(
                 self._last_result.domain_record.T.style.applymap(  # type: ignore
@@ -289,6 +292,7 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_TLS_cert")
     def _display_cert_details(self):
+        """Display TLS Certificate details."""
         if self.check_valid_result_data("cert_details", silent=True):
             display(self._last_result.cert_details)
         else:
@@ -296,6 +300,7 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_IP_record")
     def _display_ip_record(self):
+        """Display IP record."""
         if self.check_valid_result_data("ip_record", silent=True):
             display(self._last_result.ip_record.T)
         else:
@@ -303,12 +308,14 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_screenshot")
     def _display_screenshot(self):
+        """Display ULR screenshot."""
         if exists("screenshot.png"):
             nb_markdown(f"Screenshot of {self.url}")
             display(Image(filename="screenshot.png"))
 
     @set_text(docs=_CELL_DOCS, key="show_related_alerts")
     def _display_related_alerts(self):
+        """Display related alerts in table."""
         if self.check_valid_result_data("related_alerts", silent=True):
             display(self._last_result.related_alerts)
         else:
@@ -316,6 +323,7 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_bookmarks")
     def _display_bookmarks(self):
+        """Display bookmarks related to URL."""
         if self.check_valid_result_data("bookmarks", silent=True):
             display(self._last_result.bookmarks)
         else:
@@ -323,6 +331,7 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_dns_results")
     def _display_dns_results(self):
+        """Display DNS resolutions for URL."""
         if self.check_valid_result_data("dns_results", silent=True):
             nb_markdown(f"DNS events related to {self.url}", "bold")
             display(self._last_result.dns_results)
@@ -331,7 +340,11 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_hosts")
     def _display_hosts(self):
-        if self.check_valid_result_data("hosts", silent=True) and self._last_result.hosts:
+        """Display list of hosts connecting to URL."""
+        if (
+            self.check_valid_result_data("hosts", silent=True)
+            and self._last_result.hosts
+        ):
             nb_markdown(f"Hosts connecting to {self.url}", "bold")
             display(self._last_result.hosts)
         else:
@@ -339,6 +352,7 @@ class URLSummary(Notebooklet):
 
     @set_text(docs=_CELL_DOCS, key="show_flows")
     def _display_flows(self):
+        """Display network flow data for URL."""
         if self.check_valid_result_data("flow_graph", silent=True):
             display(self._last_result.flow_graph)
             nb_markdown(f"Network connections to {self.url}", "bold")
