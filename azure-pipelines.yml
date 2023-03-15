@@ -40,7 +40,7 @@ stages:
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
         pip install --upgrade pytest pytest-azurepipelines
-        pip install --upgrade pytest-cov pytest-check
+        pip install --upgrade pytest-cov pytest-check respx
         # need these two packages for tests
         pip install matplotlib scikit-learn
         pytest tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
@@ -59,7 +59,7 @@ stages:
       continueOnError: true
       condition: succeededOrFailed()
     - script: |
-        pip install --upgrade pylint pylint_junit
+        pip install --upgrade pylint\<2.7.0 pylint_junit
         pylint msticnb --disable=bad-continuation --output-format=pylint_junit.JUnitReporter
       displayName: Pylint
       continueOnError: true
