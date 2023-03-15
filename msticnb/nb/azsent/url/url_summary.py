@@ -396,7 +396,7 @@ def _domain_whois_record(domain, ti_prov):
         )
         ns_domains = []
 
-        # Identity domains populatirty with Open Page Rank
+        # Identity domains popularity with Open Page Rank
         page_rank = ti_prov.result_to_df(
             ti_prov.lookup_ioc(observable=domain, providers=["OPR"])
         )
@@ -451,7 +451,7 @@ def _get_tls_cert_details(url, domain_validator):
 
 @set_text(docs=_CELL_DOCS, key="show_IP_record")
 def _get_ip_record(domain, domain_validator, ti_prov):
-    """Get IP addresses assoicated with a domain."""
+    """Get IP addresses associated with a domain."""
     ip_record = None
     if domain_validator.is_resolvable(domain) is True:
         try:
