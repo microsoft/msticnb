@@ -51,6 +51,7 @@ def test_print_methods():
 
 def test_add_result_decorator():
     """Test method."""
+
     # pylint: disable=too-few-public-methods
     class _TestClass:
         prop1 = None

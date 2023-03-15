@@ -12,7 +12,7 @@ from bokeh.models import LayoutDOM
 from IPython.display import display
 
 try:
-    from msticpy.analysis.ip_utils import get_whois_info
+    from msticpy.context.ip_utils import ip_whois as get_whois_info
     from msticpy.vis.foliummap import FoliumMap
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0

@@ -6,18 +6,18 @@
 """Notebooklet for Network Flow Summary."""
 from ipaddress import ip_address
 from itertools import chain
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
-import numpy as np
 import pandas as pd
-from bokeh.plotting.figure import Figure
+from bokeh.models import LayoutDOM
 from IPython.display import display
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel import entities
 
 try:
     from msticpy import nbwidgets
-    from msticpy.context.ip_utils import get_ip_type, get_whois_df, get_whois_info
+    from msticpy.context.ip_utils import get_ip_type, get_whois_df
+    from msticpy.context.ip_utils import ip_whois as get_whois_info
     from msticpy.context.tiproviders.ti_provider_base import ResultSeverity
     from msticpy.vis import foliummap
     from msticpy.vis.timeline import display_timeline, display_timeline_values
@@ -64,11 +64,11 @@ class NetworkFlowResult(NotebookletResult):
         type of host, not all of this data may be populated.
     network_flows : pd.DataFrame
         The raw network flows recorded for this host.
-    plot_flows_by_protocol : Figure
+    plot_flows_by_protocol : LayoutDOM
         Bokeh timeline plot of flow events by protocol.
-    plot_flows_by_direction : Figure
+    plot_flows_by_direction : LayoutDOM
         Bokeh timeline plot of flow events by direction (in/out).
-    plot_flow_values : Figure
+    plot_flow_values : LayoutDOM
         Bokeh values plot of flow events by protocol.
     flow_index : pd.DataFrame
         Summarized DataFrame of flows
@@ -108,9 +108,9 @@ class NetworkFlowResult(NotebookletResult):
         self.description: str = "Network flow results"
         self.host_entity: entities.Host = None
         self.network_flows: Optional[pd.DataFrame] = None
-        self.plot_flows_by_protocol: Figure = None
-        self.plot_flows_by_direction: Figure = None
-        self.plot_flow_values: Figure = None
+        self.plot_flows_by_protocol: Optional[LayoutDOM] = None
+        self.plot_flows_by_direction: Optional[LayoutDOM] = None
+        self.plot_flow_values: Optional[LayoutDOM] = None
         self.flow_index: Optional[pd.DataFrame] = None
         self.flow_index_data: Optional[pd.DataFrame] = None
         self.flow_summary: Optional[pd.DataFrame] = None
@@ -596,17 +596,20 @@ def _get_source_host_asns(host_entity):
 @set_text(docs=_CELL_DOCS, key="select_asn_subset")
 def _select_asn_subset(flow_sum_df, host_entity):
     our_host_asns = _get_source_host_asns(host_entity)
-    all_asns = list(flow_sum_df["DestASN"].unique()) + list(
-        flow_sum_df["SourceASN"].unique()
-    )
-    all_asns = set(all_asns) - set(["private address"])
+    all_asns: List[str] = []
+    other_asns: List[str] = []
 
     # Select the ASNs in the 25th percentile (lowest number of flows)
     quant_25pc = flow_sum_df["TotalAllowedFlows"].quantile(q=[0.25]).iat[0]
     quant_25pc_df = flow_sum_df[flow_sum_df["TotalAllowedFlows"] <= quant_25pc]
-    other_asns = list(quant_25pc_df["DestASN"].unique()) + list(
-        quant_25pc_df["SourceASN"].unique()
-    )
+
+    if "DestASN" in flow_sum_df.columns:
+        all_asns.extend(flow_sum_df["DestASN"].unique())
+        other_asns.extend(quant_25pc_df["DestASN"].unique())
+    if "SourceASN" in flow_sum_df.columns:
+        all_asns.extend(flow_sum_df["SourceASN"].unique())
+        other_asns.extend(quant_25pc_df["SourceASN"].unique())
+    all_asns = set(all_asns) - {"private address"}
     other_asns = set(other_asns) - set(our_host_asns)
     return nbwidgets.SelectSubset(source_items=all_asns, default_selected=other_asns)
 
@@ -614,20 +617,24 @@ def _select_asn_subset(flow_sum_df, host_entity):
 # %%
 # Lookup ASN IPs with TILookup
 def _get_ips_from_selected_asn(flow_sum_df, select_asn):
-    dest_ips = set(
-        chain.from_iterable(
-            flow_sum_df[flow_sum_df["DestASN"].isin(select_asn.selected_items)][
-                "dest_ips"
-            ]
+    dest_ips: Set[str] = set()
+    src_ips: Set[str] = set()
+    if "DestASN" in flow_sum_df.columns:
+        dest_ips = set(
+            chain.from_iterable(
+                flow_sum_df[flow_sum_df["DestASN"].isin(select_asn.selected_items)][
+                    "dest_ips"
+                ]
+            )
         )
-    )
-    src_ips = set(
-        chain.from_iterable(
-            flow_sum_df[flow_sum_df["SourceASN"].isin(select_asn.selected_items)][
-                "source_ips"
-            ]
+    if "SourceASN" in flow_sum_df.columns:
+        src_ips = set(
+            chain.from_iterable(
+                flow_sum_df[flow_sum_df["SourceASN"].isin(select_asn.selected_items)][
+                    "source_ips"
+                ]
+            )
         )
-    )
     selected_ips = dest_ips | src_ips
     nb_markdown(f"{len(selected_ips)} unique IPs in selected ASNs")
     return selected_ips
@@ -645,6 +652,8 @@ def _lookup_ip_ti(flows_df, ti_lookup, selected_ips):
     ti_results = ti_lookup.lookup_iocs(data=selected_ip_dict)
 
     nb_markdown(f"{len(ti_results)} TI results received.")
+    if ti_results.empty:
+        return pd.DataFrame(columns=["Ioc"])
 
     ti_results_pos = ti_results[ti_check_ser_sev(ti_results["Severity"], 1)]
     nb_markdown(f"{len(ti_results_pos)} positive results found.")
@@ -736,34 +745,36 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
         nb_markdown("No network flow data available.")
         return None
 
+    ips_in: List[str] = []
+    ips_out: List[str] = []
     # Get the flow records for all flows not in the TI results
-    selected_out = flow_index[flow_index["DestASN"].isin(select_asn.selected_items)]
-    selected_in = flow_index[flow_index["SourceASN"].isin(select_asn.selected_items)]
-    sel_out_exp = _list_to_rows(selected_out, "dest_ips")
-    sel_in_exp = _list_to_rows(selected_in, "source_ips")
-    sel_out_exp = sel_out_exp[~sel_out_exp["dest_ips"].isin(ti_results["Ioc"])]
-    sel_in_exp = sel_in_exp[~sel_in_exp["source_ips"].isin(ti_results["Ioc"])]
+    if "DestASN" in flow_index.columns:
+        selected_out = flow_index[flow_index["DestASN"].isin(select_asn.selected_items)]
+        sel_out_exp = selected_out.explode("dest_ips")
+        sel_out_exp = sel_out_exp[~sel_out_exp["dest_ips"].isin(ti_results["Ioc"])]
 
-    if sel_out_exp.empty:
-        ips_out = []
-    else:
-
-        nb_data_wait("IP Geolocation")
-        ips_out = list(
-            sel_out_exp.apply(
-                lambda x: _format_ip_entity(ip_locator, x, "dest_ips"), axis=1
+        if not sel_out_exp.empty:
+            nb_data_wait("IP Geolocation")
+            ips_out = list(
+                sel_out_exp.apply(
+                    lambda x: _format_ip_entity(ip_locator, x, "dest_ips"), axis=1
+                )
             )
-        )
 
-    if sel_in_exp.empty:
-        ips_in = []
-    else:
-        nb_data_wait("IP Geolocation")
-        ips_in = list(
-            sel_in_exp.apply(
-                lambda x: _format_ip_entity(ip_locator, x, "source_ips"), axis=1
+    if "SourceASN" in flow_index.columns:
+        selected_in = flow_index[
+            flow_index["SourceASN"].isin(select_asn.selected_items)
+        ]
+        sel_in_exp = selected_in.explode("source_ips")
+        sel_in_exp = sel_in_exp[~sel_in_exp["source_ips"].isin(ti_results["Ioc"])]
+
+        if not sel_in_exp.empty:
+            nb_data_wait("IP Geolocation")
+            ips_in = list(
+                sel_in_exp.apply(
+                    lambda x: _format_ip_entity(ip_locator, x, "source_ips"), axis=1
+                )
             )
-        )
 
     icon_props = {"color": "green"}
     host_ips = getattr(host_entity, "PublicIpAddresses", [])
@@ -787,18 +798,3 @@ def _display_geo_map(flow_index, ip_locator, host_entity, ti_results, select_asn
     folium_map.center_map()
 
     return folium_map
-
-
-def _list_to_rows(data, col):
-    orig_cols = data.columns
-    item_col = f"{col}_list_item$$"
-    ren_col = {item_col: col}
-    return (
-        pd.DataFrame(data[col].to_list())
-        .replace([None], np.nan)  # convert any Nones to NaN
-        .merge(data, right_index=True, left_index=True)
-        .melt(id_vars=orig_cols, value_name=item_col)
-        .dropna(subset=[item_col])  # get rid of rows with NaNs in this col
-        .drop([col, "variable"], axis=1)
-        .rename(columns=ren_col)
-    )

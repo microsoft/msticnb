@@ -6,7 +6,7 @@
 """host_network_summary notebooklet."""
 from collections import namedtuple
 from functools import lru_cache
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
 from msticpy.common.timespan import TimeSpan
@@ -23,7 +23,9 @@ __author__ = "Ian Hellen"
 
 @lru_cache()
 def get_heartbeat(
-    qry_prov: QueryProvider, host_name: str = None, host_ip: str = None
+    qry_prov: QueryProvider,
+    host_name: Optional[str] = None,
+    host_ip: Optional[str] = None,
 ) -> entities.Host:
     """
     Get Heartbeat information for host or IP.
@@ -64,8 +66,8 @@ def get_heartbeat(
 def get_aznet_topology(
     qry_prov: QueryProvider,
     host_entity: entities.Host,
-    host_name: str = None,
-    host_ip: str = None,
+    host_name: Optional[str] = None,
+    host_ip: Optional[str] = None,
 ):
     """
     Get Azure Network topology information for host or IP address.

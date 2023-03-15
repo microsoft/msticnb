@@ -16,7 +16,7 @@ except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
     from msticpy.datamodel.pivot import Pivot
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, init, nblts
 from msticnb.nb_pivot import add_pivot_funcs
 from msticnb.notebooklet import NotebookletResult
 
@@ -44,6 +44,7 @@ _EXPECTED_FUNCS = [
 
 @pytest.fixture
 def _init_pivot(monkeypatch):
+    init()
     test_data = str(Path(TEST_DATA_PATH).absolute())
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     if "azuredata" in nblts.azsent.host.HostSummary.metadata.req_providers:

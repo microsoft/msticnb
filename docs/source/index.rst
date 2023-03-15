@@ -67,7 +67,7 @@ API
 .. toctree::
    :maxdepth: 3
 
-   msticnb
+   msticnb-api
 
 
 Indices and tables

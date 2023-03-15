@@ -6,7 +6,7 @@
 """NB metadata test class."""
 import pytest_check as check
 
-from msticnb import data_providers, nblts
+from msticnb import data_providers, init, nblts
 from msticnb.nb.azsent.host import host_summary
 from msticnb.nb_metadata import NBMetadata, read_mod_metadata
 
@@ -33,6 +33,7 @@ def test_read_metadata():
 # pylint: disable=protected-access
 def test_class_metadata(monkeypatch):
     """Test class correctly loads yaml metadata."""
+    init()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     if "azuredata" in nblts.azsent.host.HostSummary.metadata.req_providers:
         nblts.azsent.host.HostSummary.metadata.req_providers.remove("azuredata")

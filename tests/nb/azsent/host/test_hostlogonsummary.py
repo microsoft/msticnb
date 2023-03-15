@@ -10,9 +10,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from bokeh.layouts import Column
-from bokeh.plotting import Figure
+from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
 
+# pylint: disable=unused-import
 try:
     from msticpy.vis.foliummap import FoliumMap
 except ImportError:
@@ -45,7 +46,7 @@ def test_output_types(nbltdata):  # pylint: disable=redefined-outer-name
     assert isinstance(nbltdata.logon_sessions, pd.DataFrame)
     assert isinstance(nbltdata.logon_matrix, pd.io.formats.style.Styler)
     assert isinstance(nbltdata.plots, dict)
-    assert isinstance(nbltdata.plots["User Pie Chart"], Figure)
+    assert isinstance(nbltdata.plots["User Pie Chart"], LayoutDOM)
     assert isinstance(nbltdata.timeline, Column)
 
 
@@ -76,7 +77,7 @@ def test_local_data(monkeypatch):
     assert nbltlocaldata.logon_sessions["SubjectUserName"].iloc[0] == "WinAttackSim$"
     assert nbltlocaldata.logon_sessions["LogonProcessName"].iloc[3] == "Advapi  "
     assert "User Pie Chart" in nbltlocaldata.plots.keys()
-    assert isinstance(nbltlocaldata.plots["Process Bar Chart"], Figure)
+    assert isinstance(nbltlocaldata.plots["Process Bar Chart"], LayoutDOM)
     assert isinstance(nbltlocaldata.logon_matrix, pd.io.formats.style.Styler)
     assert nbltlocaldata.logon_matrix.index[0][0] == "Font Driver Host\\UMFD-0"
     assert isinstance(nbltlocaldata.timeline, Column)

@@ -27,7 +27,7 @@ class DFViewer:
 
     def view_events(
         self,
-        summary_cols: List[str] = None,
+        summary_cols: Optional[List[str]] = None,
         attrib: Optional[str] = None,
         data: Optional[pd.DataFrame] = None,
         **kwargs,

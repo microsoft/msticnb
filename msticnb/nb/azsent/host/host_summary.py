@@ -5,12 +5,11 @@
 # --------------------------------------------------------------------------
 """Notebooklet for Host Summary."""
 from functools import lru_cache
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
 from azure.common.exceptions import CloudError
 from bokeh.models import LayoutDOM
-from bokeh.plotting.figure import Figure
 
 try:
     from msticpy import nbwidgets
@@ -96,7 +95,7 @@ class HostSummaryResult(NotebookletResult):
         super().__init__(description, timespan, notebooklet)
         self.host_entity: entities.Host = None
         self.related_alerts: Optional[pd.DataFrame] = None
-        self.alert_timeline: Union[LayoutDOM, Figure] = None
+        self.alert_timeline: Optional[LayoutDOM] = None
         self.related_bookmarks: Optional[pd.DataFrame] = None
         self.summary: Optional[pd.DataFrame] = None
         self.scheduled_tasks: Optional[pd.DataFrame] = None

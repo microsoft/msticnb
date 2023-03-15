@@ -133,8 +133,8 @@ def set_text(  # noqa: MC0001
     hd_level: int = 2,
     text: Optional[str] = None,
     md: bool = False,
-    docs: Dict[str, Any] = None,
-    key: str = None,
+    docs: Optional[Dict[str, Any]] = None,
+    key: Optional[str] = None,
 ):
     """
     Decorate function to print title/text before execution.

@@ -6,7 +6,7 @@
 """Notebooklet templates module."""
 import os
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from msticpy.common.utility import valid_pyname
 
@@ -45,7 +45,7 @@ REPLACE_TEXT = {
 def create_template(
     nb_name: str = "MyNotebooklet",
     folder: Union[str, Path] = ".",
-    author: str = None,
+    author: Optional[str] = None,
     subfolder: bool = False,
     overwrite: bool = False,
 ):
