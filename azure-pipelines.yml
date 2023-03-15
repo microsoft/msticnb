@@ -40,7 +40,7 @@ stages:
     - script: |
         echo Using $MSTICPYCONFIG or %MSTICPYCONFIG%
         pip install --upgrade pytest pytest-azurepipelines
-        pip install --upgrade pytest-cov pytest-check
+        pip install --upgrade pytest-cov pytest-check respx
         # need these two packages for tests
         pip install matplotlib scikit-learn
         pytest tests --junitxml=junit/test-results.xml --cov=msticnb --cov-report=xml
