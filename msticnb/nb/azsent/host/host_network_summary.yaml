@@ -22,3 +22,19 @@ output:
       This shows a summary of network events for a host.
 
       Depending on what data is avaliable it will use MDE network events, Common Security Logs, or Azure Network Diagnostic Logs.
+  flows:
+    title: Host Network Flows
+    text:
+      This data shows network flows to and from the host.
+  ti:
+    title: Threat Intelligence in Flow Data
+    text:
+      These are threat intelligence results based on the flow data for the host.
+  map:
+    title: Remote Network Connection Locations
+    text:
+      This map shows the locations of remote network connections to and from the host.
+  matrix:
+    title: Network Flow Matrix
+    text:
+      This plot show the relationshop between the various IP addresses seen in network flow data.

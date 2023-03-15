@@ -2,14 +2,14 @@ metadata:
   name: URLSummary
   description: HURLs summary
   default_options:
-    - ti: Displays TI results for the URL
-    - whois: Display a summary of the URL
-    - ip_record: Display a summary of the IP address the URL resolves to
+    - ti: Displays TI results for the URL.
+    - whois: Display a summary of the URL.
+    - ip_record: Display a summary of the IP address the URL resolves to.
     - cert: Display a summary of TLS certs used by the URL.
-    - alerts: Displays a DataFrame of all alerts associated with the URL
-    - bookmarks: Displays a DataFrame of all bookmarks associated with the URL
-    - dns: Displays a DataFrame of all DNS events associated with the URL
-    - hosts: Displays a DataFrame of all hosts associated with the URL
+    - alerts: Displays a DataFrame of all alerts associated with the URL.
+    - bookmarks: Displays a DataFrame of all bookmarks associated with the URL.
+    - dns: Displays a DataFrame of all DNS events associated with the URL.
+    - hosts: Displays a DataFrame of all hosts associated with the URL.
   other_options:
     - screenshot: Capture a screenshot of the website using Browshot
   keywords:
@@ -26,6 +26,10 @@ output:
       This shows a summary of the URL and its presence in data.
       It will display an overview of the URL, its associated domain, IP addresses and TLS certificates.
       It will also display a screenshot of the URL.
+  display_summary:
+    title: Summary
+    text:
+      Summary of the URL.
   display_alert_timeline:
     title: Timeline of related alerts
     text:
@@ -48,3 +52,33 @@ output:
     title: IP Details
     text:
       This shows details of the IP address used by the URL.
+  show_ti_details:
+    title: TI Results
+    text:
+      This shows any results in Threat Intelligence feeds for the URL.
+  show_screenshot:
+    title: URL Screenshot
+    text:
+      Below is a static screenshot of the URL.
+  show_related_alerts:
+    title: Related Alerts
+    text:
+      This is a table of all the alerts related to the URL.
+  show_dns_results:
+    title: DNS Resolutions
+    text:
+      These are the DNS resolutions for the URL.
+  show_hosts:
+    title: Connecting Hosts
+    text:
+      The following hosts were obsereved connecting to the URL.
+  show_flows:
+    title: Network Flows
+    text:
+      These are the network flows observed to and from the URL.
+  show_bookmarks:
+    title: Related Bookmarks
+    text:
+      These are the Bookmarks related to the URL.
+
+  
