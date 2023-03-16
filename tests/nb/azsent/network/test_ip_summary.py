@@ -171,6 +171,10 @@ def test_ip_summary_notebooklet_internal(
     monkeypatch.setattr(test_nb.query_provider, "exec_query", eq_mock)
     mock_whois.return_value = whois_response["asn_response_1"]
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
+    respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
+    respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
+        200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
+    )
 
     tspan = TimeSpan(period="1D")
 
@@ -222,9 +226,7 @@ def test_ip_summary_notebooklet_all(
     respx.get(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
     ).respond(200, json=_OTX_RESP)
-    respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(
-        200, json=_OTX_RESP
-    )
+    respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
@@ -288,6 +290,10 @@ def test_ip_summary_mde_data(
     respx.get(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
     ).respond(200, json=_OTX_RESP)
+    respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
+    respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
+        200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
+    )
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)
