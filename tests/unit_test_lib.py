@@ -6,18 +6,16 @@
 """Unit test common utilities."""
 import random
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-import attr
 import pandas as pd
 
 try:
     from msticpy.context import TILookup
     from msticpy.context.geoip import GeoIpLookup
-    from msticpy.context.tiproviders.ti_provider_base import LookupResult
 except ImportError:
     from msticpy.sectools.geoip import GeoIpLookup
     from msticpy.sectools.tilookup import TILookup
-    from msticpy.sectools.tiproviders.ti_provider_base import LookupResult
 
 from msticpy.datamodel.entities import GeoLocation, IpAddress
 
@@ -30,6 +28,8 @@ def get_test_data_path():
     """Get path to testdata folder."""
     cur_dir = Path(".").absolute()
     td_paths = []
+    if cur_dir.joinpath("tests/testdata").is_dir():
+        return cur_dir.joinpath("tests/testdata")
     td_path = None
     while not td_paths:
         td_paths = list(cur_dir.glob("**/tests/testdata"))
@@ -40,10 +40,10 @@ def get_test_data_path():
             raise FileNotFoundError("Cannot find testdata folder")
         cur_dir = cur_dir.parent
 
-    return td_path
+    return Path(td_path).absolute()
 
 
-TEST_DATA_PATH = get_test_data_path()
+TEST_DATA_PATH = str(get_test_data_path())
 
 
 DEF_PROV_TABLES = [
@@ -123,7 +123,7 @@ def _get_geo_loc():
     )
 
 
-# Need to keep same signatire as mocked class
+# Need to keep same signature as mocked class
 # pylint: disable=no-self-use
 class TILookupMock:
     """Test class for TILookup."""
@@ -132,44 +132,48 @@ class TILookupMock:
         """Initialize mock class."""
         del args, kwargs
 
-    def lookup_ioc(self, observable, ioc_type: str = None, **kwargs):
+    def lookup_ioc(
+        self, ioc=None, observable=None, ioc_type: Optional[str] = None, **kwargs
+    ):
         """Lookup fake TI."""
-        del kwargs
-        result_list = []
+        ioc = ioc or kwargs.get("observable")
+        result_list: List[Dict[str, Any]] = []
         for i in range(3):
             hit = random.randint(1, 10) > 5
 
             result_args = dict(
-                ioc=observable,
-                ioc_type=ioc_type,
-                query_subtype="mock",
-                provider="mockTI",
-                result=True,
-                severity=2 if hit else 0,
-                details=f"Details for {observable}",
-                raw_result=f"Raw details for {observable}",
+                Provider=f"TIProv-{i}",
+                Ioc=observable,
+                IocType=ioc_type,
+                QuerySubtype="mock",
+                Result=True,
+                Severity=2 if hit else 0,
+                Details=f"Details for {observable}",
+                RawResult=f"Raw details for {observable}",
             )
             if check_mp_version("2.0"):
                 result_args["sanitized_value"] = observable
             else:
-                result_args["safe_ioc"] = observable
-            result_list.append((f"TIProv{i}", LookupResult(**result_args)))
-        return True, result_list
+                result_args["SafeIoC"] = observable
+            result_list.append(result_args)
+        return pd.DataFrame(result_list)
 
-    def lookup_iocs(self, data, obs_col: str = None, **kwargs):
+    def lookup_iocs(self, data, obs_col: Optional[str] = None, **kwargs):
         """Lookup fake TI."""
         del kwargs
+        item_result: List[pd.DataFrame] = []
         if isinstance(data, dict):
-            for obs, ioc_type in data.items():
-                _, item_result = self.lookup_ioc(observable=obs, ioc_type=ioc_type)
+            item_result.extend(
+                self.lookup_ioc(observable=obs, ioc_type=ioc_type)
+                for obs, ioc_type in data.items()
+            )
         elif isinstance(data, pd.DataFrame):
-            for row in data.itertuples():
-                _, item_result = self.lookup_ioc(observable=row[obs_col])
+            item_result.extend(
+                self.lookup_ioc(observable=row[obs_col]) for row in data.itertuples()
+            )
         elif isinstance(data, list):
-            for obs in data:
-                _, item_result = self.lookup_ioc(observable=obs)
-        results = [pd.Series(attr.asdict(ti_result)) for _, ti_result in item_result]
-        return pd.DataFrame(data=results).rename(columns=LookupResult.column_map())
+            item_result.extend(self.lookup_ioc(observable=obs) for obs in data)
+        return pd.concat(item_result) if item_result else pd.DataFrame()
 
     @classmethod
     def result_to_df(cls, ioc_lookup):

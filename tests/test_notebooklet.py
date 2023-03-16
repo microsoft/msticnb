@@ -15,10 +15,10 @@ from lxml import etree  # nosec
 from markdown import markdown
 from msticpy.common.timespan import TimeSpan
 
-from msticnb import data_providers
+from msticnb import data_providers, init, nblts
 from msticnb.common import MsticnbDataProviderError
 from msticnb.nb.azsent.host.host_summary import HostSummaryResult
-from msticnb.read_modules import Notebooklet, nblts
+from msticnb.read_modules import Notebooklet
 
 from .nb_test import TstNBSummary
 from .unit_test_lib import GeoIPLiteMock
@@ -29,6 +29,7 @@ from .unit_test_lib import GeoIPLiteMock
 def test_notebooklet_create(monkeypatch):
     """Test method."""
     # Should run because required providers are loaded
+    init()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     data_providers.init(
         query_provider="LocalData", providers=["tilookup", "geolitelookup"]
@@ -49,6 +50,8 @@ def test_notebooklet_create(monkeypatch):
                 new_nblt = nblt()
                 check.is_instance(new_nblt, Notebooklet)
                 check.is_none(new_nblt.result)
+            except MsticnbDataProviderError:
+                raise
             finally:
                 nblt.metadata.req_providers = curr_provs
     check.is_in("bad_provider", err.value.args[0])

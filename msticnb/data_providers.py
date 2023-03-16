@@ -95,7 +95,7 @@ class DataProviders:
 
     def __init__(
         self,
-        query_provider: Union[str, QueryProvider] = "AzureSentinel",
+        query_provider: Union[str, QueryProvider] = "MSSentinel",
         providers: Optional[List[str]] = None,
         **kwargs,
     ):
@@ -107,7 +107,7 @@ class DataProviders:
         query_provider : Union[str, QueryProvider], optional
             DataEnvironment name of the primary query provider,
             or an instance of an existing query provider,
-            by default "AzureSentinel"
+            by default "MSSentinel"
         providers : Optional[List[str]], optional
             A list of provider names to load.
             You can add additional query providers by including them
@@ -432,7 +432,7 @@ class DataProviders:
 
         if not ws_config.config_loaded:
             raise MsticnbDataProviderError(
-                "Could not find valid Azure Sentinel configuration.",
+                "Could not find valid MS Sentinel configuration.",
                 "Please ensure configuration files are set correctly or supply",
                 "azure_sentinel.workspace_id and azure_sentinel.tenant_id",
                 "arguments to this class.",
@@ -441,7 +441,7 @@ class DataProviders:
 
 
 def init(
-    query_provider: str = "AzureSentinel",
+    query_provider: Union[str, QueryProvider] = "MSSentinel",
     providers: Optional[List[str]] = None,
     **kwargs,
 ):
@@ -450,10 +450,11 @@ def init(
 
     Parameters
     ----------
-    query_provider : str, optional
-        DataEnvironment name of the primary query provider.
-        By default, "AzureSentinel".
-        You can add addtional query providers by including them
+    query_provider : Union[str, QueryProvider], optional
+        DataEnvironment name of the primary query provider,
+        or an instance of an existing query provider,
+        by default "MSSentinel"
+        You can add additional query providers by including them
         in the `providers` list.
     providers : Optional[List[str]], optional
         A list of provider names, by default None

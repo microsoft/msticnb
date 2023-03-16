@@ -493,7 +493,9 @@ class Notebooklet(ABC):
         del fmt
         return "No documentation available."
 
-    def check_valid_result_data(self, attrib: str = None, silent: bool = False) -> bool:
+    def check_valid_result_data(
+        self, attrib: Optional[str] = None, silent: bool = False
+    ) -> bool:
         """
         Check that the result is valid and `attrib` contains data.
 

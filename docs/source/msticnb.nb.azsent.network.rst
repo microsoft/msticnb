@@ -1,25 +1,16 @@
-Network notebooklets
-====================
+msticnb.nb.azsent.network package
+=================================
 
-.. autosummary::
-   msticnb.nb.azsent.network.network_flow_summary
-   msticnb.nb.azsent.network.ip_summary
+.. automodule:: msticnb.nb.azsent.network
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Submodules
 ----------
 
-msticnb.nb.azsent.network.network\_flow\_summary module
--------------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: msticnb.nb.azsent.network.network_flow_summary
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.nb.azsent.network.ip\_summary module
--------------------------------------------------------
-
-.. automodule:: msticnb.nb.azsent.network.ip_summary
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   msticnb.nb.azsent.network.ip_summary
+   msticnb.nb.azsent.network.network_flow_summary

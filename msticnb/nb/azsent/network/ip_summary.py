@@ -12,14 +12,15 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from bokeh.plotting.figure import Figure
+from bokeh.models import LayoutDOM
 from msticpy.common.exceptions import MsticpyException
 from msticpy.common.timespan import TimeSpan
 from msticpy.datamodel.entities import GeoLocation, Host, IpAddress
 
 try:
     from msticpy import nbwidgets
-    from msticpy.context.ip_utils import get_ip_type, get_whois_info
+    from msticpy.context.ip_utils import get_ip_type
+    from msticpy.context.ip_utils import ip_whois as get_whois_info
     from msticpy.vis.timeline import display_timeline
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
@@ -91,7 +92,7 @@ class IpSummaryResult(NotebookletResult):
         VMComputer latest record
     az_network_flows : pd.DataFrame
         Azure NSG flows for IP, if available
-    az_network_flows_timeline: Figure
+    az_network_flows_timeline: LayoutDOM
         Azure NSG flows timeline, if data is available
     aad_signins : pd.DataFrame = None
         AAD signin activity
@@ -105,7 +106,7 @@ class IpSummaryResult(NotebookletResult):
         Common Security Log entries for source IP
     related_bookmarks : pd.DataFrame
         Bookmarks related to IP Address
-    alert_timeline : Figure
+    alert_timeline : LayoutDOM
         Timeline plot of alerts
     ti_results: pd.DataFrame
         Threat intel lookup results
@@ -164,7 +165,7 @@ class IpSummaryResult(NotebookletResult):
         self.vmcomputer: Optional[pd.DataFrame] = None
         self.az_network_flows: Optional[pd.DataFrame] = None
         self.az_network_flow_summary: Optional[pd.DataFrame] = None
-        self.az_network_flows_timeline: Figure = None
+        self.az_network_flows_timeline: Optional[LayoutDOM] = None
         self.aad_signins: Optional[pd.DataFrame] = None
         self.azure_activity: Optional[pd.DataFrame] = None
         self.azure_activity_summary: Optional[pd.DataFrame] = None
@@ -172,7 +173,7 @@ class IpSummaryResult(NotebookletResult):
         self.common_security: Optional[pd.DataFrame] = None
         self.related_alerts: Optional[pd.DataFrame] = None
         self.related_bookmarks: Optional[pd.DataFrame] = None
-        self.alert_timeline: Figure = None
+        self.alert_timeline: Optional[LayoutDOM] = None
         self.ti_results: Optional[pd.DataFrame] = None
         self.passive_dns: Optional[pd.DataFrame] = None
         self.host_logons: Optional[pd.DataFrame] = None
@@ -383,7 +384,7 @@ class IpAddressSummary(Notebooklet):
 
     def netflow_by_protocol(
         self,
-    ) -> Figure:
+    ) -> Optional[LayoutDOM]:
         """Display netflows grouped by protocol."""
         if not self.check_valid_result_data("az_network_flows"):
             return None
@@ -391,7 +392,7 @@ class IpAddressSummary(Notebooklet):
 
     def netflow_total_by_protocol(
         self,
-    ) -> Figure:
+    ) -> Optional[LayoutDOM]:
         """Display netflows grouped by protocol."""
         if not self.check_valid_result_data("az_network_flows"):
             return None
@@ -399,7 +400,7 @@ class IpAddressSummary(Notebooklet):
 
     def netflow_by_direction(
         self,
-    ) -> Figure:
+    ) -> Optional[LayoutDOM]:
         """Display netflows grouped by direction."""
         if not self.check_valid_result_data("az_network_flows"):
             return None
@@ -991,7 +992,7 @@ def _get_ti_data(ti_lookup, src_ip, result):
     nb_data_wait("Threat Intel")
     if not ti_lookup:
         return
-    ti_results = ti_lookup.lookup_ioc(observable=src_ip)
+    ti_results = ti_lookup.lookup_ioc(src_ip)
     result.ti_results = ti_lookup.result_to_df(ti_results)
     warn_ti_res = len(result.ti_results.query("Severity != 'information'"))
     if warn_ti_res:
@@ -1022,7 +1023,7 @@ def _get_passv_dns(ti_lookup, src_ip, result):
         return
     with suppress(MsticpyException):
         passv_dns = ti_lookup.lookup_ioc(
-            observable=src_ip,
+            src_ip,
             ioc_type="ipv4" if isinstance(ip_class, IPv4Address) else "ipv6",
             ioc_query_type="passivedns",
         )

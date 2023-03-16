@@ -8,6 +8,7 @@ import functools
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import bokeh.io
+import pandas as pd
 from IPython import get_ipython
 from IPython.display import HTML, display
 from markdown import markdown
@@ -133,8 +134,8 @@ def set_text(  # noqa: MC0001
     hd_level: int = 2,
     text: Optional[str] = None,
     md: bool = False,
-    docs: Dict[str, Any] = None,
-    key: str = None,
+    docs: Optional[Dict[str, Any]] = None,
+    key: Optional[str] = None,
 ):
     """
     Decorate function to print title/text before execution.
@@ -213,7 +214,7 @@ def add_result(result: Any, attr_name: Union[str, List[str]]):
     result : Any
         Object that will have result attributes set.
     attr_name: str or List[str]
-        Name of return attribute to set on `result`
+        Name of return attribute to set on `result`.
 
     Returns
     -------
@@ -289,3 +290,34 @@ def mp_version():
 def check_mp_version(required_version: str) -> bool:
     """Return true if the installed version is >= `required_version`."""
     return mp_version().major >= parse_version(required_version).major
+
+
+def check_current_result(
+    result, attrib: Optional[str] = None, silent: bool = False
+) -> bool:
+    """
+    Check that the result is valid and `attrib` contains data.
+
+    Parameters
+    ----------
+    result: NotebookletResult
+        The result data to check in.
+    attrib : str
+        Name of the attribute to check, if None this function
+    silent : bool
+        If True, suppress output.
+
+    Returns
+    -------
+    bool
+        Returns True if valid data is available, else False.
+
+    """
+    if not attrib:
+        return True
+    data_obj = getattr(result, attrib)
+    if data_obj is None or isinstance(data_obj, pd.DataFrame) and data_obj.empty:
+        if not silent:
+            nb_markdown(f"No data is available for {attrib}.")
+        return False
+    return True

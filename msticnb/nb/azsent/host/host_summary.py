@@ -5,12 +5,11 @@
 # --------------------------------------------------------------------------
 """Notebooklet for Host Summary."""
 from functools import lru_cache
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
 from azure.common.exceptions import CloudError
-from bokeh.models import LayoutDOM
-from bokeh.plotting.figure import Figure
+from IPython.display import display
 
 try:
     from msticpy import nbwidgets
@@ -21,7 +20,6 @@ except ImportError:
     from msticpy.nbtools.nbdisplay import display_timeline
 
 from msticpy.common.timespan import TimeSpan
-from msticpy.common.utility import md
 from msticpy.datamodel import entities
 
 from ...._version import VERSION
@@ -63,8 +61,6 @@ class HostSummaryResult(NotebookletResult):
     related_alerts : pd.DataFrame
         Pandas DataFrame of any alerts recorded for the host
         within the query time span.
-    alert_timeline:
-        Bokeh time plot of alerts recorded for host.
     related_bookmarks: pd.DataFrame
         Pandas DataFrame of any investigation bookmarks
         relating to the host.
@@ -96,7 +92,6 @@ class HostSummaryResult(NotebookletResult):
         super().__init__(description, timespan, notebooklet)
         self.host_entity: entities.Host = None
         self.related_alerts: Optional[pd.DataFrame] = None
-        self.alert_timeline: Union[LayoutDOM, Figure] = None
         self.related_bookmarks: Optional[pd.DataFrame] = None
         self.summary: Optional[pd.DataFrame] = None
         self.scheduled_tasks: Optional[pd.DataFrame] = None
@@ -129,7 +124,6 @@ class HostSummary(Notebooklet):
         super().__init__(*args, **kwargs)
 
     # pylint: disable=too-many-branches, too-many-statements
-    @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001
         self,
         value: Any = None,
@@ -195,7 +189,7 @@ class HostSummary(Notebooklet):
 
         host_verif = verify_host_name(self.query_provider, value, self.timespan)
         if host_verif.host_names:
-            md(f"Could not obtain unique host name from {value}. Aborting.")
+            nb_markdown(f"Could not obtain unique host name from {value}. Aborting.")
             self._last_result = result
             return self._last_result
         if not host_verif.host_name:
@@ -204,17 +198,17 @@ class HostSummary(Notebooklet):
                 + "Results may be unreliable.",
                 "orange",
             )
-            host_name = value
+            self.host_name = value
         else:
-            host_name = host_verif.host_name
+            self.host_name = host_verif.host_name
 
-        host_entity = entities.Host(HostName=host_name)
+        host_entity = entities.Host(HostName=self.host_name)
         if "heartbeat" in self.options:
-            host_entity = get_heartbeat(self.query_provider, host_name)
+            host_entity = get_heartbeat(self.query_provider, self.host_name)
         if "azure_net" in self.options:
-            host_entity = host_entity or entities.Host(HostName=host_name)
+            host_entity = host_entity or entities.Host(HostName=self.host_name)
             get_aznet_topology(
-                self.query_provider, host_entity=host_entity, host_name=host_name
+                self.query_provider, host_entity=host_entity, host_name=self.host_name
             )
         # If azure_details flag is set, an encrichment provider is given,
         # and the resource is an Azure host get resource details from Azure API
@@ -237,14 +231,10 @@ class HostSummary(Notebooklet):
 
         result.host_entity = host_entity
 
-        if not self.silent:
-            _show_host_entity(host_entity)
         if "alerts" in self.options:
             related_alerts = _get_related_alerts(
-                self.query_provider, self.timespan, host_name
+                self.query_provider, self.timespan, self.host_name
             )
-            if len(related_alerts) > 0:
-                result.alert_timeline = _show_alert_timeline(related_alerts)
             result.related_alerts = related_alerts
 
         if "bookmarks" in self.options:
@@ -308,20 +298,109 @@ class HostSummary(Notebooklet):
         )
 
         self._last_result = result
+
+        if not self.silent:
+            self._display_output()
+
         return self._last_result
+
+    @set_text(docs=_CELL_DOCS, key="show_host_entity")
+    def _display_entity(self):
+        """Display the host_entity output."""
+        if self.check_valid_result_data("host_entity", silent=True):
+            nb_print(self._last_result.host_entity)
+
+    @set_text(docs=_CELL_DOCS, key="run")
+    def _display_summary(self):
+        """Display the summary output."""
+        if self.check_valid_result_data("summary", silent=True):
+            display(self._last_result.summary)
+
+    @set_text(docs=_CELL_DOCS, key="show_bookmarks")
+    def _display_bookmarks(self):
+        """Display the bookmarks related to the host."""
+        if self.check_valid_result_data("related_bookmarks", silent=True):
+            display(self._last_result.related_bookmarks)
+        else:
+            nb_markdown(f"No Bookmarks related to {self.host_name}")
+
+    @set_text(docs=_CELL_DOCS, key="show_scheduled_tasks")
+    def _display_scheduled_tasks(self):
+        """Display the scheduled_tasks related to the host."""
+        if self.check_valid_result_data("scheduled_tasks", silent=True):
+            display(self._last_result.scheduled_tasks)
+        else:
+            nb_markdown(f"No scheduled tasks related to {self.host_name}")
+
+    @set_text(docs=_CELL_DOCS, key="show_account_actions")
+    def _display_account_actions(self):
+        """Display the account_actions related to the host."""
+        if self.check_valid_result_data("account_actions", silent=True):
+            display(self._last_result.account_actions)
+        else:
+            nb_markdown(f"No account actions related to {self.host_name}")
+
+    @set_text(docs=_CELL_DOCS, key="show_notable_events")
+    def _display_notable_events(self):
+        """Display the notable_events related to the host."""
+        if self.check_valid_result_data("notable_events", silent=True):
+            display(self._last_result.notable_events)
+        else:
+            nb_markdown(f"No notable events related to {self.host_name}")
+
+    @set_text(docs=_CELL_DOCS, key="show_processes")
+    def _display_processes(self):
+        """Display the processes related to the host."""
+        if self.check_valid_result_data("processes", silent=True):
+            nb_print(self._last_result.processes)
+        else:
+            nb_markdown(f"No processes related to {self.host_name}")
+
+    @set_text(docs=_CELL_DOCS, key="show_process_ti")
+    def _display_process_ti(self):
+        """Display the processes related to the host."""
+        if self.check_valid_result_data("process_ti", silent=True):
+            nb_print(self._last_result.process_ti)
+        else:
+            nb_markdown(f"No TI found in process data related to {self.host_name}")
+
+    def _display_output(self):
+        """Display all notebooklet sections."""
+        self._display_entity()
+        self._display_summary()
+        self._display_bookmarks()
+        self._display_scheduled_tasks()
+        self._display_account_actions()
+        self._display_notable_events()
+        self._display_process_ti()
+
+    def display_process_tree(self):
+        """Diplay a process tree from process data."""
+        if self.check_valid_result_data("processes", silent=True):
+            self._last_result.processes.mp_plot.process_tree()
 
     def browse_alerts(self) -> nbwidgets.SelectAlert:
         """Return alert browser/viewer."""
-        if self.check_valid_result_data("related_alerts"):
+        if self.check_valid_result_data("related_alerts", silent=True):
             return browse_alerts(self._last_result)
         return None
 
     def display_alert_timeline(self):
         """Display the alert timeline."""
-        if self.check_valid_result_data("related_alerts"):
+        if self.check_valid_result_data("related_alerts", silent=True):
             if len(self._last_result.related_alerts) > 1:
                 return _show_alert_timeline(self._last_result.related_alerts)
             print("Cannot plot timeline with 0 or 1 event.")
+        return None
+
+    def display_alert_summary(self):
+        """Display summarized view of alerts grouped by AlertName."""
+        if self.check_valid_result_data("related_alerts", silent=True):
+            return (
+                self.related_alerts[["AlertName", "TimeGenerated"]]
+                .groupby("AlertName")
+                .TimeGenerated.agg("count")
+            )
         return None
 
 
@@ -478,32 +557,10 @@ def _azure_api_details(az_cli, host_record):
 
 
 # %%
-# Get IP Information from Heartbeat
-@set_text(docs=_CELL_DOCS, key="show_host_entity")
-def _show_host_entity(host_entity):
-    nb_print(host_entity)
-
-
-# %%
 # Get related alerts
 @lru_cache()
 def _get_related_alerts(qry_prov, timespan, host_name):
-    related_alerts = qry_prov.SecurityAlert.list_related_alerts(
-        timespan, host_name=host_name
-    )
-
-    if not related_alerts.empty:
-        host_alert_items = (
-            related_alerts[["AlertName", "TimeGenerated"]]
-            .groupby("AlertName")
-            .TimeGenerated.agg("count")
-        )
-        nb_markdown(
-            f"Found {len(related_alerts)} related alerts ({len(host_alert_items)}) types"
-        )
-    else:
-        nb_markdown("No related alerts found.")
-    return related_alerts
+    return qry_prov.SecurityAlert.list_related_alerts(timespan, host_name=host_name)
 
 
 @set_text(docs=_CELL_DOCS, key="show_alert_timeline")
@@ -525,12 +582,6 @@ def _show_alert_timeline(related_alerts):
 @lru_cache()
 def _get_related_bookmarks(qry_prov, timespan, host_name):
     nb_data_wait("Bookmarks")
-    host_bkmks = qry_prov.AzureSentinel.list_bookmarks_for_entity(
+    return qry_prov.AzureSentinel.list_bookmarks_for_entity(
         timespan, entity_id=f"'{host_name}'"
     )
-
-    if not host_bkmks.empty:
-        nb_markdown(f"{len(host_bkmks)} investigation bookmarks found for this host.")
-    else:
-        nb_markdown("No bookmarks found.")
-    return host_bkmks

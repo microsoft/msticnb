@@ -26,12 +26,7 @@ except ImportError:
     from msticpy.nbtools.foliummap import FoliumMap
 
 from ...._version import VERSION
-from ....common import (
-    MsticnbMissingParameterError,
-    nb_data_wait,
-    nb_print,
-    set_text,
-)
+from ....common import MsticnbMissingParameterError, nb_data_wait, nb_print, set_text
 from ....nb_metadata import read_mod_metadata
 from ....nblib.azsent.host import verify_host_name
 from ....notebooklet import NBMetadata, Notebooklet, NotebookletResult
@@ -266,10 +261,10 @@ def _gen_timeline(data: pd.DataFrame, silent: bool):
 @set_text(docs=_CELL_DOCS, key="show_map")
 def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
     """Produce a map of source IP logon locations."""
-    map_data = data[data["IpAddress"].isin(["-", "::1", "", "NaN"]) == False]  # noqa: E712
+    map_data = data[~(data["IpAddress"].isin(["-", "::1", "", "NaN"]))]
     if not isinstance(map_data, pd.DataFrame) or map_data.empty:
         if not silent:
-            md("No plotable logins avaliable")
+            md("No plottable logins available")
         return None
     if not silent:
         display(
@@ -285,7 +280,7 @@ def _map_logons(data: pd.DataFrame, silent: bool) -> FoliumMap:
 
 @set_text(docs=_CELL_DOCS, key="show_pie")
 def _users_pie(data: pd.DataFrame, silent: bool) -> figure:
-    """Produce pie chart based on observence of user names in data."""
+    """Produce pie chart based on observance of user names in data."""
     output_notebook()
     user_logons = (
         data["Account"]
@@ -301,7 +296,7 @@ def _users_pie(data: pd.DataFrame, silent: bool) -> figure:
     user_logons["color"] = viridis(len(user_logons))
 
     viz = figure(
-        plot_height=350,
+        height=350,
         title="20 most prevelent users",
         toolbar_location=None,
         tools="hover",
@@ -369,7 +364,7 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
 
     viz = figure(
         x_range=processes,
-        plot_height=350,
+        height=350,
         title="Logon Result % by Logon Type",
         toolbar_location=None,
         tools="hover",
@@ -386,11 +381,11 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
     )
 
     viz.y_range.start = 0
-    viz.x_range.range_padding = 0.1
-    viz.xgrid.grid_line_color = None
+    viz.x_range.range_padding = 0.1  # type: ignore[attr-defined]
+    viz.xgrid.grid_line_color = None  # type: ignore[attr-defined]
     viz.axis.minor_tick_line_color = None
     viz.yaxis.axis_label = "% of logons"
-    viz.xaxis.axis_label = "Process name"
+    viz.xaxis.axis_label = "Process name"  # type: ignore[assignment]
     viz.outline_line_color = None
     viz.legend.location = "top_left"
     viz.legend.orientation = "horizontal"

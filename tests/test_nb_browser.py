@@ -4,12 +4,13 @@
 # license information.
 # --------------------------------------------------------------------------
 """NB metadata test class."""
-from msticnb import browse
+from msticnb import browse, init
 from msticnb.notebooklet import Notebooklet
 
 
 def test_nb_browse():
     """Test Notebooklet browser."""
+    init()
     browser = browse()
 
     nb_list = browser.nb_select.options

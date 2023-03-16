@@ -1,105 +1,35 @@
-Core modules and classes
-========================
+msticnb package
+===============
+
+.. automodule:: msticnb
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   msticnb.nb
+   msticnb.nblib
 
 Submodules
 ----------
 
-.. autosummary::
+.. toctree::
+   :maxdepth: 4
 
    msticnb.class_doc
    msticnb.common
    msticnb.data_providers
+   msticnb.data_viewers
    msticnb.nb_browser
+   msticnb.nb_metadata
+   msticnb.nb_pivot
    msticnb.notebooklet
+   msticnb.notebooklet_result
    msticnb.options
    msticnb.read_modules
-
-msticnb.class\_doc module
--------------------------
-
-.. automodule:: msticnb.class_doc
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.common module
----------------------
-
-.. automodule:: msticnb.common
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.data\_providers module
-------------------------------
-
-.. automodule:: msticnb.data_providers
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.nb\_browser module
---------------------------
-
-.. automodule:: msticnb.nb_browser
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.nb\_metadata module
----------------------------
-
-.. automodule:: msticnb.nb_metadata
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.notebooklet module
---------------------------
-
-.. automodule:: msticnb.notebooklet
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.notebooklet\_result module
-----------------------------------
-
-.. automodule:: msticnb.notebooklet_result
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.options module
-----------------------
-
-.. automodule:: msticnb.options
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.read\_modules module
-----------------------------
-
-.. automodule:: msticnb.read_modules
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.template module
------------------------
-
-.. automodule:: msticnb.template
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-msticnb.data\viewers module
----------------------------
-
-.. automodule:: msticnb.data_viewers
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
+   msticnb.template

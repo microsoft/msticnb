@@ -36,7 +36,7 @@ the code.
 from typing import Any, Dict, Iterable, Optional, Union
 
 import pandas as pd
-from bokeh.plotting.figure import Figure
+from bokeh.models import LayoutDOM
 
 try:
     from msticpy.vis.timeline import display_timeline
@@ -74,7 +74,7 @@ class CustomResult(NotebookletResult):
     ----------
     all_events : pd.DataFrame
         DataFrame of all raw events retrieved.
-    plot : bokeh.models.LayoutDOM
+    plot : bokeh.models.Optional[LayoutDOM]
         Bokeh plot figure showing the account events on an
         interactive timeline.
     additional_info: dict
@@ -88,7 +88,7 @@ class CustomResult(NotebookletResult):
     # Make sure they are documented in the Attributes section
     # above.
     all_events: pd.DataFrame = None
-    plot: Figure = None
+    plot: Optional[LayoutDOM] = None
     additional_info: Optional[dict] = None
 
 
@@ -242,6 +242,7 @@ class CustomNB(Notebooklet):
 
 # This section contains functions that do the work. It can be split into
 # cells recognized by some editors (like VSCode) but this is optional
+
 
 # %%
 # Get Windows Security Events

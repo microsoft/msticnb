@@ -11,7 +11,6 @@ from typing import Any, Dict, Iterable, Optional, Union
 import numpy as np
 import pandas as pd
 from bokeh.models import LayoutDOM
-from bokeh.plotting.figure import Figure
 from defusedxml import ElementTree
 from defusedxml.ElementTree import ParseError
 from IPython.display import display
@@ -61,7 +60,7 @@ class WinHostEventsResult(NotebookletResult):
     acct_pivot : pd.DataFrame
         DataFrame that is a pivot table of event ID
         vs. Account of account management events
-    account_timeline : Union[Figure, LayoutDOM]
+    account_timeline : Optional[LayoutDOM]
         Bokeh plot figure or Layout showing the account events on an
         interactive timeline.
     expanded_events : pd.DataFrame
@@ -95,7 +94,7 @@ class WinHostEventsResult(NotebookletResult):
         self.event_pivot: Optional[pd.DataFrame] = None
         self.account_events: Optional[pd.DataFrame] = None
         self.account_pivot: Optional[pd.DataFrame] = None
-        self.account_timeline: Union[Figure, LayoutDOM] = None
+        self.account_timeline: Optional[LayoutDOM] = None
         self.expanded_events: Optional[pd.DataFrame] = None
 
 

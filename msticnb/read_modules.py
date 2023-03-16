@@ -27,7 +27,7 @@ nblts: NBContainer = NBContainer()
 nb_index: Dict[str, Notebooklet] = {}
 
 
-def discover_modules(nb_path: Union[str, Iterable[str]] = None) -> NBContainer:
+def discover_modules(nb_path: Union[str, Iterable[str], None] = None) -> NBContainer:
     """
     Discover notebooks modules.
 

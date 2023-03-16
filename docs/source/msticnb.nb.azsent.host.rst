@@ -1,44 +1,19 @@
-Host notebooklets
-=================
+msticnb.nb.azsent.host package
+==============================
 
-.. autosummary::
-   msticnb.nb.azsent.host.host_logons_summary
-   msticnb.nb.azsent.host.host_network_summary
-   msticnb.nb.azsent.host.host_summary
-   msticnb.nb.azsent.host.win_host_events
+.. automodule:: msticnb.nb.azsent.host
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Submodules
 ----------
 
-msticnb.nb.azsent.host.host\_logons\_summary module
----------------------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: msticnb.nb.azsent.host.host_logons_summary
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.nb.azsent.host.host\_summary module
--------------------------------------------
-
-.. automodule:: msticnb.nb.azsent.host.host_summary
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.nb.azsent.host.host\_network_summary module
--------------------------------------------
-
-.. automodule:: msticnb.nb.azsent.host.host_network_summary
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-msticnb.nb.azsent.host.win\_host\_events module
------------------------------------------------
-
-.. automodule:: msticnb.nb.azsent.host.win_host_events
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
+   msticnb.nb.azsent.host.host_logons_summary
+   msticnb.nb.azsent.host.host_network_summary
+   msticnb.nb.azsent.host.host_summary
+   msticnb.nb.azsent.host.logon_session_rarity
+   msticnb.nb.azsent.host.win_host_events

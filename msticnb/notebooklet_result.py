@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 from bokeh.models import LayoutDOM
-from bokeh.plotting.figure import Figure
 from msticpy.common.timespan import TimeSpan
 
 from ._version import VERSION
@@ -100,7 +99,7 @@ class NotebookletResult(DFViewer):
         if isinstance(obj, pd.DataFrame):
             suffix = f"<br>(showing top 5 of {len(obj)} rows)" if len(obj) > 5 else ""
             return obj.head(5)._repr_html_() + suffix
-        if isinstance(obj, (LayoutDOM, Figure)):
+        if isinstance(obj, LayoutDOM):
             show_bokeh(obj)
         if hasattr(obj, "_repr_html_"):
             return obj._repr_html_()
@@ -186,8 +185,4 @@ class NotebookletResult(DFViewer):
 
     def vis_properties(self) -> List[str]:
         """Return list of properties with visualizations."""
-        return [
-            attr
-            for attr, val in vars(self).items()
-            if isinstance(val, (LayoutDOM, Figure))
-        ]
+        return [attr for attr, val in vars(self).items() if isinstance(val, LayoutDOM)]

@@ -38,7 +38,7 @@ the code.
 from typing import Any, Dict, Iterable, Optional, Union
 
 import pandas as pd
-from bokeh.plotting.figure import Figure
+from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
 
 try:
@@ -121,7 +121,7 @@ class TemplateResult(NotebookletResult):
         # Make sure they are documented in the Attributes section
         # above.
         self.all_events: Optional[pd.DataFrame] = None
-        self.plot: Figure = None
+        self.plot: Optional[LayoutDOM] = None
         self.additional_info: Optional[dict] = None
 
 
@@ -274,6 +274,7 @@ class TemplateNB(Notebooklet):
 
 # This section contains functions that do the work. It can be split into
 # cells recognized by some editors (like VSCode) but this is optional
+
 
 # %%
 # Get Windows Security Events

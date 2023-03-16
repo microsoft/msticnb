@@ -55,11 +55,8 @@ class AccountType(Flag):
     Office365 = auto()
     Windows = auto()
     Linux = auto()
-    Azure = (
-        AzureActiveDirectory
-        | AzureActivity
-        | Office365  # pylint:disable=unsupported-binary-operation
-    )
+    # pylint:disable=unsupported-binary-operation
+    Azure = AzureActiveDirectory | AzureActivity | Office365
     All = Azure | Windows | Linux  # pylint:disable=unsupported-binary-operation
 
     def in_list(self, acct_types: Iterable[Union["AccountType", str]]):
@@ -78,6 +75,7 @@ class AccountType(Flag):
 
 
 # pylint: enable=invalid-name
+
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
 class AccountSummaryResult(NotebookletResult):
@@ -520,6 +518,7 @@ class AccountSummary(Notebooklet):
 
 # pylint: disable=no-member
 
+
 # %%
 # Account Query functions
 def _df_clean(dataframe):
@@ -725,7 +724,6 @@ def _create_display_callback(
 def _create_account_entity(
     account_name, acct_type, acct_activity_dfs, geoip
 ) -> entities.Account:
-
     if acct_type == AccountType.Windows:
         acct_activity_df = acct_activity_dfs[AccountType.Windows]
         return _create_win_account_entity(account_name, acct_activity_df, geoip)
@@ -944,7 +942,7 @@ def _get_related_alerts_summary(related_alerts: pd.DataFrame):
     ]
 
     total_alerts = 0
-    for (name, count) in alert_items.items():
+    for name, count in alert_items.items():
         output.append(f"- {name}, # Alerts: {count}")
         total_alerts += count
 
