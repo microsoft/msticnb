@@ -9,7 +9,6 @@ from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
 from azure.common.exceptions import CloudError
-from bokeh.models import LayoutDOM
 from IPython.display import display
 
 try:
@@ -62,8 +61,6 @@ class HostSummaryResult(NotebookletResult):
     related_alerts : pd.DataFrame
         Pandas DataFrame of any alerts recorded for the host
         within the query time span.
-    alert_timeline:
-        Bokeh time plot of alerts recorded for host.
     related_bookmarks: pd.DataFrame
         Pandas DataFrame of any investigation bookmarks
         relating to the host.
@@ -95,7 +92,6 @@ class HostSummaryResult(NotebookletResult):
         super().__init__(description, timespan, notebooklet)
         self.host_entity: entities.Host = None
         self.related_alerts: Optional[pd.DataFrame] = None
-        self.alert_timeline: Optional[LayoutDOM] = None
         self.related_bookmarks: Optional[pd.DataFrame] = None
         self.summary: Optional[pd.DataFrame] = None
         self.scheduled_tasks: Optional[pd.DataFrame] = None
@@ -397,6 +393,16 @@ class HostSummary(Notebooklet):
             print("Cannot plot timeline with 0 or 1 event.")
         return None
 
+    def display_alert_summary(self):
+        """Display summarized view of alerts grouped by AlertName."""
+        if self.check_valid_result_data("related_alerts", silent=True):
+            return (
+                self.related_alerts[["AlertName", "TimeGenerated"]]
+                .groupby("AlertName")
+                .TimeGenerated.agg("count")
+            )
+        return None
+
 
 def _process_ti(data, col, ti_prov) -> Optional[pd.DataFrame]:
     extracted_iocs = extract_iocs(data, col, True)
@@ -554,17 +560,7 @@ def _azure_api_details(az_cli, host_record):
 # Get related alerts
 @lru_cache()
 def _get_related_alerts(qry_prov, timespan, host_name):
-    related_alerts = qry_prov.SecurityAlert.list_related_alerts(
-        timespan, host_name=host_name
-    )
-
-    if not related_alerts.empty:
-        return (
-            related_alerts[["AlertName", "TimeGenerated"]]
-            .groupby("AlertName")
-            .TimeGenerated.agg("count")
-        )
-    return related_alerts
+    return qry_prov.SecurityAlert.list_related_alerts(timespan, host_name=host_name)
 
 
 @set_text(docs=_CELL_DOCS, key="show_alert_timeline")

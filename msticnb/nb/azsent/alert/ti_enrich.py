@@ -317,13 +317,9 @@ def _lookup(row, ti_prov, secondary: bool = False):
         for entity in row["Entities"]:
             try:
                 if entity["Type"] in ("ipaddress", "ip"):
-                    resp = ti_prov.lookup_ioc(
-                        observable=entity["Address"], prov_scope=prov_scope
-                    )
+                    resp = ti_prov.lookup_ioc(entity["Address"], prov_scope=prov_scope)
                 elif entity["Type"] == "url":
-                    resp = ti_prov.lookup_ioc(
-                        observable=entity["Url"], prov_scope=prov_scope
-                    )
+                    resp = ti_prov.lookup_ioc(entity["Url"], prov_scope=prov_scope)
                 else:
                     resp = None
                 if resp:

@@ -992,7 +992,7 @@ def _get_ti_data(ti_lookup, src_ip, result):
     nb_data_wait("Threat Intel")
     if not ti_lookup:
         return
-    ti_results = ti_lookup.lookup_ioc(observable=src_ip)
+    ti_results = ti_lookup.lookup_ioc(src_ip)
     result.ti_results = ti_lookup.result_to_df(ti_results)
     warn_ti_res = len(result.ti_results.query("Severity != 'information'"))
     if warn_ti_res:
@@ -1023,7 +1023,7 @@ def _get_passv_dns(ti_lookup, src_ip, result):
         return
     with suppress(MsticpyException):
         passv_dns = ti_lookup.lookup_ioc(
-            observable=src_ip,
+            src_ip,
             ioc_type="ipv4" if isinstance(ip_class, IPv4Address) else "ipv6",
             ioc_query_type="passivedns",
         )

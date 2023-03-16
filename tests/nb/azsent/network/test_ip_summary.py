@@ -121,7 +121,6 @@ def test_ip_summary_notebooklet(
 ):
     """Test basic run of notebooklet."""
     test_nb = nblts.azsent.network.IpAddressSummary()
-    valid_tables = ["SigninLogs", "AzureActivity", "OfficeActivity"]
     # test_nb.query_provider.schema.update(
     #     {tab: {} for tab in DEF_PROV_TABLES + valid_tables}
     # )
@@ -129,9 +128,9 @@ def test_ip_summary_notebooklet(
     monkeypatch.setattr(test_nb.query_provider, "exec_query", eq_mock)
     mock_whois.return_value = whois_response["asn_response_1"]
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
-    respx.get(re.compile(r"https://otx\.alienvault\.com/.*")).respond(
-        200, json=_OTX_RESP
-    )
+    respx.get(
+        re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
+    ).respond(200, json=_OTX_RESP)
 
     tspan = TimeSpan(period="1D")
 
@@ -220,7 +219,15 @@ def test_ip_summary_notebooklet_all(
     monkeypatch.setattr(test_nb.query_provider, "exec_query", eq_mock)
     mock_whois.return_value = whois_response["asn_response_1"]
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
-
+    respx.get(
+        re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
+    ).respond(200, json=_OTX_RESP)
+    respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(
+        200, json=_OTX_RESP
+    )
+    respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
+        200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
+    )
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)
@@ -278,7 +285,9 @@ def test_ip_summary_mde_data(
     monkeypatch.setattr(test_nb.query_provider, "exec_query", eq_mock)
     mock_whois.return_value = whois_response["asn_response_1"]
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
-
+    respx.get(
+        re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
+    ).respond(200, json=_OTX_RESP)
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)

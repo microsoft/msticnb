@@ -43,6 +43,6 @@ def test_host_summary_notebooklet(init_notebooklets):
     check.is_not_none(result.host_entity)
     check.is_not_none(result.related_alerts)
     check.is_instance(result.related_alerts, pd.DataFrame)
-    check.is_not_none(result.alert_timeline)
+    check.is_not_none(result.display_alert_timeline())
     check.is_not_none(result.related_bookmarks)
     check.is_instance(result.related_bookmarks, pd.DataFrame)

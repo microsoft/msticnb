@@ -451,7 +451,7 @@ def _domain_whois_record(domain, ti_prov):
         # Identity domains popularity with Open Page Rank
         if "OPR" in ti_prov.loaded_providers:
             page_rank = ti_prov.result_to_df(
-                ti_prov.lookup_ioc(observable=domain, providers=["OPR"])
+                ti_prov.lookup_ioc(domain, providers=["OPR"])
             )
             if page_rank["RawResult"][0]:
                 page_rank_score = page_rank["RawResult"][0]["response"][0][
@@ -467,7 +467,7 @@ def _domain_whois_record(domain, ti_prov):
         # Get a list of subdomains for the domain
         if "VirusTotal" in ti_prov.loaded_providers:
             url_ti = ti_prov.result_to_df(
-                ti_prov.lookup_ioc(observable=domain, providers=["VirusTotal"])
+                ti_prov.lookup_ioc(domain, providers=["VirusTotal"])
             )
             try:
                 sub_doms = url_ti["RawResult"][0]["subdomains"]
@@ -539,7 +539,7 @@ def _process_tor_ip_record(ip_record, ti_prov):
     if "Tor" in ti_prov.loaded_providers:
         print(ti_prov.loaded_providers)
         tor = ti_prov.result_to_df(
-            ti_prov.lookup_ioc(observable=ip_record["IP Address"][0], providers=["Tor"])
+            ti_prov.lookup_ioc(ip_record["IP Address"][0], providers=["Tor"])
         )
     if tor is None or tor["Details"][0] == "Not found.":
         ip_record["Tor Node?"] = "No"
@@ -552,9 +552,7 @@ def _process_previous_resolutions(ip_record, ti_prov):
     """Get previous resolutions for IP in ip_record."""
     if "VirusTotal" in ti_prov.loaded_providers:
         ip_ti_results = ti_prov.result_to_df(
-            ti_prov.lookup_ioc(
-                observable=ip_record["IP Address"][0], providers=["VirusTotal"]
-            )
+            ti_prov.lookup_ioc(ip_record["IP Address"][0], providers=["VirusTotal"])
         )
         try:
             last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
