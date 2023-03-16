@@ -36,6 +36,22 @@ if not sys.platform.startswith("win"):
     )
 
 
+@pytest.fixture
+def init_notebooklets(monkeypatch):
+    """Initialize notebooklets."""
+    test_data = str(Path(TEST_DATA_PATH).absolute())
+
+    discover_modules()
+    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    data_providers.init(
+        query_provider="LocalData",
+        LocalData_data_paths=[test_data],
+        LocalData_query_paths=[test_data],
+        providers=["tilookup", "geolitelookup"],
+    )
+
+
 @pytest.fixture(scope="session")
 def whois_response():
     """Return mock responses for Whois."""
@@ -57,7 +73,7 @@ def rdap_response():
 @respx.mock
 @patch("msticpy.context.ip_utils._asn_whois_query")
 def test_network_flow_summary_notebooklet(
-    mock_whois, monkeypatch, rdap_response, whois_response
+    mock_whois, monkeypatch, init_notebooklets, rdap_response, whois_response
 ):
     """Test basic run of notebooklet."""
     discover_modules()
