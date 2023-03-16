@@ -16,6 +16,7 @@ import pytest_check as check
 import respx
 from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
+from msticpy.vis import foliummap
 
 from msticnb import data_providers, discover_modules, nblts
 
@@ -43,6 +44,7 @@ def init_notebooklets(monkeypatch):
 
     discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(foliummap, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     data_providers.init(
         query_provider="LocalData",
@@ -73,19 +75,19 @@ def rdap_response():
 @respx.mock
 @patch("msticpy.context.ip_utils._asn_whois_query")
 def test_network_flow_summary_notebooklet(
-    mock_whois, monkeypatch, init_notebooklets, rdap_response, whois_response
+    mock_whois, init_notebooklets, rdap_response, whois_response
 ):
     """Test basic run of notebooklet."""
-    discover_modules()
-    test_data = str(Path(TEST_DATA_PATH).absolute())
+    # discover_modules()
+    # test_data = str(Path(TEST_DATA_PATH).absolute())
     mock_whois.return_value = whois_response["asn_response_1"]
-    monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
-    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
-    data_providers.init(
-        query_provider="LocalData",
-        LocalData_data_paths=[test_data],
-        LocalData_query_paths=[test_data],
-    )
+    # monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    # monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    # data_providers.init(
+    #     query_provider="LocalData",
+    #     LocalData_data_paths=[test_data],
+    #     LocalData_query_paths=[test_data],
+    # )
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
 
     test_nb = nblts.azsent.network.NetworkFlowSummary()
