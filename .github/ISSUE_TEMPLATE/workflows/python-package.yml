@@ -71,7 +71,7 @@ jobs:
         env:
           MAXMIND_AUTH: DUMMY_KEY
           IPSTACK_AUTH: DUMMY_KEY
-          MSTICPYCONFIG: ./tests/testdata/msticpyconfig-test.yaml
+          MSTICPYCONFIG: ./tests/msticpyconfig-test.yaml
           MSTICPY_BUILD_SOURCE: fork
         run: |
           pytest tests -n auto --junitxml=junit/test-${{ matrix.python-version }}-results.xml --cov=msticnb --cov-report=xml
