@@ -4533,8 +4533,8 @@ Three sections:
     @set_text(docs=_CELL_DOCS, key="display_event_pivot")
     def _display_event_pivot(event_pivot):
         display(
-            event_pivot.style.applymap(lambda x: "color: white" if x == 0 else "")
-            .applymap(
+            event_pivot.style.map(lambda x: "color: white" if x == 0 else "")
+            .map(
                 lambda x: "background-color: lightblue"
                 if not isinstance(x, str) and x > 0
                 else ""
@@ -4656,8 +4656,8 @@ Three sections:
     @set_text(docs=_CELL_DOCS, key="display_acct_event_pivot")
     def _display_acct_event_pivot(event_pivot_df):
         display(
-            event_pivot_df.style.applymap(lambda x: "color: white" if x == 0 else "")
-            .applymap(
+            event_pivot_df.style.map(lambda x: "color: white" if x == 0 else "")
+            .map(
                 lambda x: "background-color: lightblue"
                 if not isinstance(x, str) and x > 0
                 else ""

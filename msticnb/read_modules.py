@@ -24,7 +24,8 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 nblts: NBContainer = NBContainer()
-nb_index: Dict[str, Notebooklet] = {}
+# index of notebooklets classes by full path
+nb_index: Dict[str, type] = {}
 
 
 def discover_modules(nb_path: Union[str, Iterable[str], None] = None) -> NBContainer:
@@ -96,7 +97,7 @@ def _import_from_folder(nb_folder: Path, pkg_folder: Path):
             nb_index[cls_index] = nb_class
 
 
-def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
+def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, type]:
     """
     Import .py files in `folder` and return any Notebooklet classes found.
 
@@ -109,7 +110,7 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
 
     Returns
     -------
-    Dict[str, Notebooklet]
+    Dict[str, type(Notebooklet)]
         Notebooklets classes (name, class)
 
     """
@@ -144,7 +145,7 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Notebooklet]:
                     # We need to store the path of the parent module in the class
                     # - this makes it easier to retrieve when we need it for
                     # reading metadata and generating the class docs.
-                    mod_class.module_path = item
+                    mod_class.module_path = str(item)
                     # create a function (pointer) in the class that will
                     # build and return our extended class documentation
                     setattr(

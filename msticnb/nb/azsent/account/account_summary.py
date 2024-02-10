@@ -76,6 +76,8 @@ class AccountType(Flag):
 
 # pylint: enable=invalid-name
 
+# pylint: disable=no-member
+
 
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
 class AccountSummaryResult(NotebookletResult):
