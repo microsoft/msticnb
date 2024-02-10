@@ -35,6 +35,12 @@ def init_notebooklets(monkeypatch):
 
 def test_logon_session_rarity_notebooklet(init_notebooklets):
     """Test basic run of notebooklet."""
+    try:
+        # pylint: disable=import-outside-toplevel, unused-import
+        import sklearn
+        import matplotlib
+    except ImportError:
+        pytest.skip("sklearn and matplotlib required for this test")
     d_path = Path(TEST_DATA_PATH).joinpath("processes_on_host.pkl")
     raw_data = pd.read_pickle(d_path)
     filt_sess = raw_data[raw_data["Account"] == "MSTICAlertsWin1\\MSTICAdmin"]
