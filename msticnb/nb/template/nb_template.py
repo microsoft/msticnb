@@ -294,7 +294,7 @@ def _get_all_events(qry_prov, host_name, timespan):
     del qry_prov, host_name, timespan
     return pd.DataFrame(
         {
-            "TimeGenerated": pd.date_range("2022-01-01", periods=5, tz="utc", freq="H"),
+            "TimeGenerated": pd.date_range("2022-01-01", periods=5, tz="utc", freq="h"),
             "EventID": [4688, 4688, 4625, 4624, 4624],
             "Computer": ["MyHost.dom"] * 5,
             "Account": [f"user{n}" for n in range(5)],

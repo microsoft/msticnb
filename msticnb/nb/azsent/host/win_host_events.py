@@ -6,6 +6,7 @@
 """Notebooklet for Windows Security Events."""
 import os
 import pkgutil
+from io import StringIO
 from typing import Any, Dict, Iterable, Optional, Union
 
 import numpy as np
@@ -281,8 +282,8 @@ def _get_win_security_events(qry_prov, host_name, timespan):
 @set_text(docs=_CELL_DOCS, key="display_event_pivot")
 def _display_event_pivot(event_pivot):
     display(
-        event_pivot.style.applymap(lambda x: "color: white" if x == 0 else "")
-        .applymap(
+        event_pivot.style.map(lambda x: "color: white" if x == 0 else "")
+        .map(
             lambda x: "background-color: lightblue"
             if not isinstance(x, str) and x > 0
             else ""
@@ -332,6 +333,7 @@ def _expand_event_properties(input_df):
             right_index=True,
         )
         .replace("", np.nan)  # these 3 lines get rid of blank columns
+        .infer_objects(copy=False)
         .dropna(axis=1, how="all")
         .fillna("")
     )
@@ -364,7 +366,7 @@ def _extract_acct_mgmt_events(event_data):
 
     w_evt = pkgutil.get_data("msticpy", f"resources{os.sep}WinSecurityEvent.json")
 
-    win_event_df = pd.read_json(w_evt.decode("utf-8"))
+    win_event_df = pd.read_json(StringIO(w_evt.decode("utf-8")))
 
     # Create criteria for events that we're interested in
     acct_sel = win_event_df["subcategory"] == "User Account Management"
@@ -407,8 +409,8 @@ def _create_acct_event_pivot(account_event_data):
 @set_text(docs=_CELL_DOCS, key="display_acct_event_pivot")
 def _display_acct_event_pivot(event_pivot_df):
     display(
-        event_pivot_df.style.applymap(lambda x: "color: white" if x == 0 else "")
-        .applymap(
+        event_pivot_df.style.map(lambda x: "color: white" if x == 0 else "")
+        .map(
             lambda x: "background-color: lightblue"
             if not isinstance(x, str) and x > 0
             else ""
