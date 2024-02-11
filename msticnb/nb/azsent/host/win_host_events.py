@@ -333,6 +333,7 @@ def _expand_event_properties(input_df):
             right_index=True,
         )
         .replace("", np.nan)  # these 3 lines get rid of blank columns
+        .infer_objects(copy=False)
         .dropna(axis=1, how="all")
         .fillna("")
     )

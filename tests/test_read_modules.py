@@ -35,7 +35,7 @@ def test_read_modules():
 
 def test_read_custom_path():
     """Test method."""
-    cust_nb_path = Path(TEST_DATA_PATH) / "custom_nb"
+    cust_nb_path = Path(TEST_DATA_PATH).parent / "custom_nb"
     nbklts = discover_modules(nb_path=str(cust_nb_path))
     check.greater_equal(len(list(nbklts.iter_classes())), 5)
 
