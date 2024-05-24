@@ -1,13 +1,12 @@
-bokeh<3.0.0
+bokeh>=1.4.0, <3.4.0
 defusedxml>=0.6.0
 ipython>=7.23.1
 ipywidgets>=7.5.1
 lxml>=4.4.2
 Markdown>=3.2.1
-msticpy[azure]==2.3.1
+msticpy[azure]>=2.3.1
 numpy>=1.17.3
 pandas>=0.25.3
 python-dateutil>=2.8.1
 tqdm>=4.41.1
-python-whois>=0.7.3
 tldextract>=3.3.0
