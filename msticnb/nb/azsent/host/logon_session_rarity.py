@@ -9,6 +9,8 @@ from typing import Any, Dict, Iterable, Optional
 import pandas as pd
 from msticpy.analysis.eventcluster import char_ord_score, dbcluster_events, delim_count
 from msticpy.common.timespan import TimeSpan
+
+# pylint: disable=unused-import
 from msticpy.init import mp_pandas_accessors  # noqa: F401
 
 try:

@@ -163,6 +163,10 @@ class HostNetworkSummary(Notebooklet):
             qry_prov=self.query_provider,
             timespan=self.timespan,
         )
+        if result.flows is None:
+            nb_markdown("No network flow data found.")
+            self._last_result = result
+            return self._last_result
 
         remote_ip_col = "RemoteIP"
         local_ip_col = "LocalIP"

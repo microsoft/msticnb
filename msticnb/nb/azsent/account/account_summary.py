@@ -140,17 +140,17 @@ class AccountSummaryResult(NotebookletResult):
         self.description: str = "Account Activity Summary"
         self.account_entity: entities.Account = None
         self.account_activity: Optional[pd.DataFrame] = None
-        self.account_selector: nbwidgets.SelectItem = None
+        self.account_selector: Optional[nbwidgets.SelectItem] = None
         self.related_alerts: Optional[pd.DataFrame] = None
-        self.alert_timeline: LayoutDOM = None
+        self.alert_timeline: Optional[LayoutDOM] = None
         self.related_bookmarks: Optional[pd.DataFrame] = None
         self.host_logons: Optional[pd.DataFrame] = None
         self.host_logon_summary: Optional[pd.DataFrame] = None
         self.azure_activity: Optional[pd.DataFrame] = None
         self.azure_activity_summary: Optional[pd.DataFrame] = None
-        self.azure_timeline_by_provider: LayoutDOM = None
-        self.account_timeline_by_ip: LayoutDOM = None
-        self.azure_timeline_by_operation: LayoutDOM = None
+        self.azure_timeline_by_provider: Optional[LayoutDOM] = None
+        self.account_timeline_by_ip: Optional[LayoutDOM] = None
+        self.azure_timeline_by_operation: Optional[LayoutDOM] = None
         self.ip_summary: Optional[pd.DataFrame] = None
         self.ip_all_data: Optional[pd.DataFrame] = None
 

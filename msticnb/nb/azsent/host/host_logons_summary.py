@@ -380,13 +380,13 @@ def _process_stack_bar(data: pd.DataFrame, silent: bool) -> figure:
         legend_label=results,
     )
 
-    viz.y_range.start = 0
+    viz.y_range.start = 0  # type: ignore[attr-defined]
     viz.x_range.range_padding = 0.1  # type: ignore[attr-defined]
     viz.xgrid.grid_line_color = None  # type: ignore[attr-defined]
     viz.axis.minor_tick_line_color = None
     viz.yaxis.axis_label = "% of logons"
     viz.xaxis.axis_label = "Process name"  # type: ignore[assignment]
-    viz.outline_line_color = None
+    viz.outline_line_color = None  # type: ignore[assignment]
     viz.legend.location = "top_left"
     viz.legend.orientation = "horizontal"
 

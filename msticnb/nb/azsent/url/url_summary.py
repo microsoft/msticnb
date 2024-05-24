@@ -162,7 +162,9 @@ class URLSummary(Notebooklet):
             self._last_result = result
 
         self.url = value.strip().lower()
-        _, domain, tld = tldextract.extract(self.url)
+        domain: str
+        tld: str
+        _, domain, tld = tldextract.extract(self.url)  # type: ignore
         domain = f"{domain.lower()}.{tld.lower()}"
         domain_validator = DomainValidator()
         validated = domain_validator.validate_tld(domain)
