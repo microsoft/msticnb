@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, Optional
 import pandas as pd
 from msticpy.analysis.eventcluster import char_ord_score, dbcluster_events, delim_count
 from msticpy.common.timespan import TimeSpan
+from msticpy.init import mp_pandas_accessors  # noqa: F401
 
 try:
     from msticpy import nbwidgets
@@ -252,13 +253,21 @@ class LogonSessionsRarity(Notebooklet):
                 acct_col = self.column_map.get(COL_ACCT)
                 data = self._last_result.processes_with_cluster
                 data = data[data[acct_col] == account]
-                data.mp_plot.process_tree(legend_col="Rarity")
+                proc_tree_data = data.mp.build_process_tree()
+                proc_tree_data["Rarity"] = pd.to_numeric(
+                    proc_tree_data["Rarity"], errors="coerce"
+                ).fillna(0)
+                proc_tree_data.mp_plot.process_tree(legend_col="Rarity")
                 return
             session = session or self._event_browser.value
             sess_col = self.column_map.get(COL_SESS)
             data = self._last_result.processes_with_cluster
             data = data[data[sess_col] == session]
-            data.mp_plot.process_tree(legend_col="Rarity")
+            proc_tree_data = data.mp.build_process_tree()
+            proc_tree_data["Rarity"] = pd.to_numeric(
+                proc_tree_data["Rarity"], errors="coerce"
+            ).fillna(0)
+            proc_tree_data.mp_plot.process_tree(legend_col="Rarity")
 
     def browse_events(self):
         """Browse the events by logon session."""
