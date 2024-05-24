@@ -109,7 +109,7 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Type[Notebook
 
     Returns
     -------
-    Dict[str, Notebooklet]
+    Dict[str, type(Notebooklet)]
         Notebooklets classes (name, class)
 
     """
@@ -144,7 +144,7 @@ def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Type[Notebook
                     # We need to store the path of the parent module in the class
                     # - this makes it easier to retrieve when we need it for
                     # reading metadata and generating the class docs.
-                    mod_class.module_path = item
+                    mod_class.module_path = str(item)
                     # create a function (pointer) in the class that will
                     # build and return our extended class documentation
                     setattr(

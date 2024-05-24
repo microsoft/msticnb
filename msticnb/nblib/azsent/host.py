@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
 from msticpy.common.timespan import TimeSpan
-from msticpy.data import QueryProvider
+from msticpy.data import QueryProvider  # pylint: disable=no-name-in-module
 from msticpy.datamodel import entities
 
 from ..._version import VERSION

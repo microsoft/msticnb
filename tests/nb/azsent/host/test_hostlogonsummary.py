@@ -61,6 +61,7 @@ def test_local_data(monkeypatch):
     """Test nblt output types and values using LocalData provider."""
     test_data = str(Path.cwd().joinpath(TEST_DATA_PATH))
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    discover_modules()
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],

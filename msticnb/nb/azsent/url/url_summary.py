@@ -6,7 +6,7 @@
 """Notebooklet for URL Summary."""
 from collections import Counter
 from os.path import exists
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple, cast
 
 import dns.resolver
 import numpy as np
@@ -162,9 +162,8 @@ class URLSummary(Notebooklet):
             self._last_result = result
 
         self.url = value.strip().lower()
-        domain: str
-        tld: str
-        _, domain, tld = tldextract.extract(self.url)  # type: ignore
+
+        _, domain, tld = cast(Tuple[Any, str, str], tldextract.extract(self.url))  # type: ignore
         domain = f"{domain.lower()}.{tld.lower()}"
         domain_validator = DomainValidator()
         validated = domain_validator.validate_tld(domain)
@@ -286,7 +285,7 @@ class URLSummary(Notebooklet):
         """Display Domain Record."""
         if self.check_valid_result_data("domain_record", silent=True):
             display(
-                self._last_result.domain_record.T.style.applymap(  # type: ignore
+                self._last_result.domain_record.T.style.map(  # type: ignore
                     color_domain_record_cells,
                     subset=pd.IndexSlice[["Page Rank", "Domain Name Entropy"], 0],
                 )
@@ -487,6 +486,7 @@ def _domain_whois_record(domain, ti_prov):
 
         # Remove duplicate Name Server records
         for server in whois_result["name_servers"]:
+            # pylint: disable=unpacking-non-sequence
             _, ns_domain, ns_tld = tldextract.extract(server)
             ns_dom = ns_domain.lower() + "." + ns_tld.lower()
             if domain not in ns_domains:
