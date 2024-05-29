@@ -13,15 +13,16 @@ import numpy as np
 import pandas as pd
 import tldextract
 from IPython.display import Image, display
-from whois import whois  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
     from msticpy import nbwidgets
     from msticpy.context.domain_utils import DomainValidator, screenshot
+    from msticpy.context.ip_utils import ip_whois as whois
     from msticpy.vis.timeline import display_timeline, display_timeline_values
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
+    from whois import whois  # type: ignore
     from msticpy.sectools.domain_utils import DomainValidator, screenshot
     from msticpy.nbtools import nbwidgets
     from msticpy.nbtools.nbdisplay import display_timeline, display_timeline_values
@@ -95,7 +96,7 @@ class URLSummary(Notebooklet):
 
     # pylint: disable=too-many-branches, too-many-locals, too-many-statements
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
-    def run(  # noqa:MC0001
+    def run(  # noqa:MC0001, C901
         self,
         value: Any = None,
         data: Optional[pd.DataFrame] = None,
@@ -161,6 +162,7 @@ class URLSummary(Notebooklet):
             self._last_result = result
 
         self.url = value.strip().lower()
+
         _, domain, tld = cast(Tuple[Any, str, str], tldextract.extract(self.url))  # type: ignore
         domain = f"{domain.lower()}.{tld.lower()}"
         domain_validator = DomainValidator()

@@ -18,7 +18,7 @@ try:
     from msticpy.vis.foliummap import FoliumMap
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
-    from msticpy.nbtools.foliummap import FoliumMap
+    from msticpy.nbtools.foliummap import FoliumMap  # noqa: F401
 
 from msticnb import data_providers, discover_modules, nblts
 

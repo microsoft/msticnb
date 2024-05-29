@@ -4,7 +4,7 @@
 # license information.
 # --------------------------------------------------------------------------
 """Threat Intelligence notebooklet feature support."""
-from typing import Any, Tuple, Optional
+from typing import Any, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -81,36 +81,36 @@ def extract_iocs(
             )
             b64_iocs = b64_extracted.mp_ioc.extract(columns=["decoded_string"])
             b64_iocs["SourceIndex"] = pd.to_numeric(b64_iocs["SourceIndex"])
-            data_b64_iocs = pd.merge(
+            data = pd.merge(
                 left=data,
                 right=b64_iocs,
                 how="outer",
                 left_index=True,
                 right_on="SourceIndex",
             )
-        else:
-            data_b64_iocs = data
-    other_iocs = data_b64_iocs.mp_ioc.extract(columns=[col])
-    all_data_w_iocs = pd.merge(
-        left=data_b64_iocs,
-        right=other_iocs,
+
+    iocs = data.mp_ioc.extract(columns=[col])
+    data = pd.merge(
+        left=data,
+        right=iocs,
         how="outer",
         left_index=True,
         right_on="SourceIndex",
     )
-    if "Observable_x" in all_data_w_iocs.columns:
-        all_data_w_iocs["IoC"] = np.where(
-            all_data_w_iocs["Observable_x"].isna(),
-            all_data_w_iocs["Observable_y"],
-            all_data_w_iocs["Observable_x"],
+
+    if "Observable_x" in data.columns:
+        data["IoC"] = np.where(
+            data["Observable_x"].isna(),
+            data["Observable_y"],
+            data["Observable_x"],
         )
-        all_data_w_iocs["IoCType"] = np.where(
-            all_data_w_iocs["IoCType_x"].isna(),
-            all_data_w_iocs["IoCType_y"],
-            all_data_w_iocs["IoCType_x"],
+        data["IoCType"] = np.where(
+            data["IoCType_x"].isna(),
+            data["IoCType_y"],
+            data["IoCType_x"],
         )
-        all_data_w_iocs["IoC"] = all_data_w_iocs["IoC"].astype("str")
+        data["IoC"] = data["IoC"].astype("str")
     else:
-        all_data_w_iocs["IoC"] = all_data_w_iocs["Observable"].astype("str")
-    all_data_w_iocs["IoCType"] = all_data_w_iocs["IoCType"].astype("str")
-    return all_data_w_iocs
+        data["IoC"] = data["Observable"].astype("str")
+    data["IoCType"] = data["IoCType"].astype("str")
+    return data

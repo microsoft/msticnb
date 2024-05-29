@@ -11,7 +11,7 @@ from collections import namedtuple
 from functools import partial
 from operator import itemgetter
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Type, Union
 from warnings import warn
 
 from . import nb
@@ -24,8 +24,7 @@ __version__ = VERSION
 __author__ = "Ian Hellen"
 
 nblts: NBContainer = NBContainer()
-# index of notebooklets classes by full path
-nb_index: Dict[str, type] = {}
+nb_index: Dict[str, Type[Notebooklet]] = {}
 
 
 def discover_modules(nb_path: Union[str, Iterable[str], None] = None) -> NBContainer:
@@ -97,7 +96,7 @@ def _import_from_folder(nb_folder: Path, pkg_folder: Path):
             nb_index[cls_index] = nb_class
 
 
-def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, type]:
+def _find_cls_modules(folder: Path, pkg_folder: Path) -> Dict[str, Type[Notebooklet]]:
     """
     Import .py files in `folder` and return any Notebooklet classes found.
 

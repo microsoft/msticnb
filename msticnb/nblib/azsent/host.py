@@ -102,7 +102,7 @@ HostNameVerif = namedtuple("HostNameVerif", "host_name, host_type, host_names")
 
 
 @lru_cache()  # noqa:MC0001
-def verify_host_name(  # noqa: MC0001
+def verify_host_name(  # noqa: MC0001, C901
     qry_prov: QueryProvider, host_name: str, timespan: TimeSpan = None, **kwargs
 ) -> HostNameVerif:
     """

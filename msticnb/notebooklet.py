@@ -9,7 +9,8 @@ import re
 import warnings
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from IPython.core.getipython import get_ipython
@@ -35,7 +36,7 @@ class Notebooklet(ABC):
     metadata: NBMetadata = NBMetadata(
         name="Notebooklet", description="Base class", default_options=[]
     )
-    module_path = ""
+    module_path: Union[str, Path] = ""
 
     def __init__(self, data_providers: Optional[DataProviders] = None, **kwargs):
         """
