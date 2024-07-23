@@ -86,7 +86,7 @@ class HostNetworkSummary(Notebooklet):
 
     # pylint: disable=too-many-branches
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
-    def run(  # noqa:MC0001
+    def run(  # noqa:MC0001, C901
         self,
         value: Any = None,
         data: Optional[pd.DataFrame] = None,
@@ -163,6 +163,10 @@ class HostNetworkSummary(Notebooklet):
             qry_prov=self.query_provider,
             timespan=self.timespan,
         )
+        if result.flows is None:
+            nb_markdown("No network flow data found.")
+            self._last_result = result
+            return self._last_result
 
         remote_ip_col = "RemoteIP"
         local_ip_col = "LocalIP"
@@ -239,7 +243,7 @@ class HostNetworkSummary(Notebooklet):
 
 
 @lru_cache()
-def _get_host_flows(host_name, ip_addr, qry_prov, timespan) -> pd.DataFrame:
+def _get_host_flows(host_name, ip_addr, qry_prov, timespan) -> Optional[pd.DataFrame]:
     if host_name:
         nb_data_wait("Host flow events")
         host_flows = qry_prov.MDE.host_connections(timespan, host_name=host_name)
@@ -254,6 +258,8 @@ def _get_host_flows(host_name, ip_addr, qry_prov, timespan) -> pd.DataFrame:
         host_flows_csl = qry_prov.Network.ip_network_connections_csl(
             timespan, ip=ip_addr
         )
+    else:
+        return None
     return pd.concat([host_flows, host_flows_csl], sort=False)
 
 

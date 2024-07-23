@@ -18,7 +18,7 @@ try:
     from msticpy.vis.foliummap import FoliumMap
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
-    from msticpy.nbtools.foliummap import FoliumMap
+    from msticpy.nbtools.foliummap import FoliumMap  # noqa: F401
 
 from msticnb import data_providers, discover_modules, nblts
 
@@ -61,6 +61,7 @@ def test_local_data(monkeypatch):
     """Test nblt output types and values using LocalData provider."""
     test_data = str(Path.cwd().joinpath(TEST_DATA_PATH))
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    discover_modules()
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],

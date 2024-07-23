@@ -14,26 +14,17 @@ repos:
         args:
           - -t
           - py36
-  - repo: https://github.com/PyCQA/pylint
-    rev: v3.2.4
-    hooks:
-      - id: pylint
-        args:
-          - --disable=E0401,W0511,duplicate-code
-          - --ignore-patterns=test_
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-        args:
-          - --extend-ignore=E0401,E501,W503
-          - --max-line-length=90
-          - --exclude=tests,test*.py
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 5.12.0
     hooks:
       - id: isort
         name: isort (python)
         args:
           - --profile
           - black
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.4.5
+    hooks:
+      # Run the linter.
+      - id: ruff

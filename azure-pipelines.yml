@@ -48,7 +48,7 @@ stages:
       condition: succeededOrFailed()
       displayName: pytest
       env:
-        MSTICPYCONFIG: $(Build.SourcesDirectory)/tests/testdata/msticpyconfig-test.yaml
+        MSTICPYCONFIG: $(Build.SourcesDirectory)/tests/msticpyconfig-test.yaml
         MAXMIND_AUTH: $(maxmind_auth)
         IPSTACK_AUTH: $(ipstack_auth)
         MSTICPY_TEST_NOSKIP: 1
@@ -119,7 +119,7 @@ stages:
     pool:
       vmImage: windows-latest
     variables:
-      python.version: '3.6'
+      python.version: '3.10'
     steps:
     - task: CredScan@2
       displayName: 'Run CredScan'

@@ -136,6 +136,7 @@ def test_ip_summary_notebooklet(
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
+    respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="11.1.2.3", timespan=tspan)
@@ -235,6 +236,7 @@ def test_ip_summary_notebooklet_all(
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
+    respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)
@@ -300,6 +302,7 @@ def test_ip_summary_mde_data(
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
+    respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)

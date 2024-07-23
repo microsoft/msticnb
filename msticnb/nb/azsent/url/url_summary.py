@@ -6,22 +6,23 @@
 """Notebooklet for URL Summary."""
 from collections import Counter
 from os.path import exists
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple, cast
 
 import dns.resolver
 import numpy as np
 import pandas as pd
 import tldextract
 from IPython.display import Image, display
-from whois import whois  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
     from msticpy import nbwidgets
     from msticpy.context.domain_utils import DomainValidator, screenshot
+    from msticpy.context.ip_utils import ip_whois as whois
     from msticpy.vis.timeline import display_timeline, display_timeline_values
 except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
+    from whois import whois  # type: ignore
     from msticpy.sectools.domain_utils import DomainValidator, screenshot
     from msticpy.nbtools import nbwidgets
     from msticpy.nbtools.nbdisplay import display_timeline, display_timeline_values
@@ -95,7 +96,7 @@ class URLSummary(Notebooklet):
 
     # pylint: disable=too-many-branches, too-many-locals, too-many-statements
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
-    def run(  # noqa:MC0001
+    def run(  # noqa:MC0001, C901
         self,
         value: Any = None,
         data: Optional[pd.DataFrame] = None,
@@ -285,7 +286,7 @@ class URLSummary(Notebooklet):
         """Display Domain Record."""
         if self.check_valid_result_data("domain_record", silent=True):
             display(
-                self._last_result.domain_record.T.style.applymap(  # type: ignore
+                self._last_result.domain_record.T.style.map(  # type: ignore
                     color_domain_record_cells,
                     subset=pd.IndexSlice[["Page Rank", "Domain Name Entropy"], 0],
                 )
@@ -486,6 +487,7 @@ def _domain_whois_record(domain, ti_prov):
 
         # Remove duplicate Name Server records
         for server in whois_result["name_servers"]:
+            # pylint: disable=unpacking-non-sequence
             _, ns_domain, ns_tld = tldextract.extract(server)
             ns_dom = ns_domain.lower() + "." + ns_tld.lower()
             if domain not in ns_domains:

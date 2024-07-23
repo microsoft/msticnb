@@ -209,7 +209,7 @@ class IpAddressSummary(Notebooklet):
 
     # pylint: disable=too-many-branches, too-many-statements
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
-    def run(  # noqa: MC0001
+    def run(  # noqa: MC0001,C901
         self,
         value: Any = None,
         data: Optional[pd.DataFrame] = None,

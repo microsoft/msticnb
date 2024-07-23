@@ -195,7 +195,7 @@ class EnrichAlerts(Notebooklet):
                     ["StartTimeUtc", "AlertName", "Severity", "TI Risk", "Description"]
                 ]
                 .sort_values(by=["StartTimeUtc"])
-                .style.applymap(_color_cells)
+                .style.map(_color_cells)
                 .hide_index()
             )
         if "details" in self.options:
@@ -241,7 +241,7 @@ def _alert_picker(data, ti_prov, secondary, silent: bool, geo_lookup: Any = None
                         ["Ioc", "IocType", "Provider", "Result", "Severity", "Details"]
                     ]
                     .reset_index()
-                    .style.applymap(_color_cells)
+                    .style.map(_color_cells)
                     .hide_index()
                 )
                 ti_ips = ti_data[ti_data["IocType"] == "ipv4"]
