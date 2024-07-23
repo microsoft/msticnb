@@ -161,8 +161,10 @@ class URLSummary(Notebooklet):
             self._last_result = result
 
         self.url = value.strip().lower()
-        _, domain, tld = tldextract.extract(self.url)
-        domain = f"{domain.lower()}.{tld.lower()}"
+
+        extracted_result = tldextract.extract(self.url)
+        domain = extracted_result.registered_domain
+
         domain_validator = DomainValidator()
         validated = domain_validator.validate_tld(domain)
 
@@ -174,7 +176,7 @@ class URLSummary(Notebooklet):
             if "tilookup" in self.data_providers.providers:
                 ti_prov = self.data_providers.providers["tilookup"]
             else:
-                raise MsticnbDataProviderError("No TI providers avaliable")
+                raise MsticnbDataProviderError("No TI providers available")
             ti_results, ti_results_merged = get_ti_results(
                 ti_prov, result.summary, "URL"
             )

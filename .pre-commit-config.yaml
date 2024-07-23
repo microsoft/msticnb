@@ -7,7 +7,7 @@ repos:
     -   id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
   - repo: https://github.com/ambv/black
-    rev: 22.1.0
+    rev: 24.4.2
     hooks:
       - id: black
         language: python
@@ -15,14 +15,14 @@ repos:
           - -t
           - py36
   - repo: https://github.com/PyCQA/pylint
-    rev: v2.12.2
+    rev: v3.2.4
     hooks:
       - id: pylint
         args:
           - --disable=E0401,W0511,duplicate-code
           - --ignore-patterns=test_
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.9.2
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
     hooks:
       - id: flake8
         args:
@@ -30,7 +30,7 @@ repos:
           - --max-line-length=90
           - --exclude=tests,test*.py
   - repo: https://github.com/pycqa/isort
-    rev: 5.10.1
+    rev: 5.13.2
     hooks:
       - id: isort
         name: isort (python)
