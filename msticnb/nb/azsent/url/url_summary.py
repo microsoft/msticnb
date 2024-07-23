@@ -6,7 +6,7 @@
 """Notebooklet for URL Summary."""
 from collections import Counter
 from os.path import exists
-from typing import Any, Dict, Iterable, List, Optional, Tuple, cast
+from typing import Any, Dict, Iterable, List, Optional
 
 import dns.resolver
 import numpy as np
