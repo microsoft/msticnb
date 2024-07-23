@@ -132,6 +132,7 @@ def test_ip_summary_notebooklet(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
     ).respond(200, json=_OTX_RESP)
     respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
+    respx.get(re.compile(r"https://api\.greynoise\.io.*")).respond(404)
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
@@ -230,6 +231,7 @@ def test_ip_summary_notebooklet_all(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
     ).respond(200, json=_OTX_RESP)
     respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
+    respx.get(re.compile(r"https://api\.greynoise\.io.*")).respond(404)
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
@@ -294,6 +296,7 @@ def test_ip_summary_mde_data(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
     ).respond(200, json=_OTX_RESP)
     respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
+    respx.get(re.compile(r"https://api\.greynoise\.io.*")).respond(404)
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
