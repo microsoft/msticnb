@@ -281,17 +281,39 @@ def _get_win_security_events(qry_prov, host_name, timespan):
 
 @set_text(docs=_CELL_DOCS, key="display_event_pivot")
 def _display_event_pivot(event_pivot):
-    display(
-        event_pivot.style.map(lambda x: "color: white" if x == 0 else "")
-        .map(
-            lambda x: "background-color: lightblue"
-            if not isinstance(x, str) and x > 0
-            else ""
+    if pd.__version__ < "2.1.0":
+        styled_data = (
+            event_pivot.style.applymap(lambda x: "color: white" if x == 0 else "")
+            .applymap(
+                lambda x: (
+                    "background-color: lightblue"
+                    if not isinstance(x, str) and x > 0
+                    else ""
+                )
+            )
+            .set_properties(
+                subset=["Activity"], **{"width": "400px", "text-align": "left"}
+            )
+            .highlight_max(axis=1)
+            .hide(axis="index")
         )
-        .set_properties(subset=["Activity"], **{"width": "400px", "text-align": "left"})
-        .highlight_max(axis=1)
-        .hide(axis="index")
-    )
+    else:
+        styled_data = (
+            event_pivot.style.map(lambda x: "color: white" if x == 0 else "")
+            .map(
+                lambda x: (
+                    "background-color: lightblue"
+                    if not isinstance(x, str) and x > 0
+                    else ""
+                )
+            )
+            .set_properties(
+                subset=["Activity"], **{"width": "400px", "text-align": "left"}
+            )
+            .highlight_max(axis=1)
+            .hide(axis="index")
+        )
+    display(styled_data)
 
 
 # %%
@@ -408,17 +430,39 @@ def _create_acct_event_pivot(account_event_data):
 
 @set_text(docs=_CELL_DOCS, key="display_acct_event_pivot")
 def _display_acct_event_pivot(event_pivot_df):
-    display(
-        event_pivot_df.style.map(lambda x: "color: white" if x == 0 else "")
-        .map(
-            lambda x: "background-color: lightblue"
-            if not isinstance(x, str) and x > 0
-            else ""
+    if pd.__version__ < "2.1.0":
+        styled_data = (
+            event_pivot_df.style.applymap(lambda x: "color: white" if x == 0 else "")
+            .applymap(
+                lambda x: (
+                    "background-color: lightblue"
+                    if not isinstance(x, str) and x > 0
+                    else ""
+                )
+            )
+            .set_properties(
+                subset=["Activity"], **{"width": "400px", "text-align": "left"}
+            )
+            .highlight_max(axis=1)
+            .hide(axis="index")
         )
-        .set_properties(subset=["Activity"], **{"width": "400px", "text-align": "left"})
-        .highlight_max(axis=1)
-        .hide(axis="index")
-    )
+    else:
+        styled_data = (
+            event_pivot_df.style.map(lambda x: "color: white" if x == 0 else "")
+            .map(
+                lambda x: (
+                    "background-color: lightblue"
+                    if not isinstance(x, str) and x > 0
+                    else ""
+                )
+            )
+            .set_properties(
+                subset=["Activity"], **{"width": "400px", "text-align": "left"}
+            )
+            .highlight_max(axis=1)
+            .hide(axis="index")
+        )
+    display(styled_data)
 
 
 @set_text(docs=_CELL_DOCS, key="display_acct_mgmt_timeline")
