@@ -15,3 +15,18 @@ pipelines:
           lastModifiedDate: 2024-09-20
         armory:
           lastModifiedDate: 2024-09-20
+  27:
+    retail:
+      source:
+        credscan:
+          lastModifiedDate: 2024-09-20
+        policheck:
+          lastModifiedDate: 2024-09-20
+        eslint:
+          lastModifiedDate: 2024-09-20
+        bandit:
+          lastModifiedDate: 2024-09-20
+        psscriptanalyzer:
+          lastModifiedDate: 2024-09-20
+        armory:
+          lastModifiedDate: 2024-09-20
