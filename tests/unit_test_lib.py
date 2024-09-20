@@ -141,16 +141,16 @@ class TILookupMock:
         for i in range(3):
             hit = random.randint(1, 10) > 5
 
-            result_args = dict(
-                Provider=f"TIProv-{i}",
-                Ioc=observable,
-                IocType=ioc_type,
-                QuerySubtype="mock",
-                Result=True,
-                Severity=2 if hit else 0,
-                Details=f"Details for {observable}",
-                RawResult=f"Raw details for {observable}",
-            )
+            result_args = {
+                "Provider": f"TIProv-{i}",
+                "Ioc": observable,
+                "IocType": ioc_type,
+                "QuerySubtype": "mock",
+                "Result": True,
+                "Severity": 2 if hit else 0,
+                "Details": f"Details for {observable}",
+                "RawResult": f"Raw details for {observable}",
+            }
             if check_mp_version("2.0"):
                 result_args["sanitized_value"] = observable
             else:
@@ -158,7 +158,7 @@ class TILookupMock:
             result_list.append(result_args)
         return pd.DataFrame(result_list)
 
-    def lookup_iocs(self, data, obs_col: Optional[str] = None, **kwargs):
+    def lookup_iocs(self, data, ioc_col: Optional[str] = None, **kwargs):
         """Lookup fake TI."""
         del kwargs
         item_result: List[pd.DataFrame] = []
@@ -169,7 +169,7 @@ class TILookupMock:
             )
         elif isinstance(data, pd.DataFrame):
             item_result.extend(
-                self.lookup_ioc(observable=row[obs_col]) for row in data.itertuples()
+                self.lookup_ioc(observable=row[ioc_col]) for row in data.itertuples()
             )
         elif isinstance(data, list):
             item_result.extend(self.lookup_ioc(observable=obs) for obs in data)
