@@ -27,6 +27,7 @@ from ....unit_test_lib import (
     TILookupMock,
     get_test_data_path,
 )
+from .test_ip_summary import OTX_RESP
 
 # pylint: disable=no-member
 
@@ -89,6 +90,15 @@ def test_network_flow_summary_notebooklet(
     #     LocalData_query_paths=[test_data],
     # )
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
+    respx.get(
+        re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
+    ).respond(200, json=OTX_RESP)
+    respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
+    respx.get(re.compile(r"https://api\.greynoise\.io.*")).respond(404)
+    respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
+        200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
+    )
+    respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
 
     test_nb = nblts.azsent.network.NetworkFlowSummary()
     tspan = TimeSpan(period="1D")

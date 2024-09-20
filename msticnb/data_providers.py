@@ -351,7 +351,10 @@ class DataProviders:
             prov_kwargs_args = self._get_provider_kwargs(provider, **kwargs)
 
             # instantiate the provider class (sending all kwargs)
-            created_provider = provider_defn.prov_class(provider, **prov_kwargs_args)
+            provider_class = provider_defn.prov_class
+            if "data_environment" in inspect.signature(provider_class).parameters:
+                prov_kwargs_args["data_environment"] = provider
+            created_provider = provider_defn.prov_class(**prov_kwargs_args)
             if created_provider.connected:
                 return created_provider
             # get the args required by connect function

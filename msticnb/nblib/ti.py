@@ -42,7 +42,7 @@ def get_ti_results(
     ti_merged_df = None
     iocs = data[col].dropna().unique()
     nb_markdown(f"Querying TI for {len(iocs)} indicators...")
-    ti_results = ti_lookup.lookup_iocs(data=data, obs_col=col)
+    ti_results = ti_lookup.lookup_iocs(data=data, ioc_col=col)
     if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
         ti_results = ti_results[ti_results["Severity"].isin(["warning", "high"])]
         ti_merged_df = data.merge(ti_results, how="inner", left_on=col, right_on="Ioc")

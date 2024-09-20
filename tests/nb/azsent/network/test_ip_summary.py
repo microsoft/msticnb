@@ -130,7 +130,7 @@ def test_ip_summary_notebooklet(
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
     respx.get(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
-    ).respond(200, json=_OTX_RESP)
+    ).respond(200, json=OTX_RESP)
     respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
     respx.get(re.compile(r"https://api\.greynoise\.io.*")).respond(404)
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
@@ -230,7 +230,7 @@ def test_ip_summary_notebooklet_all(
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
     respx.get(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
-    ).respond(200, json=_OTX_RESP)
+    ).respond(200, json=OTX_RESP)
     respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
     respx.get(re.compile(r"https://api\.greynoise\.io.*")).respond(404)
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
@@ -296,7 +296,7 @@ def test_ip_summary_mde_data(
     respx.get(re.compile(r"http://rdap\.arin\.net/.*")).respond(200, json=rdap_response)
     respx.get(
         re.compile(r"https://otx\.alienvault.*|https://www\.virustotal.*")
-    ).respond(200, json=_OTX_RESP)
+    ).respond(200, json=OTX_RESP)
     respx.get(re.compile(r"https://check\.torproject\.org.*")).respond(404)
     respx.get(re.compile(r"https://api\.greynoise\.io.*")).respond(404)
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
@@ -331,7 +331,7 @@ def test_ip_summary_mde_data(
     check.is_instance(result.ti_results, pd.DataFrame)
 
 
-_OTX_RESP = {
+OTX_RESP = {
     "ioc_param": "url",
     "response": {
         "response": "Found stuff",

@@ -963,7 +963,11 @@ def _populate_host_entity(result, geo_lookup=None):
 # Public IP functions
 def _get_whois(src_ip, result):
     """Get WhoIs data and split out networks."""
-    _, whois_dict = get_whois_info(src_ip)
+    whois_result = get_whois_info(src_ip)
+    if hasattr(whois_result, "properties"):
+        whois_dict = whois_result.properties
+    else:
+        whois_dict = whois_result[1]
     result.whois = pd.DataFrame(whois_dict)
     result.whois_nets = pd.DataFrame(whois_dict.get("nets", []))
     if df_has_data(result.whois):
