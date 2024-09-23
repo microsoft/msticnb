@@ -266,7 +266,9 @@ class URLSummary(Notebooklet):
                     start=timespan.start,
                     end=timespan.end,
                     url="com",
-                    add_query_items="| summarize sum(SentBytes) by RequestURL, bin(TimeGenerated, 10m)",
+                    add_query_items=(
+                        "| summarize sum(SentBytes) by RequestURL, bin(TimeGenerated, 10m)"
+                    ),
                 )
                 result.flow_graph = display_timeline_values(
                     flow_graph_data,

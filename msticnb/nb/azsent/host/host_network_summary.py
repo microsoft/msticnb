@@ -87,7 +87,7 @@ class HostNetworkSummary(Notebooklet):
         """Initialize the Host Network Summary notebooklet."""
         super().__init__(*args, **kwargs)
 
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches, too-many-locals
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001, C901
         self,
@@ -153,7 +153,6 @@ class HostNetworkSummary(Notebooklet):
         )
 
         if isinstance(value, Host):
-
             host_name = value.HostName
             ip_addr = value.IpAddress.Address if "IpAddress" in value else None
         elif isinstance(value, tuple):
