@@ -141,6 +141,7 @@ def test_ip_summary_notebooklet(
     respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
     tspan = TimeSpan(period="1D")
 
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     assert test_nb.get_provider("tilookup") is not None
     assert (
         test_nb.get_provider("tilookup") is test_nb.data_providers.providers["tilookup"]
@@ -188,6 +189,7 @@ def test_ip_summary_notebooklet_internal(
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
 
     tspan = TimeSpan(period="1D")
 
@@ -245,6 +247,7 @@ def test_ip_summary_notebooklet_all(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
     respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)
@@ -311,6 +314,7 @@ def test_ip_summary_mde_data(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
     respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)
