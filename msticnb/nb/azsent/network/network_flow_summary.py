@@ -326,7 +326,7 @@ class NetworkFlowSummary(Notebooklet):
         self._last_result.ti_results = _lookup_ip_ti(
             flows_df=self._last_result.flow_index_data,
             selected_ips=selected_ips,
-            ti_lookup=self.data_providers["tilookup"],
+            ti_lookup=self.get_provider("tilookup"),
         )
 
     def show_selected_asn_map(self) -> foliummap.FoliumMap:
@@ -586,10 +586,12 @@ def _get_source_host_asns(host_entity):
     host_asns = []
     for ip_entity in host_ips:
         if get_ip_type(ip_entity.Address) == "Public":
-            ip_entity.ASNDescription, ip_entity.ASNDetails = get_whois_info(
-                ip_entity.Address
-            )
-            host_asns.append(ip_entity.ASNDescription)
+            whois_result = get_whois_info(ip_entity)
+            if hasattr(whois_result, "properties"):
+                asn_name = whois_result.name
+            else:
+                asn_name = whois_result[0]
+            host_asns.append(asn_name)
     return host_asns
 
 

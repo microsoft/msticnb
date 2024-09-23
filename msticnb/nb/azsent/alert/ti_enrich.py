@@ -86,6 +86,16 @@ class TIEnrichResult(NotebookletResult):
         self.enriched_results: Optional[pd.DataFrame] = None
         self.picker: Optional[SelectAlert] = None
 
+    @property
+    def alert_selector(self):
+        """Return the alert picker."""
+        return self.picker
+
+    @property
+    def alert_picker(self):
+        """Return the alert picker."""
+        return self.picker
+
 
 # pylint: enable=too-few-public-methods
 # pylint: disable=too-many-branches

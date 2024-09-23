@@ -46,3 +46,12 @@ def test_output_values(nbltdata):  # pylint: disable=redefined-outer-name
         nbltdata.picker.alerts.iloc[0]["SystemAlertId"]
         == "f1ce87ca-8863-4a66-a0bd-a4d3776a7c64"
     )
+
+
+def test_nblt_display_alerts(nbltdata):  # pylint: disable=redefined-outer-name
+    """Test nblt display_alerts method."""
+    assert nbltdata.picker is not None
+    assert (
+        "f1ce87ca-8863-4a66-a0bd-a4d3776a7c64"
+        in nbltdata.picker.alerts["SystemAlertId"].unique()
+    )

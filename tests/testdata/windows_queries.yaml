@@ -89,3 +89,10 @@ sources:
     args:
       query: all_events_df.pkl
     parameters:
+  host_connections:
+    description: Host connections
+    metadata:
+      data_families: [MDE]
+    args:
+      query: mde_device_network_events.pkl
+    parameters:
