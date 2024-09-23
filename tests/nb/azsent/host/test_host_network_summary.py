@@ -14,6 +14,7 @@ import pytest
 import pytest_check as check
 import respx
 from msticpy.common.timespan import TimeSpan
+from msticpy.vis import foliummap
 
 from msticnb import data_providers, discover_modules, nblts
 
@@ -35,6 +36,7 @@ def init_notebooklets(monkeypatch):
     discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    monkeypatch.setattr(foliummap, "GeoLiteLookup", GeoIPLiteMock)
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
@@ -63,7 +65,7 @@ def rdap_response():
 
 @respx.mock
 @patch("msticpy.context.ip_utils._asn_whois_query")
-def test_url_summary_notebooklet(
+def test_host_network_summary_notebooklet(
     mock_whois, init_notebooklets, rdap_response, whois_response
 ):
     """Test basic run of notebooklet."""

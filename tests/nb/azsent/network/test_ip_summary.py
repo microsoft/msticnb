@@ -15,6 +15,7 @@ import pytest_check as check
 import respx
 from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
+from msticpy.vis import foliummap
 
 from msticnb import data_providers, discover_modules, nblts
 
@@ -88,6 +89,7 @@ def init_notebooklets(monkeypatch):
     discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    monkeypatch.setattr(foliummap, "GeoLiteLookup", GeoIPLiteMock)
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
@@ -96,7 +98,7 @@ def init_notebooklets(monkeypatch):
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def whois_response():
     """Return mock responses for Whois."""
     json_text = (
@@ -105,7 +107,7 @@ def whois_response():
     return json.loads(json_text)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def rdap_response():
     """Return mock responses for Whois."""
     json_text = (
@@ -140,6 +142,9 @@ def test_ip_summary_notebooklet(
     tspan = TimeSpan(period="1D")
 
     assert test_nb.get_provider("tilookup") is not None
+    assert (
+        test_nb.get_provider("tilookup") is test_nb.data_providers.providers["tilookup"]
+    )
     assert isinstance(test_nb.get_provider("tilookup"), TILookupMock)
 
     result = test_nb.run(value="11.1.2.3", timespan=tspan)
