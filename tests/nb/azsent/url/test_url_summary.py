@@ -14,6 +14,7 @@ import pytest
 import pytest_check as check
 import respx
 from msticpy.common.timespan import TimeSpan
+from msticpy.vis import foliummap
 
 from msticnb import data_providers, discover_modules, nblts
 
@@ -35,11 +36,18 @@ def init_notebooklets(monkeypatch):
     discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    monkeypatch.setattr(foliummap, "GeoLiteLookup", GeoIPLiteMock)
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
         LocalData_query_paths=[test_data],
         providers=["tilookup", "geolitelookup"],
+    )
+    assert isinstance(
+        nblts.azsent.url.URLSummary().get_provider("geolitelookup"), GeoIPLiteMock
+    )
+    assert isinstance(
+        nblts.azsent.url.URLSummary().get_provider("tilookup"), TILookupMock
     )
 
 

@@ -139,6 +139,9 @@ def test_ip_summary_notebooklet(
     respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
     tspan = TimeSpan(period="1D")
 
+    assert test_nb.get_provider("tilookup") is not None
+    assert isinstance(test_nb.get_provider("tilookup"), TILookupMock)
+
     result = test_nb.run(value="11.1.2.3", timespan=tspan)
     check.is_not_none(result.ip_entity)
     check.equal(result.ip_type, "Public")
