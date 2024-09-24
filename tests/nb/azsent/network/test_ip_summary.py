@@ -15,6 +15,7 @@ import pytest_check as check
 import respx
 from bokeh.models import LayoutDOM
 from msticpy.common.timespan import TimeSpan
+from msticpy.vis import foliummap
 
 from msticnb import data_providers, discover_modules, nblts
 
@@ -88,6 +89,7 @@ def init_notebooklets(monkeypatch):
     discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    monkeypatch.setattr(foliummap, "GeoLiteLookup", GeoIPLiteMock)
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],
@@ -96,7 +98,7 @@ def init_notebooklets(monkeypatch):
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def whois_response():
     """Return mock responses for Whois."""
     json_text = (
@@ -105,7 +107,7 @@ def whois_response():
     return json.loads(json_text)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def rdap_response():
     """Return mock responses for Whois."""
     json_text = (
@@ -138,6 +140,13 @@ def test_ip_summary_notebooklet(
     )
     respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
     tspan = TimeSpan(period="1D")
+
+    monkeypatch.setitem(test_nb.data_providers.providers, "tilookup", TILookupMock())
+    assert test_nb.get_provider("tilookup") is not None
+    assert (
+        test_nb.get_provider("tilookup") is test_nb.data_providers.providers["tilookup"]
+    )
+    assert isinstance(test_nb.get_provider("tilookup"), TILookupMock)
 
     result = test_nb.run(value="11.1.2.3", timespan=tspan)
     check.is_not_none(result.ip_entity)
@@ -180,6 +189,8 @@ def test_ip_summary_notebooklet_internal(
     respx.get(re.compile(r".*SecOps-Institute/Tor-IP-Addresses.*")).respond(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    monkeypatch.setitem(test_nb.data_providers.providers, "tilookup", TILookupMock())
 
     tspan = TimeSpan(period="1D")
 
@@ -237,6 +248,8 @@ def test_ip_summary_notebooklet_all(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
     respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    monkeypatch.setitem(test_nb.data_providers.providers, "tilookup", TILookupMock())
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)
@@ -303,6 +316,8 @@ def test_ip_summary_mde_data(
         200, content=b"12.34.56.78\n12.34.56.78\n12.34.56.78"
     )
     respx.get(re.compile(r"https://api\.greynoise\.io/.*")).respond(404)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
+    monkeypatch.setitem(test_nb.data_providers.providers, "tilookup", TILookupMock())
     tspan = TimeSpan(period="1D")
 
     result = test_nb.run(value="40.76.43.124", timespan=tspan, options=opts)

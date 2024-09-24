@@ -7,6 +7,7 @@
 from functools import lru_cache
 from typing import Any, Dict, Iterable, Optional
 
+import msticpy
 import pandas as pd
 from bokeh.models import LayoutDOM
 from IPython.display import display
@@ -21,6 +22,7 @@ except ImportError:
 
 from msticpy.common.timespan import TimeSpan
 from msticpy.common.utility import md
+from msticpy.datamodel.entities import Host
 
 from ...._version import VERSION
 from ....common import (
@@ -38,6 +40,7 @@ __version__ = VERSION
 __author__ = "Pete Bryan"
 
 
+_MSTICPY_VER = msticpy.__version__
 _CLS_METADATA: NBMetadata
 _CELL_DOCS: Dict[str, Any]
 _CLS_METADATA, _CELL_DOCS = read_mod_metadata(__file__, __name__)
@@ -84,7 +87,7 @@ class HostNetworkSummary(Notebooklet):
         """Initialize the Host Network Summary notebooklet."""
         super().__init__(*args, **kwargs)
 
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches, too-many-locals
     @set_text(docs=_CELL_DOCS, key="run")  # noqa: MC0001
     def run(  # noqa:MC0001, C901
         self,
@@ -149,8 +152,17 @@ class HostNetworkSummary(Notebooklet):
             notebooklet=self, description=self.metadata.description, timespan=timespan
         )
 
-        host_name = value.HostName
-        ip_addr = value.IpAddress.Address if "IpAddress" in value else None
+        if isinstance(value, Host):
+            host_name = value.HostName
+            ip_addr = value.IpAddress.Address if "IpAddress" in value else None
+        elif isinstance(value, tuple):
+            host_name, ip_addr = value
+        else:
+            raise ValueError(
+                "Could not determine host name or IP address from value parameter."
+                "Please supply host and ip address in the form of a Host entity",
+                "or tuple of (host_name, ip_address).",
+            )
 
         if not host_name and not ip_addr:
             md(f"Could not obtain unique host name from {value}. Aborting.")
@@ -170,34 +182,41 @@ class HostNetworkSummary(Notebooklet):
 
         remote_ip_col = "RemoteIP"
         local_ip_col = "LocalIP"
-        if "SrcIP" in result.flows.columns:
-            remote_ip_col = "DestIP"
-            local_ip_col = "SrcIP"
+        if "SourceIP" in result.flows.columns:
+            remote_ip_col = "DestinationIP"
+            local_ip_col = "SourceIP"
         if not result.flows.empty:
             result.flow_matrix = result.flows.mp_plot.matrix(
                 x=remote_ip_col, y=local_ip_col, title="IP Interaction", sort="asc"
             )
 
+        flows_remote_ips = result.flows[[remote_ip_col]].drop_duplicates()
+        flows_source_ips = (
+            result.flows[[local_ip_col]]
+            .drop_duplicates()
+            .rename(columns={local_ip_col: remote_ip_col})
+        )
+        flows_all = pd.concat([flows_remote_ips, flows_source_ips]).drop_duplicates()
         if "ti" in self.options:
             if "tilookup" in self.data_providers.providers:
                 ti_prov = self.data_providers.providers["tilookup"]
             else:
-                raise MsticnbDataProviderError("No TI providers avaliable")
+                raise MsticnbDataProviderError("No TI providers available")
             ti_results, ti_results_merged = get_ti_results(
-                ti_prov, result.flows, remote_ip_col
+                ti_prov, flows_all, remote_ip_col
             )
             if isinstance(ti_results, pd.DataFrame) and not ti_results.empty:
                 result.flow_ti = ti_results_merged
 
         if (
             "map" in self.options
-            and isinstance(result.flows, pd.DataFrame)
-            and not result.flows.empty
+            and isinstance(flows_all, pd.DataFrame)
+            and not flows_all.empty
         ):
-            result.flow_map = result.flows.mp_plot.folium_map(ip_column=remote_ip_col)
+            result.flow_map = flows_all.mp_plot.folium_map(ip_column=remote_ip_col)
 
         if "whois" in self.options:
-            result.flow_whois = _get_whois_data(result.flows, col=remote_ip_col)
+            result.flow_whois = _get_whois_data(flows_all, col=remote_ip_col)
 
         self._last_result = result
 
@@ -247,6 +266,8 @@ def _get_host_flows(host_name, ip_addr, qry_prov, timespan) -> Optional[pd.DataF
     if host_name:
         nb_data_wait("Host flow events")
         host_flows = qry_prov.MDE.host_connections(timespan, host_name=host_name)
+        host_flows["SourceIP"] = host_flows["LocalIP"]
+        host_flows["DestinationIP"] = host_flows["RemoteIP"]
         host_flows_csl = qry_prov.Network.host_network_connections_csl(
             timespan, host_name=host_name
         )
@@ -265,5 +286,13 @@ def _get_host_flows(host_name, ip_addr, qry_prov, timespan) -> Optional[pd.DataF
 
 def _get_whois_data(data, col) -> pd.DataFrame:
     if not data.empty:
-        data["ASN"] = data.apply(lambda x: get_whois_info(x[col], True), axis=1)
+        if _MSTICPY_VER < "2.13.0":
+            data["ASN"] = data.apply(lambda x: get_whois_info(x[col]), axis=1)
+        else:
+            data["ASN"] = data.apply(
+                lambda x: get_whois_info(x[col], True).name, axis=1
+            )
+            data["ASNProperties"] = data.apply(
+                lambda x: get_whois_info(x[col], True).properties, axis=1
+            )
     return data

@@ -17,7 +17,7 @@ except ImportError:
     # Fall back to msticpy locations prior to v2.0.0
     from msticpy.nbtools.nbwidgets import SelectAlert
 
-from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock
+from ....unit_test_lib import TEST_DATA_PATH, GeoIPLiteMock, TILookupMock
 
 
 @pytest.fixture
@@ -26,6 +26,7 @@ def nbltdata(monkeypatch):
     test_file = Path.cwd().joinpath(TEST_DATA_PATH).joinpath("alerts_list.pkl")
     discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
     data_providers.init("LocalData", providers=["tilookup", "geolitelookup"])
     test_nblt = nblts.azsent.alert.EnrichAlerts()  # pylint: disable=no-member
     test_df = pd.read_pickle(test_file)
@@ -45,4 +46,13 @@ def test_output_values(nbltdata):  # pylint: disable=redefined-outer-name
     assert (
         nbltdata.picker.alerts.iloc[0]["SystemAlertId"]
         == "f1ce87ca-8863-4a66-a0bd-a4d3776a7c64"
+    )
+
+
+def test_nblt_display_alerts(nbltdata):  # pylint: disable=redefined-outer-name
+    """Test nblt display_alerts method."""
+    assert nbltdata.picker is not None
+    assert (
+        "f1ce87ca-8863-4a66-a0bd-a4d3776a7c64"
+        in nbltdata.picker.alerts["SystemAlertId"].unique()
     )

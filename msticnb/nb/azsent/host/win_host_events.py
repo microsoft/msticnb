@@ -346,19 +346,22 @@ def _expand_event_properties(input_df):
     # the whole data set but it will result
     # in a lot of sparse columns in the output data frame.
     exp_df = input_df.apply(lambda x: pd.Series(x.EventProperties), axis=1)
-    return (
-        exp_df.drop(set(input_df.columns).intersection(exp_df.columns), axis=1)
-        .merge(
-            input_df.drop("EventProperties", axis=1),
-            how="inner",
-            left_index=True,
-            right_index=True,
+    with pd.option_context("future.no_silent_downcasting", True):
+        return (
+            exp_df.drop(set(input_df.columns).intersection(exp_df.columns), axis=1)
+            .merge(
+                input_df.drop("EventProperties", axis=1),
+                how="inner",
+                left_index=True,
+                right_index=True,
+            )
+            .replace(
+                r"^\s*$", np.nan, regex=True
+            )  # these 3 lines get rid of blank columns
+            .dropna(axis=1, how="all")
+            .infer_objects(copy=False)
+            .fillna("")
         )
-        .replace("", np.nan)  # these 3 lines get rid of blank columns
-        .infer_objects(copy=False)
-        .dropna(axis=1, how="all")
-        .fillna("")
-    )
 
 
 @set_text(docs=_CELL_DOCS, key="parse_eventdata")

@@ -421,15 +421,16 @@ class IpAddressSummary(Notebooklet):
             if geo_lookup:
                 _get_geoip_data(geo_lookup, src_ip, result)
 
+        ti_provider = self.get_provider(provider_name="tilookup")
         # TI Lookup
         if result.ip_origin == "External" or "ti" in self.options:
-            _get_ti_data(self.get_provider("tilookup"), src_ip, result)
+            _get_ti_data(ti_provider, src_ip, result)
 
         # Passive DNS
         if (
             result.ip_origin == "External" or "passive_dns" in self.options
         ) and isinstance(result.ip_address, IPv4Address):
-            _get_passv_dns(self.get_provider("tilookup"), src_ip, result)
+            _get_passv_dns(ti_provider, src_ip, result)
 
     @set_text(docs=_CELL_DOCS, key="get_az_netflow")
     def _get_azure_netflow(self, src_ip, result, timespan):
@@ -998,7 +999,7 @@ def _get_ti_data(ti_lookup, src_ip, result):
         return
     ti_results = ti_lookup.lookup_ioc(src_ip)
     result.ti_results = ti_lookup.result_to_df(ti_results)
-    warn_ti_res = len(result.ti_results.query("Severity != 'information'"))
+    warn_ti_res = len(result.ti_results.query("Severity > 0"))
     if warn_ti_res:
         nb_markdown(f"{warn_ti_res} TI result(s) of severity 'warning' or above found.")
         nb_display(result.ti_results)

@@ -215,8 +215,11 @@ class URLSummary(Notebooklet):
                     url=self.url, start=timespan.start, end=timespan.end
                 )
             )
-
-        if "dns" in self.options:
+        available_queries = set(self.query_provider.list_queries())
+        if (
+            "dns" in self.options
+            and "AzureNetwork.dns_lookups_for_domain" in available_queries
+        ):
             result.dns_results = (
                 self.query_provider.AzureNetwork.dns_lookups_for_domain(
                     domain=domain, start=timespan.start, end=timespan.end
@@ -224,41 +227,54 @@ class URLSummary(Notebooklet):
             )
 
         if "hosts" in self.options:
-            syslog_hosts = self.query_provider.LinuxSyslog.all_syslog(
-                add_query_items=f"| where SyslogMessage has '{self.url}'",
-                start=timespan.start,
-                end=timespan.end,
-            )["Computer"].unique()
-            mde_hosts = self.query_provider.MDE.host_connections(
-                time_column="TimeGenerated",
-                host_name="",
-                add_query_items=f"| where RemoteUrl has '{self.url}'",
-                start=timespan.start,
-                end=timespan.end,
-            )["DeviceName"].unique()
-            windows_hosts = self.query_provider.WindowsSecurity.list_events(
-                add_query_items=f"| where CommandLine has '{self.url}'",
-                start=timespan.start,
-                end=timespan.end,
-            )["Computer"].unique()
+            syslog_hosts = []
+            mde_hosts = []
+            windows_hosts = []
+            if "LinuxSyslog.all_syslog" in available_queries:
+                syslog_hosts = self.query_provider.LinuxSyslog.all_syslog(
+                    add_query_items=f"| where SyslogMessage has '{self.url}'",
+                    start=timespan.start,
+                    end=timespan.end,
+                )["Computer"].unique()
+            if "MDE.host_connections" in available_queries:
+                mde_hosts_df = self.query_provider.MDE.host_connections(
+                    time_column="TimeGenerated",
+                    host_name="",
+                    add_query_items=f"| where RemoteUrl has '{self.url}'",
+                    start=timespan.start,
+                    end=timespan.end,
+                )
+                if "DeviceName" in mde_hosts_df.columns:
+                    mde_hosts = mde_hosts_df["DeviceName"].unique()
+                elif "Computer" in mde_hosts_df.columns:
+                    mde_hosts = mde_hosts_df["Computer"].unique()
+            if "WindowsSecurity.list_events" in available_queries:
+                windows_hosts = self.query_provider.WindowsSecurity.list_events(
+                    add_query_items=f"| where CommandLine has '{self.url}'",
+                    start=timespan.start,
+                    end=timespan.end,
+                )["Computer"].unique()
             all_hosts = list(syslog_hosts) + list(mde_hosts) + list(windows_hosts)
             result.hosts = all_hosts
 
         if "flows" in self.options:
-            result.flows = self.query_provider.Network.network_connections_to_url(
-                start=timespan.start, end=timespan.end, url="com"
-            )
-            flow_graph_data = self.query_provider.Network.network_connections_to_url(
-                start=timespan.start,
-                end=timespan.end,
-                url="com",
-                add_query_items="| summarize sum(SentBytes) by RequestURL, bin(TimeGenerated, 10m)",
-            )
-            result.flow_graph = display_timeline_values(
-                flow_graph_data,
-                value_col="sum_SentBytes",
-                title=f"Network traffic volume to {self.url}",
-            )
+            if "Network.network_connections_to_url" in available_queries:
+                result.flows = self.query_provider.Network.network_connections_to_url(
+                    start=timespan.start, end=timespan.end, url="com"
+                )
+                flow_graph_data = self.query_provider.Network.network_connections_to_url(
+                    start=timespan.start,
+                    end=timespan.end,
+                    url="com",
+                    add_query_items=(
+                        "| summarize sum(SentBytes) by RequestURL, bin(TimeGenerated, 10m)"
+                    ),
+                )
+                result.flow_graph = display_timeline_values(
+                    flow_graph_data,
+                    value_col="sum_SentBytes",
+                    title=f"Network traffic volume to {self.url}",
+                )
 
         self._last_result = result
 
@@ -430,7 +446,7 @@ def _domain_whois_record(domain, ti_prov):
     """Build a Domain Whois Record."""
     dom_record = pd.DataFrame()
     whois_result = whois(domain)
-    if whois_result.domain_name is not None:
+    if hasattr(whois_result, "domain_name") and whois_result.domain_name is not None:
         # Create domain record from whois data
         dom_record = pd.DataFrame(
             {
@@ -517,7 +533,7 @@ def _get_ip_record(domain, domain_validator, ti_prov):
     ip_record = None
     if domain_validator.is_resolvable(domain) is True:
         try:
-            answer = dns.resolver.query(domain, "A")
+            answer = dns.resolver.resolve(domain)
         except dns.resolver.NXDOMAIN:
             md("Could not resolve IP addresses from domain.")
         resolved_domain_ip = answer[0].to_text()
@@ -525,10 +541,12 @@ def _get_ip_record(domain, domain_validator, ti_prov):
         ip_record = pd.DataFrame(
             {
                 "IP Address": [resolved_domain_ip],
-                "Domain": [ip_whois_result.get("domain_name", None)],
-                "Registrar": [ip_whois_result.get("asn_description", None)],
-                "Country": [ip_whois_result.get("country", None)],
-                "Creation Date": [ip_whois_result.get("creation_date", None)],
+                "Domain": [ip_whois_result.properties.get("domain_name", None)],
+                "Registrar": [ip_whois_result.properties.get("asn_description", None)],
+                "Country": [ip_whois_result.properties.get("country", None)],
+                "Creation Date": [
+                    ip_whois_result.properties.get("creation_date", None)
+                ],
             }
         )
     if isinstance(ip_record, pd.DataFrame) and not ip_record.empty:
@@ -558,10 +576,13 @@ def _process_previous_resolutions(ip_record, ti_prov):
         ip_ti_results = ti_prov.result_to_df(
             ti_prov.lookup_ioc(ip_record["IP Address"][0], providers=["VirusTotal"])
         )
+        prev_domains = None
         try:
-            last_10 = ip_ti_results.T["VirusTotal"]["RawResult"]["resolutions"][:10]
-            prev_domains = [record["hostname"] for record in last_10]
-        except TypeError:
+            if ip_ti_results is not None and not ip_ti_results.empty:
+                last_10 = ip_ti_results.iloc[0]["RawResult"].get("resolutions", [])
+                if isinstance(last_10, list):
+                    prev_domains = [record["hostname"] for record in last_10[:10]]
+        except (TypeError, KeyError, AttributeError):
             prev_domains = None
     else:
         prev_domains = (

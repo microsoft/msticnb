@@ -4,6 +4,8 @@
 # license information.
 # --------------------------------------------------------------------------
 """Unit test common utilities."""
+from __future__ import annotations
+
 import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -138,18 +140,19 @@ class TILookupMock:
         """Lookup fake TI."""
         ioc = ioc or kwargs.get("observable")
         result_list: List[Dict[str, Any]] = []
-        for i in range(3):
+        providers = kwargs.get("providers", ["VirusTotal", "OTX", "Tor"])
+        for provider in providers:
             hit = random.randint(1, 10) > 5
 
             result_args = {
-                "Provider": f"TIProv-{i}",
+                "Provider": provider,
                 "Ioc": observable,
                 "IocType": ioc_type,
                 "QuerySubtype": "mock",
                 "Result": True,
                 "Severity": 2 if hit else 0,
                 "Details": f"Details for {observable}",
-                "RawResult": f"Raw details for {observable}",
+                "RawResult": {"resolutions": f"Raw details for {observable}"},
             }
             if check_mp_version("2.0"):
                 result_args["sanitized_value"] = observable
@@ -169,7 +172,8 @@ class TILookupMock:
             )
         elif isinstance(data, pd.DataFrame):
             item_result.extend(
-                self.lookup_ioc(observable=row[ioc_col]) for row in data.itertuples()
+                self.lookup_ioc(observable=getattr(row, ioc_col))
+                for row in data.itertuples()
             )
         elif isinstance(data, list):
             item_result.extend(self.lookup_ioc(observable=obs) for obs in data)
@@ -179,3 +183,8 @@ class TILookupMock:
     def result_to_df(cls, ioc_lookup):
         """Redirect to original method."""
         return TILookup.result_to_df(ioc_lookup)
+
+    @property
+    def loaded_providers(self) -> List[str]:
+        """Return list of loaded providers."""
+        return ["VirusTotal", "OTX", "Tor"]
