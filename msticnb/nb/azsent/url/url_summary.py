@@ -533,7 +533,7 @@ def _get_ip_record(domain, domain_validator, ti_prov):
     ip_record = None
     if domain_validator.is_resolvable(domain) is True:
         try:
-            answer = dns.resolver.query(domain, "A")
+            answer = dns.resolver.resolve(domain)
         except dns.resolver.NXDOMAIN:
             md("Could not resolve IP addresses from domain.")
         resolved_domain_ip = answer[0].to_text()

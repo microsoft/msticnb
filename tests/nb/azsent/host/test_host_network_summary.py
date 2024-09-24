@@ -36,7 +36,7 @@ def init_notebooklets(monkeypatch):
     discover_modules()
     monkeypatch.setattr(data_providers, "GeoLiteLookup", GeoIPLiteMock)
     monkeypatch.setattr(data_providers, "TILookup", TILookupMock)
-    monkeypatch.setattr(foliummap, "GeoLiteLookup", GeoIPLiteMock)
+    monkeypatch.setattr(foliummap, "_GEO_LITE", GeoIPLiteMock())
     data_providers.init(
         query_provider="LocalData",
         LocalData_data_paths=[test_data],

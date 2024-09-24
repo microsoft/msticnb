@@ -6,7 +6,7 @@
 """IP Helper functions."""
 
 import contextlib
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from msticpy.datamodel.entities import IpAddress
@@ -55,8 +55,7 @@ def get_ip_ti(
 
 def _normalize_ip4(data, ip_col):
     ip4_rgx = r"((?:[0-9]{1,3}\.){3}[0-9]{1,3})"
-    ip4_match = data[ip_col].str.match(ip4_rgx).fillna(False).infer_objects(copy=False)
-
+    ip4_match = (data[ip_col].notna()) & (data[ip_col].str.match(ip4_rgx))
     ipv4_df = data[ip4_match]
     other_df = data[~ip4_match]
     ipv4_df = (

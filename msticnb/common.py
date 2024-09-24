@@ -14,7 +14,7 @@ from IPython.display import HTML, display
 from markdown import markdown
 from msticpy import VERSION as MP_VERSION
 from msticpy.common import utility as mp_utils
-from pkg_resources import parse_version
+from packaging.version import parse
 
 from ._version import VERSION
 from .options import get_opt
@@ -284,12 +284,12 @@ class MsticnbDataProviderError(MsticnbError):
 
 def mp_version():
     """Return currently-loaded msticpy version."""
-    return parse_version(MP_VERSION)
+    return parse(MP_VERSION)
 
 
 def check_mp_version(required_version: str) -> bool:
     """Return true if the installed version is >= `required_version`."""
-    return mp_version().major >= parse_version(required_version).major
+    return mp_version().major >= parse(required_version).major
 
 
 def check_current_result(
